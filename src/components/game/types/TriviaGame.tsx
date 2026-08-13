@@ -2,6 +2,7 @@ import { GameProps } from "@/types/game";
 import { useState, useEffect, useCallback } from "react";
 import { clsx } from "clsx";
 import { Clock, Activity } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function TriviaGame({ question, onAnswer, isSubmitting, showHint }: GameProps & { showHint?: boolean }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -88,33 +89,39 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
       case "eliminated":
         return "opacity-20 pointer-events-none scale-95 grayscale border-border bg-card text-muted-foreground";
       case "selected":
-        return "bg-yellow-500/20 border-yellow-500 text-yellow-700 dark:text-yellow-400 animate-pulse scale-[1.02] shadow-[0_0_20px_rgba(234,179,8,0.3)] z-10";
+        return "bg-yellow-500/20 border-yellow-500 text-yellow-700 dark:text-yellow-400 animate-pulse shadow-[0_0_20px_rgba(234,179,8,0.3)] z-10";
       case "correct":
-        return "bg-green-500 text-white border-green-600 scale-[1.05] shadow-[0_0_30px_rgba(34,197,94,0.5)] z-10";
+        return "bg-green-500 text-white border-green-600 shadow-[0_0_30px_rgba(34,197,94,0.5)] z-10";
       case "incorrect":
-        return "bg-destructive text-destructive-foreground border-destructive scale-[0.98] z-10";
+        return "bg-destructive text-destructive-foreground border-destructive z-10";
       case "correct_revealed":
         return "bg-green-500/20 border-green-500 text-green-700 dark:text-green-400 animate-pulse";
       case "idle_dimmed":
         return "bg-card opacity-40 border-border pointer-events-none";
       default:
-        return "bg-card hover:bg-secondary/80 text-foreground border-border hover:border-primary/50 hover:scale-[1.01] hover:shadow-md";
+        return "bg-card hover:bg-secondary/80 text-foreground border-border hover:border-primary/50 hover:shadow-md";
     }
   };
 
   const questionText = question.content.text || question.content.question || "Unknown Question";
 
   return (
-    <div className="w-full flex flex-col items-center justify-center max-w-3xl mx-auto">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.4 }}
+      className="w-full flex flex-col items-center justify-center max-w-3xl mx-auto"
+    >
       {/* Header / HUD */}
       <div className="w-full flex justify-between items-end mb-6 px-2">
-        <div>
+        <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
           <h3 className="text-2xl font-bold flex items-center gap-2">
             <Activity className="text-primary" /> Trivia
           </h3>
-        </div>
+        </motion.div>
         
-        <div className="flex flex-col items-end">
+        <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="flex flex-col items-end">
           <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1">
             <Clock size={12} /> Time
           </span>
@@ -124,50 +131,60 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
           )}>
             {timeLeft}s
           </span>
-        </div>
+        </motion.div>
       </div>
       
       {/* Question Card */}
-      <div className={clsx(
-        "w-full p-8 sm:p-12 rounded-3xl mb-8 text-2xl sm:text-3xl lg:text-4xl font-bold text-center border-2 bg-card shadow-xl transition-all duration-500",
-        selectedOption && !revealed && "border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.1)]",
-        revealed && selectedOption === question.correct_answer && "border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.2)]",
-        revealed && selectedOption !== question.correct_answer && "border-destructive/50 shadow-[0_0_40px_rgba(255,0,0,0.1)]"
-      )}>
+      <motion.div 
+        layout
+        className={clsx(
+          "w-full p-8 sm:p-12 rounded-3xl mb-8 text-2xl sm:text-3xl lg:text-4xl font-bold text-center border-2 bg-card shadow-xl transition-colors duration-500",
+          selectedOption && !revealed && "border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.1)]",
+          revealed && selectedOption === question.correct_answer && "border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.2)]",
+          revealed && selectedOption !== question.correct_answer && "border-destructive/50 shadow-[0_0_40px_rgba(255,0,0,0.1)]"
+        )}
+      >
         <span className="bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/70">
           {questionText}
         </span>
-      </div>
+      </motion.div>
       
       {/* Options Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-        {question.options.map((option, idx) => {
-          const state = getOptionState(option);
-          const classes = getOptionClasses(state);
-          
-          return (
-            <button
-              key={idx}
-              onClick={() => handleSelect(option)}
-              disabled={isSubmitting || selectedOption !== null || state === "eliminated"}
-              className={clsx(
-                "relative font-semibold py-6 px-6 rounded-2xl text-lg sm:text-xl text-left transition-all duration-300 border-2 flex items-center shadow-sm overflow-hidden",
-                classes
-              )}
-            >
-              {/* Option Letter Badge */}
-              <span className={clsx(
-                "mr-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold transition-colors",
-                state === "idle" ? "bg-muted text-muted-foreground" : "bg-black/10 dark:bg-white/10"
-              )}>
-                {String.fromCharCode(65 + idx)}
-              </span>
-              
-              <span className="flex-1 drop-shadow-sm">{option}</span>
-            </button>
-          );
-        })}
+        <AnimatePresence>
+          {question.options.map((option, idx) => {
+            const state = getOptionState(option);
+            const classes = getOptionClasses(state);
+            
+            return (
+              <motion.button
+                key={option}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 + idx * 0.1 }}
+                whileHover={state === "idle" ? { scale: 1.02 } : {}}
+                whileTap={state === "idle" ? { scale: 0.98 } : {}}
+                onClick={() => handleSelect(option)}
+                disabled={isSubmitting || selectedOption !== null || state === "eliminated"}
+                className={clsx(
+                  "relative font-semibold py-6 px-6 rounded-2xl text-lg sm:text-xl text-left transition-colors duration-300 border-2 flex items-center shadow-sm overflow-hidden",
+                  classes
+                )}
+              >
+                {/* Option Letter Badge */}
+                <span className={clsx(
+                  "mr-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold transition-colors",
+                  state === "idle" ? "bg-muted text-muted-foreground" : "bg-black/10 dark:bg-white/10"
+                )}>
+                  {String.fromCharCode(65 + idx)}
+                </span>
+                
+                <span className="flex-1 drop-shadow-sm">{option}</span>
+              </motion.button>
+            );
+          })}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }

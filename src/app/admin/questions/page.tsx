@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { addCompanyTrivia, deleteTrivia } from "./actions";
-import { HelpCircle, Trash2, Calendar } from "lucide-react";
+import { addCompanyTrivia, deleteTrivia, toggleTriviaStatus } from "./actions";
+import { HelpCircle, Trash2, Calendar, Power } from "lucide-react";
 import { revalidatePath } from "next/cache";
 
 export default async function QuestionsManagementPage() {
@@ -18,6 +18,15 @@ export default async function QuestionsManagementPage() {
     const id = formData.get("id") as string;
     if (id) {
       await deleteTrivia(id);
+    }
+  };
+
+  const handleToggle = async (formData: FormData) => {
+    "use server";
+    const id = formData.get("id") as string;
+    const currentStatus = formData.get("currentStatus") === "true";
+    if (id) {
+      await toggleTriviaStatus(id, currentStatus);
     }
   };
 
@@ -110,9 +119,21 @@ export default async function QuestionsManagementPage() {
                         <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
                           {t.target_date}
                         </span>
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {t.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                        <form action={handleToggle} className="inline">
+                          <input type="hidden" name="id" value={t.id} />
+                          <input type="hidden" name="currentStatus" value={t.is_active ? "true" : "false"} />
+                          <button 
+                            type="submit" 
+                            className={`text-xs font-bold px-2 py-0.5 rounded-full border transition-colors ${
+                              t.is_active 
+                                ? 'bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20' 
+                                : 'bg-muted text-muted-foreground border-border hover:bg-muted-foreground/10'
+                            }`}
+                            title="Toggle active status"
+                          >
+                            {t.is_active ? 'Active' : 'Inactive'}
+                          </button>
+                        </form>
                       </div>
                       <p className="font-bold text-foreground mb-2">{t.question}</p>
                       <ul className="text-sm space-y-1 text-muted-foreground">

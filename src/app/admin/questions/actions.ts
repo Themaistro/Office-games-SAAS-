@@ -66,3 +66,18 @@ export async function deleteTrivia(id: string) {
 
   revalidatePath("/admin/questions");
 }
+
+export async function toggleTriviaStatus(id: string, currentStatus: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  
+  // Admin only
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") throw new Error("Unauthorized");
+
+  const { error } = await supabase.from("company_trivia").update({ is_active: !currentStatus }).eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/questions");
+}

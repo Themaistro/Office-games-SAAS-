@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import ClientExportButton from "./ClientExportButton";
+import { resetUserStreak, updateUserDepartment } from "./actions";
 
 export default async function UsersManagementPage() {
   const supabase = await createClient();
@@ -36,6 +37,7 @@ export default async function UsersManagementPage() {
                 <th className="px-6 py-4 font-semibold">Level</th>
                 <th className="px-6 py-4 font-semibold">Total XP</th>
                 <th className="px-6 py-4 font-semibold">Streak</th>
+                <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -53,13 +55,42 @@ export default async function UsersManagementPage() {
                       <div className="text-xs text-muted-foreground">{u.email}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-primary/5 text-primary border-primary/20">
-                        {u.department || "Unassigned"}
-                      </span>
+                      <form action={updateUserDepartment} className="flex items-center gap-2">
+                        <input type="hidden" name="userId" value={u.id} />
+                        <select 
+                          name="department" 
+                          defaultValue={u.department || ""}
+                          className="text-xs rounded-md border border-input bg-transparent px-2 py-1 shadow-sm"
+                        >
+                          <option value="">Unassigned</option>
+                          <option value="Engineering">Engineering</option>
+                          <option value="Sales">Sales</option>
+                          <option value="Marketing">Marketing</option>
+                          <option value="HR">HR</option>
+                          <option value="Finance">Finance</option>
+                        </select>
+                        <button type="submit" className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-2 py-1 rounded">
+                          Save
+                        </button>
+                      </form>
                     </td>
                     <td className="px-6 py-4 font-medium">{u.current_level || 1}</td>
                     <td className="px-6 py-4 font-bold text-primary">{u.total_xp || 0}</td>
                     <td className="px-6 py-4 font-medium text-orange-500">{u.current_streak || 0} 🔥</td>
+                    <td className="px-6 py-4 text-right">
+                      <form action={async () => {
+                        "use server";
+                        await resetUserStreak(u.id);
+                      }}>
+                        <button 
+                          type="submit" 
+                          className="text-xs text-destructive hover:bg-destructive/10 px-2 py-1 rounded transition-colors"
+                          title="Reset Streak to 0"
+                        >
+                          Reset Streak
+                        </button>
+                      </form>
+                    </td>
                   </tr>
                 ))
               )}

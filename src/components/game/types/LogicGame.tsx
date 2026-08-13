@@ -2,6 +2,7 @@ import { GameProps } from "@/types/game";
 import { useState, useEffect, useCallback } from "react";
 import { clsx } from "clsx";
 import { Clock, BrainCircuit } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function LogicGame({ question, onAnswer, isSubmitting, showHint }: GameProps & { showHint?: boolean }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -73,13 +74,13 @@ export default function LogicGame({ question, onAnswer, isSubmitting, showHint }
     }
 
     if (!selectedOption) {
-       return "bg-card hover:bg-secondary/80 text-foreground border-border hover:border-primary/50 hover:scale-[1.02] hover:shadow-md";
+       return "bg-card hover:bg-secondary/80 text-foreground border-border hover:border-primary/50 hover:shadow-md";
     }
     if (selectedOption === option) {
-      if (!revealed) return "bg-primary/20 border-primary text-primary animate-pulse scale-[1.02] shadow-lg shadow-primary/30 z-10";
+      if (!revealed) return "bg-primary/20 border-primary text-primary animate-pulse shadow-lg shadow-primary/30 z-10";
       return option === question.correct_answer 
-        ? "bg-green-500 text-white border-green-600 scale-[1.05] shadow-xl shadow-green-500/50 z-20"
-        : "bg-destructive text-destructive-foreground border-destructive scale-[0.98] z-10";
+        ? "bg-green-500 text-white border-green-600 shadow-xl shadow-green-500/50 z-20"
+        : "bg-destructive text-destructive-foreground border-destructive z-10";
     }
     
     if (revealed && option === question.correct_answer) {
@@ -90,15 +91,21 @@ export default function LogicGame({ question, onAnswer, isSubmitting, showHint }
   };
 
   return (
-    <div className="w-full flex flex-col items-center justify-center max-w-4xl mx-auto px-2">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{ duration: 0.4 }}
+      className="w-full flex flex-col items-center justify-center max-w-4xl mx-auto px-2"
+    >
       {/* Header */}
       <div className="w-full flex justify-between items-end mb-8 px-2">
-        <div>
+        <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
           <h3 className="text-2xl font-bold flex items-center gap-2">
             <BrainCircuit className="text-primary" /> Logic Challenge
           </h3>
-        </div>
-        <div className="flex flex-col items-end">
+        </motion.div>
+        <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="flex flex-col items-end">
           <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1">
             <Clock size={12} /> Time
           </span>
@@ -108,69 +115,91 @@ export default function LogicGame({ question, onAnswer, isSubmitting, showHint }
           )}>
             {timeLeft}s
           </span>
-        </div>
+        </motion.div>
       </div>
       
       {/* Sequence Display */}
-      <div className={clsx(
-        "w-full bg-card border-2 shadow-xl rounded-3xl p-8 sm:p-12 mb-10 flex flex-wrap items-center justify-center gap-4 sm:gap-6 min-h-[240px] transition-all duration-500 relative overflow-hidden",
-        !selectedOption && "border-border/50",
-        selectedOption && !revealed && "border-primary/50 shadow-2xl shadow-primary/10",
-        revealed && selectedOption === question.correct_answer && "border-green-500 shadow-2xl shadow-green-500/20 bg-green-500/5",
-        revealed && selectedOption !== question.correct_answer && "border-destructive/50 shadow-2xl shadow-destructive/10 bg-destructive/5"
-      )}>
+      <motion.div 
+        layout
+        className={clsx(
+          "w-full bg-card border-2 shadow-xl rounded-3xl p-8 sm:p-12 mb-10 flex flex-wrap items-center justify-center gap-4 sm:gap-6 min-h-[240px] transition-colors duration-500 relative overflow-hidden",
+          !selectedOption && "border-border/50",
+          selectedOption && !revealed && "border-primary/50 shadow-2xl shadow-primary/10",
+          revealed && selectedOption === question.correct_answer && "border-green-500 shadow-2xl shadow-green-500/20 bg-green-500/5",
+          revealed && selectedOption !== question.correct_answer && "border-destructive/50 shadow-2xl shadow-destructive/10 bg-destructive/5"
+        )}
+      >
         {/* Ambient background glow */}
         <div className="absolute inset-0 opacity-10 bg-gradient-to-br from-primary/20 via-transparent to-transparent pointer-events-none" />
 
         {isSequence ? (
-          sequenceItems.map((item, idx) => {
-            const isPlaceholder = item.includes('?');
-            let displayItem = item;
-            
-            // If this is the ?, dynamically replace it with the selected option
-            if (isPlaceholder && selectedOption) {
-              displayItem = selectedOption;
-            }
+          <AnimatePresence>
+            {sequenceItems.map((item, idx) => {
+              const isPlaceholder = item.includes('?');
+              let displayItem = item;
+              
+              // If this is the ?, dynamically replace it with the selected option
+              if (isPlaceholder && selectedOption) {
+                displayItem = selectedOption;
+              }
 
-            return (
-              <div 
-                key={idx}
-                className={clsx(
-                  "flex items-center justify-center min-w-[72px] h-[72px] sm:min-w-[96px] sm:h-[96px] px-4 rounded-2xl text-3xl sm:text-5xl font-black font-mono shadow-sm transition-all duration-500 border-2 z-10",
-                  !isPlaceholder && "bg-secondary border-border/50 text-foreground drop-shadow-sm",
-                  isPlaceholder && !selectedOption && "bg-primary/10 border-primary/30 text-primary animate-pulse border-dashed drop-shadow-sm",
-                  isPlaceholder && selectedOption && !revealed && "bg-primary text-primary-foreground border-primary scale-110 shadow-lg shadow-primary/50",
-                  isPlaceholder && revealed && selectedOption === question.correct_answer && "bg-green-500 border-green-500 text-white scale-110 shadow-xl shadow-green-500/50",
-                  isPlaceholder && revealed && selectedOption !== question.correct_answer && "bg-destructive border-destructive text-white scale-95 shadow-inner"
-                )}
-              >
-                {displayItem}
-              </div>
-            );
-          })
+              return (
+                <motion.div 
+                  key={`${idx}-${displayItem}`}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: isPlaceholder && selectedOption && !revealed ? 1.1 : 1, opacity: 1 }}
+                  transition={{ delay: idx * 0.1, type: "spring", bounce: 0.4 }}
+                  className={clsx(
+                    "flex items-center justify-center min-w-[72px] h-[72px] sm:min-w-[96px] sm:h-[96px] px-4 rounded-2xl text-3xl sm:text-5xl font-black font-mono shadow-sm transition-colors duration-500 border-2 z-10",
+                    !isPlaceholder && "bg-secondary border-border/50 text-foreground drop-shadow-sm",
+                    isPlaceholder && !selectedOption && "bg-primary/10 border-primary/30 text-primary animate-pulse border-dashed drop-shadow-sm",
+                    isPlaceholder && selectedOption && !revealed && "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/50",
+                    isPlaceholder && revealed && selectedOption === question.correct_answer && "bg-green-500 border-green-500 text-white shadow-xl shadow-green-500/50",
+                    isPlaceholder && revealed && selectedOption !== question.correct_answer && "bg-destructive border-destructive text-white scale-95 shadow-inner"
+                  )}
+                >
+                  {displayItem}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         ) : (
-          <div className="text-2xl sm:text-3xl font-bold text-center z-10 leading-relaxed max-w-2xl">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-2xl sm:text-3xl font-bold text-center z-10 leading-relaxed max-w-2xl"
+          >
             {questionText}
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
       
       {/* Options Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
-        {question.options.map((option, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleSelect(option)}
-            disabled={isSubmitting || selectedOption !== null || eliminatedOptions.includes(option)}
-            className={clsx(
-              "font-bold py-6 sm:py-8 rounded-2xl text-xl sm:text-2xl transition-all duration-300 border-2 shadow-sm relative overflow-hidden flex items-center justify-center",
-              getOptionClasses(option)
-            )}
-          >
-            <span className="drop-shadow-sm z-10">{option}</span>
-          </button>
-        ))}
+        <AnimatePresence>
+          {question.options.map((option, idx) => {
+            const isEliminated = eliminatedOptions.includes(option);
+            return (
+              <motion.button
+                key={option}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 + idx * 0.1 }}
+                whileHover={!selectedOption && !isEliminated ? { scale: 1.02 } : {}}
+                whileTap={!selectedOption && !isEliminated ? { scale: 0.95 } : {}}
+                onClick={() => handleSelect(option)}
+                disabled={isSubmitting || selectedOption !== null || isEliminated}
+                className={clsx(
+                  "font-bold py-6 sm:py-8 rounded-2xl text-xl sm:text-2xl transition-colors duration-300 border-2 shadow-sm relative overflow-hidden flex items-center justify-center",
+                  getOptionClasses(option)
+                )}
+              >
+                <span className="drop-shadow-sm z-10">{option}</span>
+              </motion.button>
+            );
+          })}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }
