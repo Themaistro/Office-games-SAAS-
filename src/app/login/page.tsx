@@ -1,0 +1,103 @@
+import { login, signup } from "./actions";
+import { Brain } from "lucide-react";
+
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: { error?: string };
+}) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8 rounded-2xl bg-card p-8 shadow-sm border border-border">
+        <div className="flex flex-col items-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground mb-4 shadow-sm">
+            <Brain size={28} />
+          </div>
+          <h2 className="text-center text-2xl font-bold tracking-tight text-foreground">
+            Daily Brain Arena
+          </h2>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
+            Sign in to start your daily 15-minute mission.
+          </p>
+        </div>
+
+        <form className="mt-8 space-y-6">
+          {searchParams?.error && (
+            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive text-center">
+              {searchParams.error}
+            </div>
+          )}
+          
+          <div className="space-y-4 rounded-md">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="email">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                placeholder="employee@company.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="password">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <a href="#" className="font-medium text-primary hover:text-primary/80 transition-colors">
+                Forgot your password?
+              </a>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button
+              formAction={login}
+              className="group relative flex w-full justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors shadow-sm"
+            >
+              Sign In
+            </button>
+            
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+            
+            <button
+              type="button"
+              className="group relative flex w-full justify-center rounded-md bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 transition-colors shadow-sm"
+            >
+              Sign in with Google
+            </button>
+          </div>
+        </form>
+        
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          Don't have an account?{" "}
+          <button formAction={signup} className="font-medium text-primary hover:text-primary/80 transition-colors">
+            Create account
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
