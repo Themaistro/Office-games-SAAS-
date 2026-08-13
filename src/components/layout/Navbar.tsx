@@ -9,6 +9,12 @@ export default async function Navbar() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  let profile = null;
+  if (user) {
+    const { data } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    profile = data;
+  }
+
   const handleSignOut = async () => {
     "use server";
     const supabase = await createClient();
@@ -25,7 +31,7 @@ export default async function Navbar() {
               <Brain size={20} />
             </div>
             <span className="text-xl font-bold tracking-tight text-foreground hidden sm:inline-block">
-              Daily Brain Arena
+              Office Games
             </span>
           </Link>
         </div>
@@ -33,6 +39,14 @@ export default async function Navbar() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              {profile?.role === "admin" && (
+                <Link 
+                  href="/admin/games" 
+                  className="flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors"
+                >
+                  <span className="hidden sm:inline-block">Admin Panel</span>
+                </Link>
+              )}
               <Link 
                 href="/leaderboard" 
                 className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"

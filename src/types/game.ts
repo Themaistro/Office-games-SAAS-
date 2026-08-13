@@ -34,10 +34,16 @@ export interface GameProps {
   question: Question;
   onAnswer: (
     answer: string, 
-    optionsOrIsCorrect?: boolean | { customIsCorrect?: boolean; customTimeSpent?: number; isPerfect?: boolean }, 
+    optionsOrIsCorrect?: boolean | { 
+      customIsCorrect?: boolean; 
+      customTimeSpent?: number; 
+      isPerfect?: boolean;
+      customScoreModifiers?: { mistakes?: number; customSpeedBonus?: number };
+    }, 
     timeTakenSeconds?: number
   ) => void;
   isSubmitting?: boolean;
+  showHint?: boolean;
 }
 
 export type GameComponentProps = GameProps;

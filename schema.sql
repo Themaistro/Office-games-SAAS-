@@ -10,6 +10,8 @@ create table public.profiles (
   full_name text,
   avatar_url text,
   role text check (role in ('employee', 'admin')) default 'employee',
+  department text,
+  position text,
   team_id uuid, -- Will reference teams table later
   total_xp integer default 0,
   current_level integer default 1,
@@ -177,12 +179,14 @@ create trigger handle_profiles_updated_at
 create or replace function public.handle_new_user() 
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, full_name, avatar_url)
+  insert into public.profiles (id, email, full_name, avatar_url, department, position)
   values (
     new.id,
     new.email,
     new.raw_user_meta_data->>'full_name',
-    new.raw_user_meta_data->>'avatar_url'
+    new.raw_user_meta_data->>'avatar_url',
+    new.raw_user_meta_data->>'department',
+    new.raw_user_meta_data->>'position'
   );
   return new;
 end;

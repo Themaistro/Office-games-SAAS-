@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Play, Flame, Shield, Trophy } from "lucide-react";
 import Link from "next/link";
+import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -18,6 +19,12 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
+  // If the user is an admin, they should not see the employee dashboard.
+  // Redirect them directly to the admin panel.
+  if (profile?.role === "admin") {
+    redirect("/admin/games");
+  }
+
   // Check if they have an active or completed session today
   // For MVP, we'll just determine timezone dynamically if needed, 
   // but let's query via UTC date boundaries for now or let PG do it based on timezone.
@@ -30,11 +37,25 @@ export default async function DashboardPage() {
     .eq("date", today)
     .maybeSingle();
 
-  const isCompleted = todaySession?.status === "completed" || todaySession?.status === "expired";
-  const isInProgress = todaySession?.status === "in_progress";
+  const { data: activeGames } = await supabase
+    .from("game_types")
+    .select("id")
+    .eq("is_active", true);
+
+  const { data: announcements } = await supabase
+    .from("announcements")
+    .select("*")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  const isCompleted = todaySession?.is_completed || todaySession?.status === "completed" || todaySession?.status === "expired";
+  const isInProgress = todaySession && !isCompleted;
   
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-5xl">
+      {/* Announcements Banner */}
+      <AnnouncementBanner announcements={announcements || []} />
+
       {/* Welcome Banner */}
       <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -73,7 +94,7 @@ export default async function DashboardPage() {
           <p className="text-muted-foreground max-w-md mx-auto mb-8">
             {isCompleted 
               ? "You've completed your daily mission. Great job! Come back tomorrow."
-              : "You have 15 minutes to complete as many brain challenges as you can. Ready?"}
+              : "Play at your own pace! Complete as many brain challenges as you can. Ready?"}
           </p>
           
           {isCompleted ? (
@@ -96,14 +117,34 @@ export default async function DashboardPage() {
               </div>
             </div>
           ) : (
-            <Link
-              href={isInProgress ? "/play" : "/play/start"}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
-            >
-              <Play fill="currentColor" size={20} />
-              {isInProgress ? "RESUME CHALLENGE" : "START CHALLENGE"}
-            </Link>
+            <div className="flex flex-col gap-4">
+              <Link
+                href={isInProgress ? "/play" : "/play/start"}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+              >
+                <Play fill="currentColor" size={20} />
+                {isInProgress ? "RESUME CHALLENGE" : "START CHALLENGE"}
+              </Link>
+            </div>
           )}
+
+          {/* DEV MODE TEST BUTTON ALWAYS AVAILABLE ON DASHBOARD */}
+          <div className="mt-6 border-t border-border/50 pt-6 w-full max-w-sm flex flex-col items-center">
+             <form action={async () => {
+               "use server";
+               const { startTestSession } = await import('@/app/play/actions');
+               const { redirect } = await import('next/navigation');
+               const result = await startTestSession();
+               if (result.success) {
+                 redirect('/play');
+               }
+             }}>
+               <button type="submit" className="flex items-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-bold py-3 px-6 rounded-xl transition-all border border-border text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95">
+                 <Trophy size={16} /> TEST ALL GAMES (DEV MODE)
+               </button>
+             </form>
+             <p className="text-xs text-muted-foreground text-center mt-3">Clicking this instantly starts a test session with 1 of every active game type.</p>
+          </div>
         </div>
       </div>
 

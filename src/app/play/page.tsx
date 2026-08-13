@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, Trophy, AlertTriangle } from "lucide-react";
+import { Clock, Trophy, AlertTriangle, Home } from "lucide-react";
 import GameEngine from "@/components/game/GameEngine";
 import { startDailySession, fetchSessionQuestions, endSession } from "./actions";
 import { SessionQuestion } from "@/types/game";
@@ -11,7 +11,6 @@ export default function PlayPage() {
   const router = useRouter();
   const [session, setSession] = useState<any>(null);
   const [questions, setQuestions] = useState<SessionQuestion[]>([]);
-  const [timeLeft, setTimeLeft] = useState<number>(900);
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
 
@@ -27,19 +26,6 @@ export default function PlayPage() {
         const activeSession = result.session;
         setSession(activeSession);
 
-        // Calculate initial time left
-        const sessionStart = new Date(activeSession.created_at).getTime();
-        const now = Date.now();
-        const elapsedSeconds = Math.floor((now - sessionStart) / 1000);
-        const remaining = Math.max(0, activeSession.allowed_duration_seconds - elapsedSeconds);
-        
-        setTimeLeft(remaining);
-
-        if (remaining <= 0 && !activeSession.is_completed) {
-          handleEndSession(activeSession.id);
-          return;
-        }
-
         // Fetch the questions for the game engine
         const sqs = await fetchSessionQuestions(activeSession.id);
         setQuestions(sqs);
@@ -54,44 +40,20 @@ export default function PlayPage() {
     initSession();
   }, [router]);
 
-  // Timer loop
-  useEffect(() => {
-    if (loading || finishing || !session || timeLeft <= 0) return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleEndSession(session.id);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [loading, finishing, session, timeLeft]);
-
   const handleEndSession = async (sessionId: string) => {
     setFinishing(true);
     await endSession(sessionId);
   };
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
 
-  if (loading) {
+  if (loading || !session || questions.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center bg-background flex-col gap-4">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-muted-foreground animate-pulse text-sm">Preparing your mission...</p>
       </div>
     );
   }
-
-  const isLowTime = timeLeft <= 60;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -101,11 +63,13 @@ export default function PlayPage() {
           <Trophy className="text-primary" size={20} />
           <span>Daily Mission Active</span>
         </div>
-        
-        <div className={`flex items-center gap-2 font-mono text-xl md:text-2xl font-bold px-4 py-1.5 rounded-lg ${isLowTime ? 'bg-destructive/10 text-destructive animate-pulse' : 'bg-primary/10 text-primary'}`}>
-          {isLowTime ? <AlertTriangle size={20} className="text-destructive" /> : <Clock size={20} />}
-          {formatTime(timeLeft)}
-        </div>
+        <button 
+          onClick={() => router.push("/dashboard")}
+          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-secondary/50"
+        >
+          <Home size={16} />
+          <span className="hidden sm:inline">Back to Dashboard</span>
+        </button>
       </header>
 
       {/* Game Area */}

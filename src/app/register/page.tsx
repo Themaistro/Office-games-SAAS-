@@ -1,6 +1,7 @@
 import { signup } from "./actions";
 import { Brain } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function RegisterPage({
   searchParams,
@@ -8,6 +9,13 @@ export default async function RegisterPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const resolvedParams = await searchParams;
+  const supabase = await createClient();
+  
+  const { data: departments } = await supabase
+    .from("departments")
+    .select("*")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
   
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
@@ -45,6 +53,42 @@ export default async function RegisterPage({
                 placeholder="Jane Doe"
               />
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="department">
+                  Department
+                </label>
+                <select
+                  id="department"
+                  name="department"
+                  required
+                  className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                >
+                  <option value="">Select...</option>
+                  {departments?.map((dept) => (
+                    <option key={dept.id} value={dept.name}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1" htmlFor="position">
+                  Position
+                </label>
+                <input
+                  id="position"
+                  name="position"
+                  type="text"
+                  required
+                  className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                  placeholder="e.g. Developer"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-foreground mb-1" htmlFor="email">
                 Email address

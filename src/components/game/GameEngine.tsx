@@ -15,7 +15,7 @@ import OddObjectGame from "./types/OddObjectGame";
 import UnscrambleGame from "./types/UnscrambleGame";
 import TypingGame from "./types/TypingGame";
 import MentalMathGame from "./types/MentalMathGame";
-import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap, Star } from "lucide-react";
+import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap, Star, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { submitAnswer } from "@/app/play/actions";
 
@@ -23,12 +23,6 @@ interface GameEngineProps {
   sessionQuestions: SessionQuestion[];
   onComplete: () => void;
 }
-
-// ... (Skipping unchanged type definitions)
-
-// We inject the new routes into the switch block
-// We do this by doing a multi replace on the file
-
 
 interface ScoreBreakdown {
   base: number;
@@ -43,11 +37,15 @@ interface FeedbackState {
   xpEarned: number;
   correctAnswer: string;
   breakdown?: ScoreBreakdown;
+  isSkipped?: boolean;
 }
 
 export default function GameEngine({ sessionQuestions, onComplete }: GameEngineProps) {
   const router = useRouter();
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    const firstUnanswered = sessionQuestions.findIndex(q => !q.is_completed);
+    return firstUnanswered >= 0 ? firstUnanswered : 0;
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSessionComplete, setIsSessionComplete] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
@@ -56,6 +54,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   // Advanced State
   const [currentCombo, setCurrentCombo] = useState(0);
   const [wasHintUsed, setWasHintUsed] = useState(false);
+  const [hintsLeft, setHintsLeft] = useState(3); // Max 3 hints per session
 
   // Stats tracking
   const [stats, setStats] = useState({
@@ -71,9 +70,13 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     setWasHintUsed(false); // Reset hint for new question
   }, [currentIndex]);
   
+  const currentSlug = currentSessionQuestion?.question?.game_type?.slug || '';
+  const noHintSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'card_match', 'card-match', 'sequence'];
+  const canUseHint = !noHintSlugs.includes(currentSlug);
+  
   const handleAnswer = async (
     answer: string, 
-    optionsOrIsCorrect?: boolean | { customIsCorrect?: boolean, customTimeSpent?: number, isPerfect?: boolean }, 
+    optionsOrIsCorrect?: boolean | { customIsCorrect?: boolean, customTimeSpent?: number, isPerfect?: boolean, isSkipped?: boolean, customScoreModifiers?: any }, 
     legacyTimeSpent?: number
   ) => {
     if (isSubmitting) return;
@@ -82,6 +85,8 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     let customIsCorrect: boolean | undefined;
     let customTimeSpent: number | undefined;
     let isPerfect: boolean | undefined;
+    let isSkipped: boolean | undefined;
+    let customScoreModifiers: any;
 
     if (typeof optionsOrIsCorrect === 'boolean') {
       customIsCorrect = optionsOrIsCorrect;
@@ -90,6 +95,8 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       customIsCorrect = optionsOrIsCorrect.customIsCorrect;
       customTimeSpent = optionsOrIsCorrect.customTimeSpent;
       isPerfect = optionsOrIsCorrect.isPerfect;
+      isSkipped = optionsOrIsCorrect.isSkipped;
+      customScoreModifiers = optionsOrIsCorrect.customScoreModifiers;
     }
 
     const timeSpent = customTimeSpent !== undefined ? customTimeSpent : Math.floor((Date.now() - questionStartTime) / 1000);
@@ -100,7 +107,9 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
         customIsCorrect: customIsCorrect,
         wasHintUsed,
         isPerfect: isPerfect,
-        currentCombo
+        currentCombo,
+        isSkipped,
+        customScoreModifiers
       });
       
       const isCorrect = customIsCorrect !== undefined ? customIsCorrect : (result.success ? result.isCorrect : false);
@@ -109,25 +118,26 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       const correctAnswer = result.success ? result.correctAnswer : sq.question.correct_answer;
       const displayCorrectAnswer = correctAnswer || "Completed Successfully";
 
-      if (isCorrect) {
+      if (isCorrect && !isSkipped) {
         setCurrentCombo(prev => prev + 1);
       } else {
         setCurrentCombo(0);
       }
 
       const newStats = {
-        totalScore: stats.totalScore + (isCorrect ? 100 : 0),
+        totalScore: stats.totalScore + (isCorrect && !isSkipped ? 100 : (isSkipped ? -50 : 0)),
         totalXp: stats.totalXp + xpEarned,
-        correctAnswers: stats.correctAnswers + (isCorrect ? 1 : 0),
+        correctAnswers: stats.correctAnswers + (isCorrect && !isSkipped ? 1 : 0),
       };
       
       setStats(newStats);
       
       setFeedback({
-        isCorrect,
+        isCorrect: isCorrect && !isSkipped,
         xpEarned,
         correctAnswer: displayCorrectAnswer,
-        breakdown: result.breakdown
+        breakdown: result.breakdown,
+        isSkipped
       });
       
       setIsSubmitting(false);
@@ -145,6 +155,17 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       setIsSessionComplete(true);
       onComplete();
     }
+  };
+
+  const handleUseHint = () => {
+    if (wasHintUsed || feedback !== null || hintsLeft <= 0) return;
+    setWasHintUsed(true);
+    setHintsLeft(prev => prev - 1);
+  };
+
+  const handleSkip = () => {
+    if (isSubmitting || feedback !== null) return;
+    handleAnswer("Skipped", { customIsCorrect: false, isSkipped: true });
   };
 
   if (isSessionComplete) {
@@ -168,7 +189,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           </div>
           <div className="flex flex-col items-center p-3">
             <span className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-1">XP Earned</span>
-            <span className="text-2xl font-bold text-accent">+{stats.totalXp}</span>
+            <span className="text-2xl font-bold text-accent">{stats.totalXp > 0 ? '+' : ''}{stats.totalXp}</span>
           </div>
           <div className="flex flex-col items-center p-3">
             <span className="text-muted-foreground text-sm font-medium uppercase tracking-wider mb-1">Accuracy</span>
@@ -202,7 +223,11 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     if (feedback) {
       return (
         <div className="w-full flex flex-col items-center text-center animate-in zoom-in-95 duration-300 py-4 max-w-sm mx-auto">
-          {feedback.isCorrect ? (
+          {feedback.isSkipped ? (
+            <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-full mb-4">
+              <SkipForward className="w-16 h-16 text-orange-600 dark:text-orange-400" />
+            </div>
+          ) : feedback.isCorrect ? (
             <div className="bg-green-100 dark:bg-green-900/30 p-6 rounded-full mb-4">
               <CheckCircle className="w-16 h-16 text-green-600 dark:text-green-400" />
             </div>
@@ -213,34 +238,39 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           )}
           
           <h2 className="text-3xl font-bold mb-2">
-            {feedback.isCorrect ? "Correct!" : "Incorrect"}
+            {feedback.isSkipped ? "Skipped!" : (feedback.isCorrect ? "Correct!" : "Incorrect")}
           </h2>
           
-          {feedback.isCorrect && feedback.breakdown ? (
+          {(feedback.isCorrect || feedback.isSkipped) && feedback.breakdown ? (
             <div className="w-full bg-card border border-border rounded-xl p-4 mb-6 shadow-sm text-sm font-medium">
               <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-muted-foreground flex items-center gap-2"><CheckCircle size={16}/> Correct Answer</span>
-                <span>+{feedback.breakdown.base}</span>
+                <span className="text-muted-foreground flex items-center gap-2">
+                  {feedback.isSkipped ? <SkipForward size={16}/> : <CheckCircle size={16}/>} 
+                  {feedback.isSkipped ? "Skip Penalty" : "Correct Answer"}
+                </span>
+                <span className={feedback.isSkipped ? "text-destructive font-bold" : ""}>
+                  {feedback.breakdown.base > 0 ? '+' : ''}{feedback.breakdown.base}
+                </span>
               </div>
-              {feedback.breakdown.speed > 0 && (
+              {!feedback.isSkipped && feedback.breakdown.speed > 0 && (
                 <div className="flex justify-between items-center py-2 border-b border-border/50 text-blue-500">
                   <span className="flex items-center gap-2"><Zap size={16}/> Speed Bonus</span>
                   <span>+{feedback.breakdown.speed}</span>
                 </div>
               )}
-              {feedback.breakdown.noHint > 0 && (
+              {!feedback.isSkipped && feedback.breakdown.noHint > 0 && (
                 <div className="flex justify-between items-center py-2 border-b border-border/50 text-green-500">
                   <span className="flex items-center gap-2"><Lightbulb size={16}/> No Hint</span>
                   <span>+{feedback.breakdown.noHint}</span>
                 </div>
               )}
-              {feedback.breakdown.perfect > 0 && (
+              {!feedback.isSkipped && feedback.breakdown.perfect > 0 && (
                 <div className="flex justify-between items-center py-2 border-b border-border/50 text-purple-500">
                   <span className="flex items-center gap-2"><Star size={16}/> Perfect Puzzle</span>
                   <span>+{feedback.breakdown.perfect}</span>
                 </div>
               )}
-              {feedback.breakdown.combo > 0 && (
+              {!feedback.isSkipped && feedback.breakdown.combo > 0 && (
                 <div className="flex justify-between items-center py-2 border-b border-border/50 text-orange-500">
                   <span className="flex items-center gap-2"><Flame size={16}/> Combo Bonus</span>
                   <span>+{feedback.breakdown.combo}</span>
@@ -248,13 +278,19 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
               )}
               <div className="flex justify-between items-center py-2 mt-2 font-bold text-lg text-primary">
                 <span>Total XP Earned</span>
-                <span>+{feedback.xpEarned} XP</span>
+                <span className={feedback.isSkipped ? "text-destructive" : ""}>
+                  {feedback.xpEarned > 0 ? '+' : ''}{feedback.xpEarned} XP
+                </span>
               </div>
             </div>
           ) : (
-            <div className="mb-8">
+            <div className="mb-8 w-full bg-card border border-border rounded-xl p-4 shadow-sm text-sm font-medium">
               <p className="text-muted-foreground mb-1">The correct answer was:</p>
-              <p className="text-xl font-bold">{feedback.correctAnswer}</p>
+              <p className="text-xl font-bold mb-6">{feedback.correctAnswer}</p>
+              <div className="flex justify-between items-center py-2 border-t border-border/50 mt-2 font-bold text-lg text-muted-foreground">
+                <span>Total XP Earned</span>
+                <span>+0 XP</span>
+              </div>
             </div>
           )}
           
@@ -270,7 +306,11 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     }
 
     const question = currentSessionQuestion.question;
-    const props = { question, onAnswer: handleAnswer, isSubmitting };
+    const props = { question, onAnswer: handleAnswer, isSubmitting, showHint: wasHintUsed };
+
+    if (question.content && question.content.question && question.options && question.options.length > 0) {
+      return <TriviaGame {...props} />;
+    }
 
     switch (question.game_type.slug) {
       case 'logic':
@@ -278,24 +318,29 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       case 'word':
         return <WordGame {...props} />;
       case 'memory':
-        return <MemoryGame {...props} />;
+      case 'sequence':
+        return <SequenceGame {...props} />;
       case 'reaction':
         return <ReactionGame {...props} />;
       case 'stroop':
         return <StroopGame {...props} />;
-      case 'sequence':
-        return <SequenceGame {...props} />;
       case 'card_match':
+      case 'card-match':
         return <CardMatchGame {...props} />;
       case 'sudoku_lite':
+      case 'sudoku-lite':
         return <SudokuLiteGame {...props} />;
       case 'odd_object':
+      case 'odd-object':
         return <OddObjectGame {...props} />;
       case 'unscramble':
+      case 'word-unscramble':
         return <UnscrambleGame {...props} />;
       case 'typing':
+      case 'typing-challenge':
         return <TypingGame {...props} />;
       case 'mental_math':
+      case 'mental-math':
         return <MentalMathGame {...props} />;
       case 'trivia':
       case 'company_trivia':
@@ -309,7 +354,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
 
   return (
     <div className="w-full flex flex-col items-center">
-      <div className="w-full mb-6 flex items-center justify-between bg-card border border-border px-6 py-3 rounded-2xl shadow-sm">
+      <div className="w-full mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card border border-border px-6 py-4 rounded-2xl shadow-sm">
         <div className="flex flex-col">
           <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
             Sprint Progress
@@ -319,20 +364,35 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           </span>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-500 px-3 py-1 rounded-full font-bold">
+        <div className="flex items-center gap-3 self-end sm:self-auto">
+          <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-500 px-3 py-1.5 rounded-full font-bold shadow-sm">
             <Flame size={16} />
             <span>x{currentCombo}</span>
           </div>
+          
+          {canUseHint && (
+            <button 
+              onClick={handleUseHint}
+              disabled={wasHintUsed || feedback !== null || hintsLeft <= 0}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-transform shadow-sm ${
+                wasHintUsed || hintsLeft <= 0 ? 'bg-muted text-muted-foreground opacity-50' : 'bg-primary/10 text-primary hover:bg-primary/20 active:scale-95'
+              }`}
+            >
+              <Lightbulb size={16} />
+              <span className="text-sm hidden sm:inline">Hint</span>
+              <span className="text-sm">({hintsLeft})</span>
+            </button>
+          )}
+
           <button 
-            onClick={() => setWasHintUsed(true)}
-            disabled={wasHintUsed || feedback !== null}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-bold transition-colors ${
-              wasHintUsed ? 'bg-muted text-muted-foreground opacity-50' : 'bg-primary/10 text-primary hover:bg-primary/20'
+            onClick={handleSkip}
+            disabled={isSubmitting || feedback !== null}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-transform shadow-sm ${
+              feedback !== null ? 'bg-muted text-muted-foreground opacity-50' : 'bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-95'
             }`}
           >
-            <Lightbulb size={16} />
-            <span className="text-sm">Hint</span>
+            <SkipForward size={16} />
+            <span className="text-sm hidden sm:inline">Skip</span>
           </button>
         </div>
       </div>

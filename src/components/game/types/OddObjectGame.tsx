@@ -1,64 +1,145 @@
-import React, { useState, useEffect } from 'react';
-import { GameComponentProps } from '@/types/game';
-import { Ghost, Shield, Zap, Flame, Droplet, Star } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { GameProps } from '@/types/game';
+import { Target, Clock, Sparkles } from 'lucide-react';
+import { clsx } from 'clsx';
 
-const icons = [Ghost, Shield, Zap, Flame, Droplet, Star];
-const colors = ['text-blue-500', 'text-green-500', 'text-purple-500', 'text-orange-500', 'text-pink-500'];
+// A collection of visually similar emoji pairs to trick the player's eyes
+const TRICKY_PAIRS = [
+  ["😀", "😃"], ["😁", "😆"], ["🙂", "🙃"], ["😉", "😜"],
+  ["😎", "🤓"], ["😍", "🥰"], ["🤔", "🤫"], ["😐", "😑"],
+  ["😏", "😒"], ["😔", "😟"], ["😭", "😢"], ["🍎", "🍅"],
+  ["🍊", "🍑"], ["🥑", "🍐"], ["🥞", "🧇"], ["🍨", "🍧"],
+  ["🍩", "🥯"], ["🚗", "🚙"], ["🚌", "🚐"], ["🏠", "🏡"],
+  ["🏢", "🏬"], ["🏦", "🏛️"], ["⌚", "⏰"], ["📱", "📲"],
+  ["💻", "🖥️"], ["📖", "📕"], ["🔨", "🪓"], ["⚔️", "🗡️"],
+  ["🛡️", "🚪"], ["🎈", "🏮"], ["🎀", "🧣"], ["🐶", "🐱"],
+  ["🐻", "🐼"], ["🦊", "🐺"], ["🐸", "🐢"], ["🐝", "🪰"],
+  ["🌸", "🌺"], ["☀️", "🌞"], ["🌙", "🌛"], ["☁️", "🌧️"]
+];
 
-export default function OddObjectGame({ onAnswer, isSubmitting }: GameComponentProps) {
-  const [grid, setGrid] = useState<{ id: number, isOdd: boolean, Icon: any, color: string }[]>([]);
-  const [startTime] = useState(Date.now());
-  const gridSize = 25; // 5x5 grid
+export default function OddObjectGame({ onAnswer, isSubmitting, showHint }: GameProps & { showHint?: boolean }) {
+  const [grid, setGrid] = useState<{ id: number, isOdd: boolean, emoji: string, isEliminated: boolean }[]>([]);
+  const [timeLeft, setTimeLeft] = useState(15);
+  const [startTime, setStartTime] = useState(Date.now());
+  const [failed, setFailed] = useState(false);
+  const [hintUsed, setHintUsed] = useState(false);
+  const gridSize = 36; // 6x6 grid
 
   useEffect(() => {
-    // Generate a random base icon and color
-    const baseIcon = icons[Math.floor(Math.random() * icons.length)];
-    const baseColor = colors[Math.floor(Math.random() * colors.length)];
-    
-    // Generate a slightly different odd icon or color
-    const isDifferentColor = Math.random() > 0.5;
-    const oddIcon = isDifferentColor ? baseIcon : icons.find(i => i !== baseIcon) || Star;
-    const oddColor = isDifferentColor ? colors.find(c => c !== baseColor) || 'text-red-500' : baseColor;
+    // Pick a random tricky pair
+    const pair = TRICKY_PAIRS[Math.floor(Math.random() * TRICKY_PAIRS.length)];
+    // Randomly decide which one is the base and which is the odd one
+    const isReversed = Math.random() > 0.5;
+    const baseEmoji = isReversed ? pair[1] : pair[0];
+    const oddEmoji = isReversed ? pair[0] : pair[1];
 
     const oddIndex = Math.floor(Math.random() * gridSize);
     
     const newGrid = Array.from({ length: gridSize }).map((_, i) => {
-      if (i === oddIndex) {
-        return { id: i, isOdd: true, Icon: oddIcon, color: oddColor };
-      }
-      return { id: i, isOdd: false, Icon: baseIcon, color: baseColor };
+      const isOdd = i === oddIndex;
+      return { 
+        id: i, 
+        isOdd, 
+        emoji: isOdd ? oddEmoji : baseEmoji,
+        isEliminated: false
+      };
     });
     
     setGrid(newGrid);
+    setStartTime(Date.now());
   }, []);
 
+  const useHint = useCallback(() => {
+    if (hintUsed || isSubmitting || failed || grid.length === 0) return;
+    setHintUsed(true);
+    
+    // Eliminate about half of the incorrect emojis to make it much easier
+    setGrid(prev => {
+      const incorrectIdxs = prev.map((item, i) => !item.isOdd && !item.isEliminated ? i : -1).filter(i => i !== -1);
+      // Shuffle and take half
+      const toEliminate = incorrectIdxs.sort(() => 0.5 - Math.random()).slice(0, Math.floor(incorrectIdxs.length / 2));
+      
+      return prev.map((item, i) => 
+        toEliminate.includes(i) ? { ...item, isEliminated: true } : item
+      );
+    });
+  }, [hintUsed, isSubmitting, failed, grid.length]);
+
+  useEffect(() => {
+    if (showHint && !hintUsed) {
+      useHint();
+    }
+  }, [showHint, hintUsed, useHint]);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (!failed && !isSubmitting && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft(prev => Math.max(0, prev - 1));
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [failed, isSubmitting, timeLeft]);
+
+  useEffect(() => {
+    if (timeLeft === 0 && !failed && !isSubmitting) {
+      setFailed(true);
+      onAnswer("Time's up!", false, 15);
+    }
+  }, [timeLeft, failed, isSubmitting, onAnswer]);
+
   const handleSelect = (isOdd: boolean) => {
-    if (isSubmitting) return;
-    const isPerfect = (Date.now() - startTime) < 3000; // Perfect if found under 3 seconds
-    onAnswer(isOdd ? "Found It!" : "Wrong Object", { customIsCorrect: isOdd, isPerfect });
+    if (isSubmitting || failed) return;
+    
+    if (isOdd) {
+      const timeTaken = (Date.now() - startTime) / 1000;
+      const isPerfect = timeTaken < 3; // Perfect if found under 3 seconds
+      onAnswer("Found It!", { customIsCorrect: true, isPerfect }, timeTaken);
+    } else {
+      setFailed(true);
+      const timeTaken = (Date.now() - startTime) / 1000;
+      onAnswer("Wrong Object", false, timeTaken);
+    }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 bg-card border border-border rounded-2xl shadow-sm w-full max-w-lg mx-auto">
-      <div className="text-center mb-6">
-        <h3 className="text-2xl font-bold mb-2">Find the Odd Object</h3>
-        <p className="text-muted-foreground">Click the one icon that is different from the rest.</p>
-      </div>
+    <div className="relative flex flex-col items-center justify-center w-full z-0 overflow-hidden rounded-3xl p-4 sm:p-8">
+      {/* Background glowing orbs */}
+      <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 rounded-full blur-[80px] -z-10 animate-pulse duration-1000" />
+      <div className="absolute bottom-0 right-0 w-64 h-64 bg-secondary/20 rounded-full blur-[80px] -z-10 animate-pulse duration-1000 delay-500" />
 
-      <div className="grid grid-cols-5 gap-3 p-4 bg-secondary/10 rounded-xl">
-        {grid.map((item) => {
-          const { Icon } = item;
-          return (
-            <button
-              key={item.id}
-              disabled={isSubmitting}
-              onClick={() => handleSelect(item.isOdd)}
-              className={`p-3 rounded-lg flex items-center justify-center transition-all bg-background border border-border hover:bg-accent/20 hover:scale-110 shadow-sm disabled:opacity-50`}
-            >
-              <Icon size={32} className={item.color} />
-            </button>
-          )
-        })}
+      <h2 className="text-2xl font-black mb-2 flex items-center gap-2 tracking-tight">
+        <Sparkles className="text-yellow-500" /> Spot the Imposter
+      </h2>
+      <p className="text-muted-foreground mb-6 text-center px-4 max-w-sm">
+        Find the <span className="font-bold text-foreground">one emoji</span> that doesn't match the rest.<br/>
+        <span className="flex items-center justify-center gap-1 mt-3 text-primary font-bold bg-primary/10 w-max mx-auto px-3 py-1 rounded-full">
+          <Clock size={16} className={timeLeft <= 5 ? "text-destructive animate-pulse" : ""} /> 
+          <span className={timeLeft <= 5 ? "text-destructive animate-pulse" : ""}>{timeLeft}s</span>
+        </span>
+      </p>
+
+      <div className="grid grid-cols-6 gap-2 sm:gap-3 p-3 sm:p-5 bg-card/50 backdrop-blur-xl border border-border shadow-2xl rounded-3xl max-w-xl mx-auto w-full aspect-square">
+        {grid.map((item, i) => (
+          <button
+            key={item.id}
+            disabled={isSubmitting || failed || item.isEliminated}
+            onClick={() => handleSelect(item.isOdd)}
+            className={clsx(
+              "rounded-2xl flex items-center justify-center transition-all duration-200 text-3xl sm:text-5xl cursor-pointer select-none",
+              !failed && !item.isEliminated && "hover:bg-black/5 dark:hover:bg-white/5 hover:scale-110 hover:shadow-lg active:scale-95",
+              failed && item.isOdd && "bg-green-500/20 border-2 border-green-500 scale-110 shadow-green-500/20 shadow-xl z-20 animate-bounce",
+              failed && !item.isOdd && "opacity-30 scale-90 grayscale",
+              item.isEliminated && !failed && "opacity-10 scale-75 pointer-events-none grayscale"
+            )}
+          >
+            <span className={clsx("drop-shadow-sm transition-all duration-300", item.isEliminated && "blur-sm")}>
+              {item.emoji}
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   );

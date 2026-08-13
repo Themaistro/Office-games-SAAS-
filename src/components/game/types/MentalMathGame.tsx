@@ -1,14 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameComponentProps } from '@/types/game';
+import { Activity, Clock } from 'lucide-react';
+import { clsx } from 'clsx';
 
-export default function MentalMathGame({ onAnswer, isSubmitting }: GameComponentProps) {
+export default function MentalMathGame({ onAnswer, isSubmitting, showHint }: GameComponentProps) {
   const [equation, setEquation] = useState("");
   const [answer, setAnswer] = useState(0);
   const [input, setInput] = useState("");
+  
+  const [timeLeft, setTimeLeft] = useState(15);
+  const [shake, setShake] = useState(false);
+  const [solved, setSolved] = useState(false); // To freeze timer when correct
+
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Generate Equation
   useEffect(() => {
-    // Generate a quick math problem
     const operations = ['+', '-', '*'];
     const op = operations[Math.floor(Math.random() * operations.length)];
     
@@ -30,47 +37,115 @@ export default function MentalMathGame({ onAnswer, isSubmitting }: GameComponent
     setEquation(`${a} ${op} ${b}`);
     setAnswer(res);
     
+    // Auto-focus input on mount
     if (inputRef.current) inputRef.current.focus();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting || !input) return;
+  const handleWrong = useCallback(() => {
+    if (isSubmitting || solved) return;
+    setShake(true);
+    setTimeout(() => setShake(false), 300);
+    setTimeout(() => {
+       onAnswer(input || "[Timeout]", { customIsCorrect: false, isPerfect: false }, 15 - timeLeft);
+    }, 500); // short shake then submit
+  }, [input, isSubmitting, solved, timeLeft, onAnswer]);
 
-    const numInput = parseInt(input, 10);
-    const isCorrect = numInput === answer;
-    
-    onAnswer(input, { customIsCorrect: isCorrect, isPerfect: isCorrect }); // First try = perfect
+  // Timer
+  useEffect(() => {
+    if (timeLeft > 0 && !isSubmitting && !solved) {
+      const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+      return () => clearInterval(timer);
+    } else if (timeLeft === 0 && !isSubmitting && !solved) {
+      handleWrong();
+    }
+  }, [timeLeft, isSubmitting, solved, handleWrong]);
+
+  // Auto-submit check
+  useEffect(() => {
+    if (input && parseInt(input, 10) === answer && !isSubmitting && !solved) {
+       setSolved(true);
+       setTimeout(() => {
+         onAnswer(input, { customIsCorrect: true, isPerfect: true }, 15 - timeLeft);
+       }, 400); // Tiny delay so they can see the input before it submits
+    }
+  }, [input, answer, isSubmitting, solved, timeLeft, onAnswer]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (input && parseInt(input, 10) !== answer) {
+        setShake(true);
+        setTimeout(() => setShake(false), 400);
+      }
+    }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 bg-card border border-border rounded-2xl shadow-sm w-full max-w-sm mx-auto text-center">
-      <h3 className="text-2xl font-bold mb-2">Mental Math</h3>
-      <p className="text-muted-foreground mb-8">Solve the equation as quickly as you can.</p>
-
-      <div className="bg-primary text-primary-foreground font-bold text-5xl py-8 px-12 rounded-2xl shadow-inner mb-8 tracking-widest w-full">
-        {equation}
+    <div 
+      className="flex flex-col items-center max-w-md mx-auto w-full px-4"
+      onClick={() => inputRef.current?.focus()}
+    >
+      {/* Header */}
+      <div className="flex justify-between items-end w-full mb-6">
+        <div>
+          <h3 className="text-2xl font-bold flex items-center gap-2">
+            <Activity className="text-primary" /> Mental Math
+          </h3>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1">
+            <Clock size={12} /> Time
+          </span>
+          <span className={clsx(
+            "text-2xl font-mono font-bold transition-colors",
+            timeLeft <= 5 ? "text-destructive animate-pulse" : "text-foreground"
+          )}>
+            {timeLeft}s
+          </span>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="w-full flex flex-col items-center gap-4">
-        <input
-          ref={inputRef}
-          type="number"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          disabled={isSubmitting}
-          className="w-full text-center text-3xl font-bold p-4 rounded-xl border-2 border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all bg-background"
-          placeholder="?"
-        />
+      {showHint && (
+        <div className="mb-4 text-orange-500 font-bold bg-orange-500/10 px-4 py-2 rounded-lg animate-pulse w-full text-center">
+          Hint: The answer is between {answer - 5} and {answer + 5}
+        </div>
+      )}
+
+      {/* Equation Display */}
+      <div className={clsx(
+        "w-full bg-card border-2 py-10 sm:py-14 rounded-3xl shadow-xl mb-6 flex flex-col items-center transition-all duration-75",
+        shake && "-translate-x-2 translate-y-1 border-destructive shadow-[0_0_30px_rgba(255,0,0,0.15)]",
+        solved && "border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.2)] bg-green-500/5"
+      )}>
+        <div className="text-5xl sm:text-6xl font-black tracking-widest text-foreground select-none">
+          {equation}
+        </div>
         
-        <button
-          type="submit"
-          disabled={isSubmitting || !input}
-          className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-primary/90 transition-transform active:scale-95 disabled:opacity-50 text-lg"
-        >
-          SUBMIT
-        </button>
-      </form>
+        <div className={clsx(
+          "h-20 mt-8 flex items-center justify-center min-w-[160px] px-2 rounded-2xl border-4 transition-colors overflow-hidden",
+          solved ? "bg-green-500 text-white border-green-600 scale-110" : "bg-secondary/50 border-secondary",
+          shake && "border-destructive text-destructive"
+        )}>
+           <input
+             ref={inputRef}
+             type="number"
+             value={input}
+             onChange={(e) => setInput(e.target.value.slice(0, 4))} // max 4 chars
+             onKeyDown={handleKeyDown}
+             disabled={isSubmitting || solved}
+             className={clsx(
+               "w-full h-full bg-transparent text-center text-4xl font-bold font-mono tracking-wider outline-none", 
+               solved && "text-white"
+             )}
+             placeholder="?"
+             autoComplete="off"
+           />
+        </div>
+      </div>
+      
+      <p className="text-muted-foreground text-sm font-medium animate-pulse">
+        {solved ? "Correct!" : "Type the answer to auto-submit..."}
+      </p>
     </div>
   );
 }

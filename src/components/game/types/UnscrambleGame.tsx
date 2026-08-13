@@ -1,77 +1,107 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { GameComponentProps } from '@/types/game';
 
-const wordsList = ["ASTRONAUT", "BUTTERFLY", "CHALLENGE", "DISCOVERY", "ELEVATOR", "FIREWORKS", "GRAVITY", "HOSPITAL", "INTERNET", "JUNGLE"];
+export default function UnscrambleGame({ question, onAnswer, isSubmitting, showHint }: GameComponentProps) {
+  const scrambledWord = (question?.content?.scrambled || "") as string;
+  const options = useMemo(() => question?.options || [], [question]);
+  const correctAnswer = question?.correct_answer as string;
 
-export default function UnscrambleGame({ onAnswer, isSubmitting }: GameComponentProps) {
-  const [word, setWord] = useState("");
-  const [scrambled, setScrambled] = useState("");
-  const [input, setInput] = useState("");
   const [mistakes, setMistakes] = useState(0);
+  const [shakingOption, setShakingOption] = useState<string | null>(null);
+  const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
 
+  // 50/50 Hint Logic
   useEffect(() => {
-    const selectedWord = wordsList[Math.floor(Math.random() * wordsList.length)];
-    setWord(selectedWord);
-    
-    // Scramble the word (ensure it's actually scrambled)
-    let scrambledWord = selectedWord;
-    while (scrambledWord === selectedWord) {
-      scrambledWord = selectedWord.split('').sort(() => 0.5 - Math.random()).join('');
+    if (showHint && eliminatedOptions.length === 0) {
+      const wrongOptions = options.filter(opt => opt !== correctAnswer);
+      // Pick 2 wrong options to eliminate (since there are 4 options total, 3 wrong ones)
+      const toEliminate = wrongOptions.sort(() => Math.random() - 0.5).slice(0, 2);
+      setEliminatedOptions(toEliminate);
     }
-    setScrambled(scrambledWord);
-  }, []);
+  }, [showHint, options, correctAnswer, eliminatedOptions.length]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting || !input) return;
+  const handleOptionClick = (option: string) => {
+    if (isSubmitting || eliminatedOptions.includes(option)) return;
 
-    if (input.toUpperCase() === word) {
+    if (option === correctAnswer) {
       const isPerfect = mistakes === 0;
-      onAnswer(word, { customIsCorrect: true, isPerfect });
+      onAnswer(option, { customIsCorrect: true, isPerfect });
     } else {
       setMistakes(m => m + 1);
-      setInput("");
-      // Don't auto-submit a failure unless we want to end the game on first strike.
-      // We'll let them keep guessing, but penalize perfect score.
+      setShakingOption(option);
+      setTimeout(() => setShakingOption(null), 500);
+      
+      // Optionally eliminate the wrong answer they just clicked
+      if (!eliminatedOptions.includes(option)) {
+        setEliminatedOptions(prev => [...prev, option]);
+      }
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 bg-card border border-border rounded-2xl shadow-sm w-full max-w-md mx-auto text-center">
-      <h3 className="text-2xl font-bold mb-2">Word Unscramble</h3>
-      <p className="text-muted-foreground mb-8">Unscramble the letters to form a word.</p>
+    <div className="flex flex-col items-center justify-center p-8 bg-card/80 backdrop-blur-xl border border-border/50 rounded-3xl shadow-xl w-full max-w-lg mx-auto text-center transition-all duration-500">
+      {scrambledWord === "" && (
+        <div className="bg-red-500/10 text-red-500 p-4 rounded text-left overflow-auto w-full text-xs max-h-40 mb-4">
+          <p className="font-bold">DEBUG: Missing scrambledWord</p>
+          <pre>{JSON.stringify(question, null, 2)}</pre>
+        </div>
+      )}
+      <div className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-xs font-bold tracking-wider mb-6">
+        WORD UNSCRAMBLE
+      </div>
+      
+      <p className="text-muted-foreground mb-8 text-sm">Select the word that matches the scrambled letters below.</p>
 
-      <div className="flex gap-2 mb-8 flex-wrap justify-center">
-        {scrambled.split('').map((letter, index) => (
-          <div key={index} className="w-12 h-12 flex items-center justify-center bg-primary/10 border-2 border-primary text-primary font-bold text-2xl rounded-lg shadow-sm">
+      {/* Scrambled Word Display */}
+      <div className="flex gap-2 mb-10 flex-wrap justify-center">
+        {scrambledWord.split('').map((letter, index) => (
+          <div 
+            key={index} 
+            className="w-14 h-14 flex items-center justify-center bg-gradient-to-br from-background to-secondary/50 border border-border shadow-sm text-foreground font-black text-3xl rounded-xl transform hover:scale-110 transition-transform"
+          >
             {letter}
           </div>
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="w-full flex flex-col items-center">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value.toUpperCase())}
-          disabled={isSubmitting}
-          className="w-full max-w-xs text-center text-2xl font-bold p-4 rounded-xl border-2 border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all mb-4 bg-background uppercase tracking-widest"
-          placeholder="TYPE HERE"
-          autoFocus
-        />
-        
-        {mistakes > 0 && (
-          <p className="text-red-500 font-bold mb-4 animate-bounce">Incorrect guess. Try again!</p>
-        )}
+      {showHint && eliminatedOptions.length > 0 && (
+        <div className="mb-6 text-orange-500 font-bold bg-orange-500/10 px-4 py-2 rounded-lg animate-pulse w-full max-w-xs mx-auto text-sm">
+          Hint: 50/50 Activated! Two incorrect options removed.
+        </div>
+      )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting || !input}
-          className="w-full max-w-xs bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-primary/90 transition-transform active:scale-95 disabled:opacity-50"
-        >
-          SUBMIT WORD
-        </button>
-      </form>
+      {/* Options Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+        {options.map((option, index) => {
+          const isEliminated = eliminatedOptions.includes(option);
+          const isShaking = shakingOption === option;
+
+          return (
+            <button
+              key={index}
+              onClick={() => handleOptionClick(option)}
+              disabled={isSubmitting || isEliminated}
+              className={`
+                relative w-full py-4 px-6 rounded-2xl font-bold text-lg transition-all duration-300
+                ${isEliminated 
+                  ? 'opacity-30 scale-95 bg-secondary/50 text-muted-foreground cursor-not-allowed border-transparent' 
+                  : 'bg-card hover:bg-primary/5 border-2 border-border hover:border-primary/50 text-foreground hover:shadow-md hover:-translate-y-1 active:scale-95'}
+                ${isShaking ? 'animate-[shake_0.5s_ease-in-out] bg-destructive/10 border-destructive text-destructive' : ''}
+              `}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-5px); }
+          40%, 80% { transform: translateX(5px); }
+        }
+      `}} />
     </div>
   );
 }

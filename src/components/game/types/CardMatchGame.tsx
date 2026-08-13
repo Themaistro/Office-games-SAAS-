@@ -1,9 +1,16 @@
 import { GameProps } from "@/types/game";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
 import { Copy } from "lucide-react";
 
-const EMOJIS = ["🚀", "🎸", "👾", "🍕", "🎮", "🌟"];
+const ALL_EMOJIS = [
+  "🚀", "🎸", "👾", "🍕", "🎮", "🌟", "🍔", "🍟", "🌭", "🍿", "🍩", "🍦",
+  "🍎", "🍉", "🍇", "🍓", "🏀", "⚽", "🎾", "🏈", "🎱", "🚗", "🚕", "🚙",
+  "🚌", "🚒", "✈️", "🚁", "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼",
+  "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🦄", "🐙", "🦀", "🐠", "🐬",
+  "🐳", "🌵", "🌴", "🌲", "🍀", "🍁", "🍄", "🌎", "🌙", "☀️", "⭐", "🔥",
+  "💧", "❄️", "⚡", "🌈", "🎈", "🎉", "🎁", "🎃", "👻", "👽", "🤖", "💎"
+];
 
 interface Card {
   id: number;
@@ -16,24 +23,58 @@ export default function CardMatchGame({ onAnswer, isSubmitting }: GameProps) {
   const [flippedIdxs, setFlippedIdxs] = useState<number[]>([]);
   const [matchedIdxs, setMatchedIdxs] = useState<number[]>([]);
   const [errors, setErrors] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (timeLeft === 0 && matchedIdxs.length < 12 && !isSubmitting) {
+      onAnswer(`Time's up!`, false, 60);
+    }
+  }, [timeLeft, matchedIdxs.length, onAnswer, isSubmitting]);
+
+  useEffect(() => {
+    // Pick 6 random emojis
+    const shuffledEmojis = [...ALL_EMOJIS].sort(() => Math.random() - 0.5).slice(0, 6);
     // Create pairs and shuffle
-    const deck = [...EMOJIS, ...EMOJIS]
+    const deck = [...shuffledEmojis, ...shuffledEmojis]
       .map((emoji, index) => ({ id: index, emoji }))
       .sort(() => Math.random() - 0.5);
     setCards(deck);
   }, []);
 
   useEffect(() => {
-    if (matchedIdxs.length === 12) {
+    if (matchedIdxs.length === 12 && !isSubmitting) {
       // Game Complete!
+      if (timerRef.current) clearInterval(timerRef.current);
       const timeTaken = (Date.now() - startTime) / 1000;
       // You get it wrong if you made more than 10 errors, otherwise correct!
-      const isCorrect = errors < 10;
-      onAnswer(`Errors: ${errors}`, isCorrect, timeTaken);
+      const isCorrect = errors <= 15;
+      onAnswer(`Errors: ${errors}`, {
+        customIsCorrect: isCorrect,
+        isPerfect: errors === 0,
+        customScoreModifiers: {
+          mistakes: errors,
+          customSpeedBonus: Math.max(0, timeLeft)
+        }
+      }, timeTaken);
     }
-  }, [matchedIdxs, errors, startTime, onAnswer]);
+  }, [matchedIdxs.length, errors, startTime, onAnswer, isSubmitting]);
 
   const handleCardClick = (idx: number) => {
     if (isSubmitting || flippedIdxs.length === 2 || flippedIdxs.includes(idx) || matchedIdxs.includes(idx)) {
@@ -64,9 +105,15 @@ export default function CardMatchGame({ onAnswer, isSubmitting }: GameProps) {
       <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
         <Copy className="text-orange-500" /> Concentration Match
       </h2>
-      <p className="text-muted-foreground mb-8 text-center px-4">
-        Find all the matching pairs as fast as possible.
+      <p className="text-muted-foreground mb-4 text-center px-4">
+        Find all the matching pairs before time runs out.
       </p>
+
+      <div className="flex items-center gap-2 mb-8 font-mono text-xl font-bold bg-card border border-border px-4 py-2 rounded-lg">
+        <span className={timeLeft <= 10 ? "text-destructive animate-pulse" : "text-primary"}>
+          00:{timeLeft.toString().padStart(2, '0')}
+        </span>
+      </div>
       
       <div className="grid grid-cols-4 gap-3 w-full max-w-sm mx-auto mb-8">
         {cards.map((card, i) => {

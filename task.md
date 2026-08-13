@@ -1,0 +1,8 @@
+- `[x]` Update `actions.ts` to generate realistic multiple-choice options (decoys) for Word Unscramble.
+- `[x]` Overhaul `UnscrambleGame.tsx`:
+  - `[x]` Remove the typing text input.
+  - `[x]` Read `question.content.scrambled` from the database.
+  - `[x]` Render the `question.options` as multiple-choice buttons.
+  - `[x]` Implement premium glassmorphism styling and shake animations for incorrect clicks.
+  - `[x]` Integrate the hint system (e.g., highlight the correct button or eliminate 2 wrong options).
+- `[x]` Verify changes in Dev Test mode.
