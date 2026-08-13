@@ -1,8 +1,8 @@
-import { login } from "./actions";
+import { signup } from "./actions";
 import { Brain } from "lucide-react";
 import Link from "next/link";
 
-export default async function LoginPage({
+export default async function RegisterPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
@@ -17,26 +17,34 @@ export default async function LoginPage({
             <Brain size={28} />
           </div>
           <h2 className="text-center text-2xl font-bold tracking-tight text-foreground">
-            Daily Brain Arena
+            Join the Arena
           </h2>
           <p className="mt-2 text-center text-sm text-muted-foreground">
-            Sign in to start your daily 15-minute mission.
+            Create an account to start playing.
           </p>
         </div>
 
-        <form id="login-form" className="mt-8 space-y-6">
+        <form action={signup} className="mt-8 space-y-6">
           {resolvedParams?.error && (
             <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive text-center">
               {resolvedParams.error}
             </div>
           )}
-          {resolvedParams?.message && (
-            <div className="rounded-md bg-green-500/15 p-3 text-sm text-green-600 dark:text-green-400 text-center font-medium">
-              {resolvedParams.message}
-            </div>
-          )}
           
           <div className="space-y-4 rounded-md">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1" htmlFor="full_name">
+                Full Name
+              </label>
+              <input
+                id="full_name"
+                name="full_name"
+                type="text"
+                required
+                className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                placeholder="Jane Doe"
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-foreground mb-1" htmlFor="email">
                 Email address
@@ -59,52 +67,27 @@ export default async function LoginPage({
                 name="password"
                 type="password"
                 required
+                minLength={6}
                 className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
-                placeholder="••••••••"
+                placeholder="At least 6 characters"
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <a href="#" className="font-medium text-primary hover:text-primary/80 transition-colors">
-                Forgot your password?
-              </a>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <button
-              formAction={login}
-              className="group relative flex w-full justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors shadow-sm"
-            >
-              Sign In
-            </button>
-            
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-card px-2 text-muted-foreground">Or</span>
-              </div>
-            </div>
-            
-            <button
-              type="button"
-              className="group relative flex w-full justify-center rounded-md bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 transition-colors shadow-sm"
-            >
-              Sign in with Google
-            </button>
-          </div>
-          
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link href="/register" className="font-medium text-primary hover:text-primary/80 transition-colors">
-              Create account
-            </Link>
-          </p>
+          <button
+            type="submit"
+            className="group relative flex w-full justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors shadow-sm"
+          >
+            Create Account
+          </button>
         </form>
+        
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-primary hover:text-primary/80 transition-colors">
+            Sign In
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { Brain, Target, Users, Zap, Trophy, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function LandingPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   return (

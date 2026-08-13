@@ -4,7 +4,7 @@ import Navbar from "@/components/layout/Navbar";
 
 // We'll mock the data if the DB isn't populated yet, but here's the real query structure.
 export default async function LeaderboardPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Real implementation:
   const { data: leaderboards } = await supabase

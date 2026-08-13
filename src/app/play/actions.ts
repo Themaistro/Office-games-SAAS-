@@ -9,7 +9,7 @@ import { SessionQuestion } from "@/components/game/types/game";
 // For the MVP source code, we use a simpler model to demonstrate the architecture.
 
 export async function startDailySession() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
@@ -37,6 +37,7 @@ export async function startDailySession() {
     .from("daily_sessions")
     .insert({
       user_id: user.id,
+      date: today,
       allowed_duration_seconds: 900, // 15 mins
       is_completed: false
     })
@@ -46,16 +47,20 @@ export async function startDailySession() {
   if (sessionError) throw sessionError;
 
   // 3. Fetch 4 random questions to assign to this session
-  const { data: randomQuestions } = await supabase
+  // To get random questions without a custom RPC, we fetch the pool and shuffle in memory (fine for MVP).
+  const { data: allQuestions } = await supabase
     .from("questions")
     .select(`
       id, game_type_id, difficulty, content, options, base_xp,
       game_types (id, name, slug)
-    `)
-    .limit(4);
+    `);
 
-  if (randomQuestions && randomQuestions.length > 0) {
-    const sessionQuestionsData = randomQuestions.map((q, index) => ({
+  if (allQuestions && allQuestions.length > 0) {
+    // Endless Mode: Assign up to 150 questions
+    const shuffled = [...allQuestions].sort(() => 0.5 - Math.random());
+    const selectedQuestions = shuffled.slice(0, 150);
+
+    const sessionQuestionsData = selectedQuestions.map((q, index) => ({
       session_id: session.id,
       question_id: q.id,
       order_index: index,
@@ -70,7 +75,7 @@ export async function startDailySession() {
 }
 
 export async function fetchSessionQuestions(sessionId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: questions } = await supabase
     .from("session_questions")
     .select(`
@@ -105,8 +110,18 @@ export async function fetchSessionQuestions(sessionId: string) {
   })) as SessionQuestion[];
 }
 
-export async function submitAnswer(sessionQuestionId: string, answer: string, timeSpentSeconds: number) {
-  const supabase = createClient();
+export async function submitAnswer(
+  sessionQuestionId: string, 
+  answer: string, 
+  timeSpentSeconds: number,
+  options?: {
+    customIsCorrect?: boolean;
+    wasHintUsed?: boolean;
+    isPerfect?: boolean;
+    currentCombo?: number;
+  }
+) {
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -126,15 +141,48 @@ export async function submitAnswer(sessionQuestionId: string, answer: string, ti
   if (sq.is_completed) return { error: "Already answered" };
 
   // Verify answer
-  const isCorrect = sq.questions.correct_answer.toString().toLowerCase() === answer.toLowerCase();
+  let isCorrect = false;
+  if (options?.customIsCorrect !== undefined) {
+    isCorrect = options.customIsCorrect;
+  } else {
+    isCorrect = sq.questions.correct_answer.toString().toLowerCase() === answer.toLowerCase();
+  }
   
-  // Calculate XP
+  // Advanced Scoring System
   let xpEarned = 0;
+  const breakdown = {
+    base: 0,
+    speed: 0,
+    noHint: 0,
+    perfect: 0,
+    combo: 0
+  };
+
   if (isCorrect) {
-    xpEarned = sq.questions.base_xp;
-    const speedMultiplier = Math.max(0, (30 - timeSpentSeconds) / 30);
-    const speedBonus = Math.round((xpEarned * 0.5) * speedMultiplier);
-    xpEarned += speedBonus;
+    // Correct Answer: +100 XP
+    breakdown.base = 100;
+    
+    // Speed Bonus: +25 XP if answered quickly (under 5 seconds for MVP)
+    if (timeSpentSeconds <= 5) {
+      breakdown.speed = 25;
+    }
+
+    // No Hint: +20 XP
+    if (!options?.wasHintUsed) {
+      breakdown.noHint = 20;
+    }
+
+    // Perfect Puzzle: +50 XP
+    if (options?.isPerfect) {
+      breakdown.perfect = 50;
+    }
+
+    // Combo: +30 XP for stringing together correct answers
+    if (options?.currentCombo && options.currentCombo > 0) {
+      breakdown.combo = 30; // Alternatively, scale it: combo * 10
+    }
+
+    xpEarned = breakdown.base + breakdown.speed + breakdown.noHint + breakdown.perfect + breakdown.combo;
   }
 
   // Update session_questions
@@ -147,11 +195,17 @@ export async function submitAnswer(sessionQuestionId: string, answer: string, ti
     })
     .eq("id", sessionQuestionId);
 
-  return { success: true, isCorrect, xpEarned, correctAnswer: sq.questions.correct_answer };
+  return { 
+    success: true, 
+    isCorrect, 
+    xpEarned, 
+    correctAnswer: sq.questions.correct_answer,
+    breakdown 
+  };
 }
 
 export async function endSession(sessionId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 

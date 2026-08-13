@@ -3,7 +3,7 @@ import Navbar from "@/components/layout/Navbar";
 import { User, Flame, Trophy, Target, CalendarDays, Award } from "lucide-react";
 
 export default async function ProfilePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   // If no real user, show placeholder for dev preview

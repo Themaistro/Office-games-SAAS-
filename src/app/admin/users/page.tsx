@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Users as UsersIcon, Plus, UserPlus, MoreVertical, Flame } from "lucide-react";
 
 export default async function AdminUsersPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // Fetch users and teams
   const { data: profiles } = await supabase

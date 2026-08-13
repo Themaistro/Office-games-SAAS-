@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { HelpCircle, Plus, Search } from "lucide-react";
 
 export default async function AdminQuestionsPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   const { data: questions } = await supabase
     .from("questions")

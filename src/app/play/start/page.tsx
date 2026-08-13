@@ -1,7 +1,28 @@
+"use client";
+
 import { startDailySession } from "../actions";
 import { Brain, Clock, ShieldAlert } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function StartSessionPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  const handleStart = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const result = await startDailySession();
+      if (result.success) {
+        router.push("/play");
+      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center p-4">
       <div className="max-w-md w-full bg-card rounded-2xl border border-border shadow-lg p-8 text-center space-y-6 relative overflow-hidden">
@@ -32,12 +53,13 @@ export default function StartSessionPage() {
           </div>
         </div>
 
-        <form action={startDailySession}>
+        <form onSubmit={handleStart}>
           <button
             type="submit"
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 px-8 rounded-xl shadow-md transition-transform active:scale-95 text-lg"
+            disabled={loading}
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 px-8 rounded-xl shadow-md transition-transform active:scale-95 text-lg disabled:opacity-50"
           >
-            START 15-MINUTE TIMER
+            {loading ? "STARTING..." : "START 15-MINUTE TIMER"}
           </button>
         </form>
         
