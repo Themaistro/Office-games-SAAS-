@@ -5,7 +5,7 @@ import Link from "next/link";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ message?: string; error?: string }>;
 }) {
   const resolvedParams = await searchParams;
   

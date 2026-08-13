@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { SessionQuestion } from "@/components/game/types/game";
+import { SessionQuestion } from "@/types/game";
 
 // Note: In a real production app, we would perform strict date math to enforce 15 mins calendar day limits.
 // For the MVP source code, we use a simpler model to demonstrate the architecture.

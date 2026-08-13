@@ -15,11 +15,11 @@ export default async function LeaderboardPage() {
     
   // Mock data fallback if empty
   const mockData = [
-    { id: '1', full_name: 'Ahmed', total_xp: 14250, current_streak: 14, current_level: 12 },
-    { id: '2', full_name: 'Sara', total_xp: 13980, current_streak: 21, current_level: 11 },
-    { id: '3', full_name: 'Omar', total_xp: 13750, current_streak: 5, current_level: 11 },
-    { id: '4', full_name: 'Fatima', total_xp: 12100, current_streak: 12, current_level: 10 },
-    { id: '5', full_name: 'You (Player)', total_xp: 8450, current_streak: 3, current_level: 8 },
+    { id: '1', full_name: 'Ahmed', total_xp: 14250, current_streak: 14, current_level: 12, avatar_url: null },
+    { id: '2', full_name: 'Sara', total_xp: 13980, current_streak: 21, current_level: 11, avatar_url: null },
+    { id: '3', full_name: 'Omar', total_xp: 13750, current_streak: 5, current_level: 11, avatar_url: null },
+    { id: '4', full_name: 'Fatima', total_xp: 12100, current_streak: 12, current_level: 10, avatar_url: null },
+    { id: '5', full_name: 'You (Player)', total_xp: 8450, current_streak: 3, current_level: 8, avatar_url: null },
   ];
 
   const dataToUse = leaderboards && leaderboards.length > 0 ? leaderboards : mockData;

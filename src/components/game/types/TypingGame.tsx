@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GameComponentProps } from './game';
+import { GameComponentProps } from '@/types/game';
 
 const sentences = [
   "The quick brown fox jumps over the lazy dog.",

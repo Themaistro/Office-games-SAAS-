@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GameComponentProps } from './game';
+import { GameComponentProps } from '@/types/game';
 
 export default function MentalMathGame({ onAnswer, isSubmitting }: GameComponentProps) {
   const [equation, setEquation] = useState("");

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameComponentProps } from './game';
+import { GameComponentProps } from '@/types/game';
 
 export default function SudokuLiteGame({ question, onAnswer, isSubmitting }: GameComponentProps) {
   // A simple 4x4 Sudoku logic game

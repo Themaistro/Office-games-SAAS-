@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameComponentProps } from './game';
+import { GameComponentProps } from '@/types/game';
 import { Ghost, Shield, Zap, Flame, Droplet, Star } from 'lucide-react';
 
 const icons = [Ghost, Shield, Zap, Flame, Droplet, Star];

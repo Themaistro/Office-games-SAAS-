@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameComponentProps } from './game';
+import { GameComponentProps } from '@/types/game';
 
 const wordsList = ["ASTRONAUT", "BUTTERFLY", "CHALLENGE", "DISCOVERY", "ELEVATOR", "FIREWORKS", "GRAVITY", "HOSPITAL", "INTERNET", "JUNGLE"];
 

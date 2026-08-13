@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SessionQuestion } from "@/components/game/types/game";
+import { SessionQuestion } from "@/types/game";
 import LogicGame from "./types/LogicGame";
 import TriviaGame from "./types/TriviaGame";
 import WordGame from "./types/WordGame";
@@ -71,22 +71,39 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     setWasHintUsed(false); // Reset hint for new question
   }, [currentIndex]);
   
-  const handleAnswer = async (answer: string, customOptions?: { customIsCorrect?: boolean, customTimeSpent?: number, isPerfect?: boolean }) => {
+  const handleAnswer = async (
+    answer: string, 
+    optionsOrIsCorrect?: boolean | { customIsCorrect?: boolean, customTimeSpent?: number, isPerfect?: boolean }, 
+    legacyTimeSpent?: number
+  ) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     
-    const timeSpent = customOptions?.customTimeSpent !== undefined ? customOptions.customTimeSpent : Math.floor((Date.now() - questionStartTime) / 1000);
+    let customIsCorrect: boolean | undefined;
+    let customTimeSpent: number | undefined;
+    let isPerfect: boolean | undefined;
+
+    if (typeof optionsOrIsCorrect === 'boolean') {
+      customIsCorrect = optionsOrIsCorrect;
+      customTimeSpent = legacyTimeSpent;
+    } else if (optionsOrIsCorrect) {
+      customIsCorrect = optionsOrIsCorrect.customIsCorrect;
+      customTimeSpent = optionsOrIsCorrect.customTimeSpent;
+      isPerfect = optionsOrIsCorrect.isPerfect;
+    }
+
+    const timeSpent = customTimeSpent !== undefined ? customTimeSpent : Math.floor((Date.now() - questionStartTime) / 1000);
     const sq = currentSessionQuestion;
 
     try {
       const result = await submitAnswer(sq.id, answer, timeSpent, {
-        customIsCorrect: customOptions?.customIsCorrect,
+        customIsCorrect: customIsCorrect,
         wasHintUsed,
-        isPerfect: customOptions?.isPerfect,
+        isPerfect: isPerfect,
         currentCombo
       });
       
-      const isCorrect = customOptions?.customIsCorrect !== undefined ? customOptions.customIsCorrect : (result.success ? result.isCorrect : false);
+      const isCorrect = customIsCorrect !== undefined ? customIsCorrect : (result.success ? result.isCorrect : false);
       const xpEarned = result.success ? (result.xpEarned || 0) : 0;
       
       const correctAnswer = result.success ? result.correctAnswer : sq.question.correct_answer;

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Clock, Trophy, AlertTriangle } from "lucide-react";
 import GameEngine from "@/components/game/GameEngine";
 import { startDailySession, fetchSessionQuestions, endSession } from "./actions";
-import { SessionQuestion } from "@/components/game/types/game";
+import { SessionQuestion } from "@/types/game";
 
 export default function PlayPage() {
   const router = useRouter();

@@ -1,6 +1,6 @@
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
-export type GameTypeSlug = 'logic' | 'word' | 'memory' | 'observation' | 'speed' | 'trivia' | 'company_trivia';
+export type GameTypeSlug = 'logic' | 'word' | 'memory' | 'observation' | 'speed' | 'trivia' | 'company_trivia' | 'reaction' | 'stroop' | 'sequence' | 'card_match' | 'sudoku_lite' | 'odd_object' | 'unscramble' | 'typing' | 'mental_math' | 'math' | 'coding';
 
 export interface GameType {
   id: string;
@@ -32,6 +32,12 @@ export interface SessionQuestion {
 
 export interface GameProps {
   question: Question;
-  onAnswer: (answer: string, isCorrect: boolean, timeTakenSeconds: number) => void;
+  onAnswer: (
+    answer: string, 
+    optionsOrIsCorrect?: boolean | { customIsCorrect?: boolean; customTimeSpent?: number; isPerfect?: boolean }, 
+    timeTakenSeconds?: number
+  ) => void;
   isSubmitting?: boolean;
 }
+
+export type GameComponentProps = GameProps;
