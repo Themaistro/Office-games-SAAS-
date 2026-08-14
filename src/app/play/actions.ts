@@ -3,6 +3,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { 
+  generateTypingChallenge, 
+  generateWordUnscramble, 
+  generateMentalMath, 
+  generateSequence, 
+  generateOddObject, 
+  generateTrivia, 
+  generateSudokuLite, 
+  generateMemory 
+} from "@/lib/game-content";
 import { SessionQuestion } from "@/types/game";
 
 // Note: In a real production app, we would perform strict date math to enforce 15 mins calendar day limits.
@@ -83,65 +93,32 @@ export async function startDailySession() {
     for (const game of activeGames || []) {
       // Generate 15 questions per active game for the daily pool
       for (let i = 0; i < 15; i++) {
-        let content = {};
+        let gen;
+        let content: any;
         let options: string[] = [];
         let correctAnswer = "";
 
-        if (game.slug === "mental-math") {
-          const ops = ["+", "-", "*"];
-          const op = ops[Math.floor(Math.random() * ops.length)];
-          const a = Math.floor(Math.random() * 50) + 1;
-          const b = Math.floor(Math.random() * 12) + 1;
-          const eq = `${a} ${op} ${b}`;
-          correctAnswer = eval(eq).toString();
-          content = { equation: eq };
-          options = [correctAnswer, (parseInt(correctAnswer) + 1).toString(), (parseInt(correctAnswer) - 1).toString(), (parseInt(correctAnswer) + 10).toString()].sort(() => Math.random() - 0.5);
-        } else if (game.slug === "word-unscramble") {
-          const words = ["OFFICE", "MEETING", "PROJECT", "COFFEE", "SYNERGY", "DEADLINE", "MANAGER", "LEADER", "SUCCESS", "LAPTOP", "KEYBOARD", "MONITOR", "NETWORK", "SERVER", "DATABASE"];
-          const word = words[Math.floor(Math.random() * words.length)];
-          correctAnswer = word;
-          
-          let scrambledWord = word;
-          while (scrambledWord === word) {
-            scrambledWord = word.split('').sort(() => Math.random() - 0.5).join('');
-          }
-          content = { scrambled: scrambledWord };
-          
-          // Generate 3 other random distinct words as decoys
-          const decoys = words.filter(w => w !== word).sort(() => Math.random() - 0.5).slice(0, 3);
-          options = [word, ...decoys].sort(() => Math.random() - 0.5);
-        } else if (game.slug === "typing-challenge") {
-          const texts = [
-            "The quick brown fox jumps over the lazy dog.",
-            "Please ensure the quarterly report is submitted.",
-            "Synergy is key to our organizational success.",
-            "Let's touch base on the deliverable tomorrow.",
-            "Always properly close your HTML tags."
-          ];
-          const text = texts[Math.floor(Math.random() * texts.length)];
-          correctAnswer = text;
-          content = { text };
-          options = [];
+        if (game.slug === "mental-math" || game.slug === "mental_math" || game.slug === "math") {
+          gen = generateMentalMath();
+        } else if (game.slug === "word-unscramble" || game.slug === "unscramble") {
+          gen = generateWordUnscramble();
+        } else if (game.slug === "typing-challenge" || game.slug === "typing") {
+          gen = generateTypingChallenge();
         } else if (game.slug === "memory") {
-          const length = Math.floor(Math.random() * 3) + 4; // 4 to 6 digits
-          let seq = "";
-          for (let j = 0; j < length; j++) {
-            seq += Math.floor(Math.random() * 10).toString();
-          }
-          correctAnswer = seq;
-          content = { text: seq };
-          options = [];
-        } else if (game.slug === "sudoku-lite") {
-          // Simplified Sudoku logic for MVP
-          correctAnswer = "5";
-          content = { grid: [1, 2, 3, 4, null, 6, 7, 8, 9], missingIndex: 4 };
-          options = ["4", "5", "6", "7"];
+          gen = generateMemory();
+        } else if (game.slug === "sudoku-lite" || game.slug === "sudoku_lite") {
+          gen = generateSudokuLite();
+        } else if (game.slug === "odd-object" || game.slug === "odd_object") {
+          gen = generateOddObject();
+        } else if (game.slug === "sequence" || game.slug === "logic") {
+          gen = generateSequence();
         } else {
-          // Fallback trivia
-          correctAnswer = "Yes";
-          content = { question: "Is this a fallback question?" };
-          options = ["Yes", "No"];
+          gen = generateTrivia();
         }
+
+        content = gen.content;
+        options = gen.options || [];
+        correctAnswer = gen.correctAnswer;
 
         newQuestions.push({
           game_type_id: game.id,
