@@ -36,7 +36,9 @@ export default async function ProfilePage() {
           
           <div className="flex-1 text-center md:text-left">
             <h1 className="text-3xl font-bold mb-2">{profile.full_name}</h1>
-            <p className="text-muted-foreground mb-6">Software Engineering Team</p>
+            <p className="text-muted-foreground mb-6">
+              {profile.department ? `${profile.department} Team` : 'No Department Assigned'}
+            </p>
             
             <div className="flex flex-col gap-2">
               <div className="flex justify-between items-end text-sm font-medium">
