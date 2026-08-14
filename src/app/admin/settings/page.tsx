@@ -1,19 +1,61 @@
 "use client";
 
-import { useState } from "react";
-import { resetSeason } from "./actions";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { resetSeason, getSystemSettings, factoryResetPlatform } from "./actions";
+import { AlertTriangle, RefreshCw, CalendarDays, Hash, Flame } from "lucide-react";
 
 export default function SettingsPage() {
   const [isResetting, setIsResetting] = useState(false);
+  const [isFactoryResetting, setIsFactoryResetting] = useState(false);
   const [message, setMessage] = useState("");
+  const [settings, setSettings] = useState<any>(null);
 
-  const handleReset = async () => {
-    if (!window.confirm("ARE YOU ABSOLUTELY SURE? This will permanently delete all game history and reset all employee XP and Streaks to zero!")) {
+  const loadSettings = async () => {
+    const s = await getSystemSettings();
+    setSettings(s);
+  };
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const handleFactoryReset = async () => {
+    if (!window.confirm("CRITICAL WARNING: This will permanently wipe ALL historical season winners, daily sessions, and employee profiles. It will completely reset the platform to a brand new state. This action CANNOT be undone! Are you absolutely sure?")) {
       return;
     }
     
-    // Double confirmation for safety
+    setIsFactoryResetting(true);
+    try {
+      await factoryResetPlatform();
+      setMessage("Platform has been completely factory reset!");
+      await loadSettings();
+    } catch (err: any) {
+      setMessage(`Error: ${err.message}`);
+    } finally {
+      setIsFactoryResetting(false);
+    }
+  };
+  const handleUpdateSeason = async () => {
+    if (!window.confirm(`Are you sure you want to change the season number to ${newSeasonValue}?`)) return;
+    
+    setIsUpdatingSeason(true);
+    try {
+      await updateSeasonCounter(newSeasonValue);
+      setMessage(`Season counter successfully updated to Season ${newSeasonValue}!`);
+      await loadSettings();
+      setIsEditingSeason(false);
+    } catch (err: any) {
+      setMessage(`Error: ${err.message}`);
+    } finally {
+      setIsUpdatingSeason(false);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!window.confirm("ARE YOU ABSOLUTELY SURE? This will permanently delete all game history, archive top winners, and reset all employee XP and Streaks to zero!")) {
+      return;
+    }
+    
     if (window.prompt("Type 'RESET' to confirm this destructive action:") !== "RESET") {
       return;
     }
@@ -23,7 +65,8 @@ export default function SettingsPage() {
 
     try {
       await resetSeason();
-      setMessage("Season has been successfully reset. A new 30-day competition begins today!");
+      setMessage("Season has been successfully reset. A new competition begins today!");
+      await loadSettings();
     } catch (err: any) {
       setMessage(`Error: ${err.message}`);
     } finally {
@@ -31,11 +74,39 @@ export default function SettingsPage() {
     }
   };
 
+  const daysActive = settings ? Math.floor((new Date().getTime() - new Date(settings.season_start_date).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Platform Settings</h1>
         <p className="text-muted-foreground mt-1">Manage global configuration and competition cycles.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col relative">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-muted-foreground">Current Season</h3>
+            <Hash size={16} className="text-primary" />
+          </div>
+          
+          <span className="text-3xl font-bold">Season {settings?.current_season || 1}</span>
+          
+          <span className="text-xs text-muted-foreground font-medium mt-2 flex items-center gap-1">
+            Active competition cycle
+          </span>
+        </div>
+        
+        <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-muted-foreground">Days Active</h3>
+            <CalendarDays size={16} className="text-blue-500" />
+          </div>
+          <span className="text-3xl font-bold">{daysActive}</span>
+          <span className="text-xs text-muted-foreground font-medium mt-2 flex items-center gap-1">
+            Days since season started
+          </span>
+        </div>
       </div>
 
       <div className="bg-card border border-destructive/30 rounded-xl shadow-sm overflow-hidden">
@@ -45,27 +116,43 @@ export default function SettingsPage() {
         </div>
         <div className="p-6 space-y-6">
           
-          <div>
-            <h3 className="text-base font-bold">Start New Season (Hard Reset)</h3>
+          <div className="border-b border-border pb-6">
+            <h3 className="text-base font-bold">Wipe Leaderboard & Start New Season</h3>
             <p className="text-muted-foreground text-sm mt-1 mb-4">
-              This action will reset every employee's Total XP, Level, and Current Streak back to zero. It will also permanently delete all historical daily sessions. Only do this at the beginning of a new competition month!
+              This action will reset every employee's Total XP, Level, and Current Streak back to zero. It will also archive the Top 3 players, permanently delete all historical daily sessions, and flush the daily question pool. Only do this at the beginning of a new competition month!
             </p>
             
             <button
               onClick={handleReset}
-              disabled={isResetting}
+              disabled={isResetting || isFactoryResetting}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-bold text-destructive-foreground hover:bg-destructive/90 focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 transition-all disabled:opacity-50"
             >
               {isResetting ? <RefreshCw className="animate-spin" size={16} /> : <AlertTriangle size={16} />}
-              {isResetting ? "Resetting Database..." : "Wipe Leaderboard & Start New Season"}
+              {isResetting ? "Resetting Database..." : "Start New Season"}
             </button>
-
-            {message && (
-              <div className="mt-4 p-4 bg-muted rounded-lg border border-border text-sm font-medium">
-                {message}
-              </div>
-            )}
           </div>
+
+          <div>
+            <h3 className="text-base font-bold text-red-500 flex items-center gap-2"><Flame size={18}/> Factory Reset Platform</h3>
+            <p className="text-muted-foreground text-sm mt-1 mb-4">
+              This action completely wipes the platform to a blank slate. ALL historical season winners will be deleted. The Season Counter will reset to 1. All users lose their progress. Use this if you want to completely start over from zero.
+            </p>
+            
+            <button
+              onClick={handleFactoryReset}
+              disabled={isResetting || isFactoryResetting}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-900 border border-red-500 px-4 py-2 text-sm font-bold text-red-100 hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all disabled:opacity-50"
+            >
+              {isFactoryResetting ? <RefreshCw className="animate-spin" size={16} /> : <Flame size={16} />}
+              {isFactoryResetting ? "Wiping Everything..." : "FACTORY RESET ALL SEASONS"}
+            </button>
+          </div>
+
+          {message && (
+            <div className="mt-4 p-4 bg-muted rounded-lg border border-border text-sm font-medium">
+              {message}
+            </div>
+          )}
 
         </div>
       </div>

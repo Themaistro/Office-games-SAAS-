@@ -356,6 +356,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
         return <TypingGame {...props} />;
       case 'mental_math':
       case 'mental-math':
+      case 'math':
         return <MentalMathGame {...props} />;
       case 'trivia':
       case 'company_trivia':

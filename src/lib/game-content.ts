@@ -7,73 +7,44 @@ export const shuffle = <T>(arr: T[]): T[] => [...arr].sort(() => Math.random() -
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 
+const getSlice = (bank: any[], count: number, dayOfYear: number) => {
+  if (!bank || bank.length === 0) return [];
+  const items = [];
+  for(let i=0; i<count; i++) {
+    items.push(bank[(dayOfYear * count + i) % bank.length]);
+  }
+  return items;
+};
+
 // ------------------------------------------
 // 1. TYPING CHALLENGE CONTENT
 // ------------------------------------------
-const TYPING_PROMPTS = {
-  easy: [
-    "Welcome to the team.",
-    "Please check your email.",
-    "The meeting is at noon.",
-    "Let's schedule a quick call.",
-    "Have a great weekend."
-  ],
-  medium: [
-    "Synergy is key to our organizational success and long-term viability.",
-    "Please ensure the Q3 quarterly report is submitted by end of day.",
-    "Let's touch base on the deliverable tomorrow before the standup.",
-    "We need to pivot our strategy to align with the new KPIs.",
-    "The onboarding process has been streamlined for new hires."
-  ],
-  hard: [
-    "const initializeApp = async () => { await db.connect(); };",
-    "function factorial(n) { return n <= 1 ? 1 : n * factorial(n-1); }",
-    "SELECT * FROM users WHERE status = 'active' ORDER BY created_at DESC;",
-    "git commit -m 'fix: resolve race condition in authentication flow'",
-    "Array.from({ length: 10 }).map((_, i) => i * Math.PI);"
-  ]
-};
-
-export const generateTypingChallenge = (count: number = 5, difficulty: Difficulty = 'medium') => {
-  const bank = TYPING_PROMPTS[difficulty];
-  const shuffled = shuffle(bank);
-  return Array.from({ length: count }).map((_, i) => {
-    const text = i < shuffled.length ? shuffled[i] : getRandomItem(bank);
-    return {
-      correctAnswer: "type-exactly",
-      content: { text },
-      options: []
-    };
-  });
+export const generateTypingChallenge = (masterBank: any[], count: number = 5, difficulty: Difficulty = 'medium', dayOfYear: number = 1) => {
+  const bank = masterBank.filter(b => b.difficulty === difficulty);
+  const sliced = getSlice(bank.length > 0 ? bank : masterBank, count, dayOfYear);
+  
+  return sliced.map((t) => ({
+    correctAnswer: "type-exactly",
+    content: { text: t.prompt_text },
+    options: []
+  }));
 };
 
 // ------------------------------------------
 // 2. WORD UNSCRAMBLE
 // ------------------------------------------
-const WORD_BANK = [
-  "OFFICE", "MEETING", "PROJECT", "COFFEE", "SYNERGY", "DEADLINE", "MANAGER", "LEADER", 
-  "SUCCESS", "LAPTOP", "KEYBOARD", "MONITOR", "NETWORK", "SERVER", "DATABASE", "FRONTEND", 
-  "BACKEND", "DESIGN", "DEVELOPER", "INNOVATION", "STRATEGY", "AGILE", "SCRUM", "SPRINT",
-  "METRICS", "ANALYTICS", "REVENUE", "GROWTH", "BUDGET", "FINANCE", "MARKETING", "SALES",
-  "CUSTOMER", "SUPPORT", "PRODUCT", "FEATURE", "RELEASE", "VERSION", "DEPLOYMENT", "INFRASTRUCTURE"
-];
-
-export const generateWordUnscramble = (count: number = 5, difficulty: Difficulty = 'medium') => {
-  let filteredBank = WORD_BANK;
-  if (difficulty === 'easy') filteredBank = WORD_BANK.filter(w => w.length <= 5);
-  if (difficulty === 'medium') filteredBank = WORD_BANK.filter(w => w.length > 5 && w.length <= 8);
-  if (difficulty === 'hard') filteredBank = WORD_BANK.filter(w => w.length > 8);
+export const generateWordUnscramble = (masterBank: any[], count: number = 5, difficulty: Difficulty = 'medium', dayOfYear: number = 1) => {
+  const bank = masterBank.filter(b => b.difficulty === difficulty);
+  const validBank = bank.length > 0 ? bank : masterBank;
+  const sliced = getSlice(validBank, count, dayOfYear);
   
-  if (filteredBank.length === 0) filteredBank = WORD_BANK;
-
-  const shuffledBank = shuffle(filteredBank);
-  return Array.from({ length: count }).map((_, i) => {
-    const word = i < shuffledBank.length ? shuffledBank[i] : getRandomItem(filteredBank);
+  return sliced.map((w) => {
+    const word = w.word;
     let scrambled = word;
-    while (scrambled === word) {
+    while (scrambled === word && word.length > 1) {
       scrambled = shuffle(word.split('')).join('');
     }
-    const decoys = shuffle(WORD_BANK.filter(w => w !== word)).slice(0, 3);
+    const decoys = shuffle(masterBank.filter(b => b.word !== word)).slice(0, 3).map(b => b.word);
     
     return {
       correctAnswer: word,
@@ -95,7 +66,6 @@ export const generateMentalMath = (count: number = 5, difficulty: Difficulty = '
       op = getRandomItem(['+', '-']);
       a = Math.floor(Math.random() * 20) + 1;
       b = Math.floor(Math.random() * 20) + 1;
-      if (op === '-' && b > a) [a, b] = [b, a]; // keep it positive
     } else if (difficulty === 'medium') {
       op = getRandomItem(['+', '-', '*']);
       if (op === '*') {
@@ -116,6 +86,8 @@ export const generateMentalMath = (count: number = 5, difficulty: Difficulty = '
       }
     }
 
+    if (op === '-' && b > a) [a, b] = [b, a]; // keep it positive for all difficulties!
+
     if (op === '+') answer = a + b;
     else if (op === '-') answer = a - b;
     else if (op === '*') answer = a * b;
@@ -123,10 +95,16 @@ export const generateMentalMath = (count: number = 5, difficulty: Difficulty = '
     const equation = `${a} ${op} ${b} = ?`;
     
     const decoys = new Set<string>();
-    while(decoys.size < 3) {
-      const offset = Math.floor(Math.random() * 10) - 5;
+    let attempts = 0;
+    while(decoys.size < 3 && attempts < 100) {
+      const offset = Math.floor(Math.random() * 20) - 10;
       const decoy = answer + offset;
-      if (decoy !== answer && decoy > 0) decoys.add(decoy.toString());
+      if (decoy !== answer && decoy >= 0) decoys.add(decoy.toString());
+      attempts++;
+    }
+    
+    while (decoys.size < 3) {
+      decoys.add((answer + Math.floor(Math.random() * 100) + 1).toString());
     }
 
     return {
@@ -142,42 +120,147 @@ export const generateMentalMath = (count: number = 5, difficulty: Difficulty = '
 // ------------------------------------------
 export const generateSequence = (count: number = 5, difficulty: Difficulty = 'medium') => {
   return Array.from({ length: count }).map(() => {
-    const seq: number[] = [];
-    let answer = 0;
+    const logicTypes = ['math', 'letter', 'analogy', 'deductive', 'time'];
+    const type = logicTypes[Math.floor(Math.random() * logicTypes.length)];
+    
+    let answer = "";
+    let text = "";
+    const decoys = new Set<string>();
 
-    if (difficulty === 'easy') {
-      const start = Math.floor(Math.random() * 10) + 1;
-      const step = Math.floor(Math.random() * 5) + 2;
-      for(let i=0; i<4; i++) seq.push(start + (step * i));
-      answer = start + (step * 4);
-    } else if (difficulty === 'medium') {
-      const start = Math.floor(Math.random() * 3) + 2;
-      const mult = Math.floor(Math.random() * 3) + 2;
-      for(let i=0; i<4; i++) seq.push(start * Math.pow(mult, i));
-      answer = start * Math.pow(mult, 4);
-    } else {
-      let a = Math.floor(Math.random() * 3) + 1;
-      let b = Math.floor(Math.random() * 3) + 2;
-      seq.push(a, b);
-      for(let i=2; i<4; i++) {
-        const next = seq[i-1] + seq[i-2];
-        seq.push(next);
+    if (type === 'math') {
+      const seq: number[] = [];
+      let numAnswer = 0;
+      if (difficulty === 'easy') {
+        const start = Math.floor(Math.random() * 10) + 1;
+        const step = Math.floor(Math.random() * 5) + 2;
+        for(let i=0; i<4; i++) seq.push(start + (step * i));
+        numAnswer = start + (step * 4);
+      } else if (difficulty === 'medium') {
+        const start = Math.floor(Math.random() * 3) + 2;
+        const mult = Math.floor(Math.random() * 3) + 2;
+        for(let i=0; i<4; i++) seq.push(start * Math.pow(mult, i));
+        numAnswer = start * Math.pow(mult, 4);
+      } else {
+        let a = Math.floor(Math.random() * 3) + 1;
+        let b = Math.floor(Math.random() * 3) + 2;
+        seq.push(a, b);
+        for(let i=2; i<4; i++) {
+          seq.push(seq[i-1] + seq[i-2]);
+        }
+        numAnswer = seq[3] + seq[2];
       }
-      answer = seq[3] + seq[2];
+      text = `${seq.join(', ')}, ?`;
+      answer = numAnswer.toString();
+      while(decoys.size < 3) {
+        const decoy = numAnswer + Math.floor(Math.random() * 10) - 5;
+        if (decoy !== numAnswer && decoy > 0) decoys.add(decoy.toString());
+      }
+    } else if (type === 'letter') {
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const step = difficulty === 'easy' ? 1 : (difficulty === 'medium' ? 2 : 3);
+      const startIdx = Math.floor(Math.random() * (26 - (step * 4)));
+      const seq = [];
+      for(let i=0; i<4; i++) seq.push(alphabet[startIdx + (i * step)]);
+      text = `${seq.join(', ')}, ?`;
+      answer = alphabet[startIdx + (4 * step)];
+      while(decoys.size < 3) {
+        const decoy = alphabet[Math.floor(Math.random() * 26)];
+        if (decoy !== answer) decoys.add(decoy);
+      }
+    } else if (type === 'analogy') {
+      const analogies = [
+        { a: "Ocean", b: "Water", c: "Desert", ans: "Sand", decoys: ["Sun", "Camel", "Heat"] },
+        { a: "Bird", b: "Fly", c: "Fish", ans: "Swim", decoys: ["Water", "Gills", "Fins"] },
+        { a: "Book", b: "Read", c: "Piano", ans: "Play", decoys: ["Music", "Keys", "Sound"] },
+        { a: "Tree", b: "Forest", c: "Star", ans: "Galaxy", decoys: ["Sky", "Night", "Space"] },
+        { a: "Fire", b: "Hot", c: "Ice", ans: "Cold", decoys: ["Freeze", "Water", "Snow"] },
+        { a: "Clock", b: "Time", c: "Thermometer", ans: "Temperature", decoys: ["Heat", "Fever", "Weather"] },
+        { a: "Author", b: "Write", c: "Chef", ans: "Cook", decoys: ["Food", "Eat", "Kitchen"] },
+        { a: "Breeze", b: "Tornado", c: "Trickle", ans: "Flood", decoys: ["Water", "Rain", "River"] }
+      ];
+      const picked = analogies[Math.floor(Math.random() * analogies.length)];
+      text = `${picked.a} : ${picked.b} :: ${picked.c} : ?`;
+      answer = picked.ans;
+      picked.decoys.forEach(d => decoys.add(d));
+    } else if (type === 'deductive') {
+      const templates = [
+        () => {
+          const names = shuffle(["Alice", "Bob", "Charlie", "David", "Eve"]).slice(0, 4);
+          const [A, B, C, D] = names;
+          // Logic: D > A > B > C
+          const qType = Math.random();
+          const target = qType > 0.66 ? { place: "first", ans: D } : (qType > 0.33 ? { place: "last", ans: C } : { place: "third", ans: B });
+          return {
+            text: `Four runners finish a race. ${A} finished before ${B}. ${C} finished after ${B}. ${D} finished before ${A}. Who finished in ${target.place} place?`,
+            ans: target.ans,
+            decoys: names.filter(n => n !== target.ans)
+          };
+        },
+        () => {
+          const names = shuffle(["Liam", "Noah", "Emma", "Olivia", "Ava"]).slice(0, 4);
+          const [A, B, C, D] = names;
+          // Logic: C, B, A, D (Left to Right)
+          return {
+            text: `Four friends sit in a row from left to right. ${A} is sitting next to ${B}. ${C} is not sitting next to ${A}. ${D} is sitting on the far right. Who is sitting on the far left?`,
+            ans: C,
+            decoys: [A, B, D]
+          };
+        },
+        () => {
+          const nouns = shuffle(["Glibbles", "Flobbles", "Snirks", "Borgles", "Zonks"]);
+          const [A, B, C] = nouns;
+          // All A are B. No B are C. -> No A are C.
+          return {
+            text: `All ${A} are ${B}. No ${B} are ${C}. Based on this, which statement MUST be true?`,
+            ans: `No ${A} are ${C}.`,
+            decoys: [`All ${C} are ${A}.`, `Some ${A} are ${C}.`, `All ${B} are ${A}.`]
+          };
+        },
+        () => {
+          const colors = shuffle(["Red", "Blue", "Green", "Yellow"]);
+          const [C1, C2, C3, C4] = colors;
+          // Logic: Box 1 is C3, Box 2 is C1, Box 3 is C4, Box 4 is C2
+          return {
+            text: `There are 4 boxes. The ${C1} box is directly to the left of the ${C4} box. The ${C2} box is on the far right. The ${C3} box is not next to the ${C4} box. What color is the far left box?`,
+            ans: C3,
+            decoys: [C1, C4, C2]
+          };
+        }
+      ];
+      
+      const selected = templates[Math.floor(Math.random() * templates.length)]();
+      text = selected.text;
+      answer = selected.ans;
+      selected.decoys.forEach(d => decoys.add(d));
+    } else if (type === 'time') {
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      const currentDayIdx = Math.floor(Math.random() * 7);
+      const isPast = Math.random() > 0.5;
+      const offset = Math.floor(Math.random() * 4) + 2; // 2 to 5 days
+      
+      if (isPast) {
+        text = `If today is ${days[currentDayIdx]}, what day was ${offset} days ago?`;
+        answer = days[(currentDayIdx - offset + 14) % 7];
+      } else {
+        text = `If today is ${days[currentDayIdx]}, what day is ${offset} days from now?`;
+        answer = days[(currentDayIdx + offset) % 7];
+      }
+      
+      while(decoys.size < 3) {
+        const d = days[Math.floor(Math.random() * 7)];
+        if (d !== answer) decoys.add(d);
+      }
     }
 
-    const text = `${seq.join(', ')}, ?`;
-    
-    const decoys = new Set<string>();
-    while(decoys.size < 3) {
-      const decoy = answer + Math.floor(Math.random() * 10) - 5;
-      if (decoy !== answer && decoy > 0) decoys.add(decoy.toString());
+    // Ensure we have exactly 3 decoys for a 4-option multiple choice
+    while (decoys.size < 3) {
+      decoys.add(Math.floor(Math.random() * 100).toString());
     }
 
     return {
-      correctAnswer: answer.toString(),
+      correctAnswer: answer,
       content: { text },
-      options: shuffle([answer.toString(), ...Array.from(decoys)])
+      options: shuffle([answer, ...Array.from(decoys).slice(0, 3)])
     };
   });
 };
@@ -185,38 +268,17 @@ export const generateSequence = (count: number = 5, difficulty: Difficulty = 'me
 // ------------------------------------------
 // 5. ODD OBJECT GENERATOR
 // ------------------------------------------
-const CATEGORIES_EASY = [
-  { theme: 'Fruits', items: ['Apple', 'Banana', 'Orange', 'Mango', 'Grape', 'Pear'] },
-  { theme: 'Cars', items: ['Toyota', 'Ford', 'Honda', 'Chevrolet', 'Nissan'] },
-  { theme: 'Animals', items: ['Dog', 'Cat', 'Elephant', 'Lion', 'Tiger', 'Bear'] }
-];
+export const generateOddObject = (masterBank: any[], count: number = 5, difficulty: Difficulty = 'medium', dayOfYear: number = 1) => {
+  const bank = masterBank.filter(b => b.difficulty === difficulty);
+  const validBank = bank.length > 0 ? bank : masterBank;
+  const sliced = getSlice(validBank, count * 2, dayOfYear); // need 2 themes per question
+  
+  return Array.from({ length: count }).map((_, i) => {
+    const mainCat = sliced[i * 2];
+    const oddCat = sliced[i * 2 + 1] || sliced[0];
 
-const CATEGORIES_MEDIUM = [
-  { theme: 'Compiled Languages', items: ['C', 'C++', 'Rust', 'Go', 'Java'] },
-  { theme: 'Interpreted Languages', items: ['Python', 'JavaScript', 'Ruby', 'PHP'] },
-  { theme: 'Relational DBs', items: ['PostgreSQL', 'MySQL', 'Oracle', 'SQL Server'] },
-  { theme: 'NoSQL DBs', items: ['MongoDB', 'Cassandra', 'Redis', 'DynamoDB'] }
-];
-
-const CATEGORIES_HARD = [
-  { theme: 'React Hooks', items: ['useState', 'useEffect', 'useContext', 'useMemo'] },
-  { theme: 'React Component Methods', items: ['componentDidMount', 'render', 'shouldComponentUpdate'] },
-  { theme: 'CSS Layout', items: ['flex', 'grid', 'block', 'inline'] },
-  { theme: 'CSS Typography', items: ['font-size', 'line-height', 'letter-spacing', 'text-align'] }
-];
-
-export const generateOddObject = (count: number = 5, difficulty: Difficulty = 'medium') => {
-  return Array.from({ length: count }).map(() => {
-    let activeCats = CATEGORIES_MEDIUM;
-    if (difficulty === 'easy') activeCats = CATEGORIES_EASY;
-    if (difficulty === 'hard') activeCats = CATEGORIES_HARD;
-
-    const shuffledCats = shuffle(activeCats);
-    const mainCat = shuffledCats[0];
-    const oddCat = shuffledCats[1];
-
-    const mainItems = shuffle(mainCat.items).slice(0, 3);
-    const oddItem = shuffle(oddCat.items)[0];
+    const mainItems = shuffle(mainCat.items || []).slice(0, 3);
+    const oddItem = shuffle(oddCat.items || [])[0];
     
     return {
       correctAnswer: oddItem,
@@ -229,52 +291,24 @@ export const generateOddObject = (count: number = 5, difficulty: Difficulty = 'm
 // ------------------------------------------
 // 6. TRIVIA BANK
 // ------------------------------------------
-export const TRIVIA_BANK = [
-  // General
-  { q: "What planet is known as the Red Planet?", a: "Mars", decoys: ["Venus", "Jupiter", "Saturn"], department: "General", difficulty: "easy" },
-  { q: "What is the capital of Australia?", a: "Canberra", decoys: ["Sydney", "Melbourne", "Perth"], department: "General", difficulty: "medium" },
-  { q: "In what year was the first iPhone released?", a: "2007", decoys: ["2005", "2008", "2010"], department: "General", difficulty: "medium" },
-  { q: "What is the powerhouse of the cell?", a: "Mitochondria", decoys: ["Nucleus", "Ribosome", "Endoplasmic Reticulum"], department: "General", difficulty: "easy" },
-  { q: "Which element has the chemical symbol 'Au'?", a: "Gold", decoys: ["Silver", "Argon", "Aluminum"], department: "General", difficulty: "hard" },
-  { q: "Who painted the Mona Lisa?", a: "Leonardo da Vinci", decoys: ["Vincent van Gogh", "Pablo Picasso", "Claude Monet"], department: "General", difficulty: "hard" },
+export const generateTrivia = (masterBank: any[], count: number = 20, difficulty: Difficulty = 'medium', dayOfYear: number = 1) => {
+  const bank = masterBank.filter(b => b.difficulty === difficulty);
+  const validBank = bank.length > 0 ? bank : masterBank;
+  const sliced = getSlice(validBank, count, dayOfYear);
   
-  // Engineering
-  { q: "What does HTML stand for?", a: "Hyper Text Markup Language", decoys: ["Home Tool Markup Language", "Hyperlinks and Text Markup Language", "Hyper Tool Multi Language"], department: "Engineering", difficulty: "easy" },
-  { q: "Which company created React?", a: "Facebook (Meta)", decoys: ["Google", "Microsoft", "Twitter"], department: "Engineering", difficulty: "easy" },
-  { q: "Which programming language is known as the mother of all languages?", a: "C", decoys: ["Java", "Assembly", "Python"], department: "Engineering", difficulty: "medium" },
-  { q: "What does API stand for?", a: "Application Programming Interface", decoys: ["Advanced Program Integration", "Automated Programming Interface", "Application Process Integration"], department: "Engineering", difficulty: "medium" },
-  { q: "In Git, what command saves your changes to the local repository?", a: "git commit", decoys: ["git push", "git save", "git store"], department: "Engineering", difficulty: "hard" },
+  return sliced.map((t) => {
+    let decoys = t.decoys || [];
+    if (typeof decoys === 'string') {
+      try { decoys = JSON.parse(decoys); } catch(e) {}
+    }
 
-  // HR
-  { q: "What does FMLA stand for?", a: "Family and Medical Leave Act", decoys: ["Federal Medical Leave Allowance", "Family Maternity Leave Act", "Fair Medical Leave Agreement"], department: "HR", difficulty: "easy" },
-  { q: "In HR, what is the term for the rate at which employees leave a workforce?", a: "Turnover Rate", decoys: ["Attrition Factor", "Departure Index", "Retention Loss"], department: "HR", difficulty: "medium" },
-  { q: "What does KPI stand for in performance management?", a: "Key Performance Indicator", decoys: ["Key Process Index", "Knowledge Performance Index", "Key Productivity Indicator"], department: "HR", difficulty: "medium" },
-  { q: "Which act established the minimum wage in the US?", a: "Fair Labor Standards Act", decoys: ["Equal Pay Act", "Civil Rights Act", "National Labor Relations Act"], department: "HR", difficulty: "hard" },
-  { q: "What is the process of integrating a new employee into an organization called?", a: "Onboarding", decoys: ["Induction", "Orientation", "Assimilation"], department: "HR", difficulty: "easy" },
-
-  // Sales
-  { q: "What does CRM stand for?", a: "Customer Relationship Management", decoys: ["Client Retention Model", "Customer Revenue Management", "Client Relationship Marketing"], department: "Sales", difficulty: "easy" },
-  { q: "In sales, what does B2B stand for?", a: "Business to Business", decoys: ["Business to Buyer", "Buyer to Buyer", "Brand to Business"], department: "Sales", difficulty: "easy" },
-  { q: "What is the term for a potential customer who has shown interest in a product?", a: "Lead", decoys: ["Prospect", "Target", "Suspect"], department: "Sales", difficulty: "medium" },
-  { q: "What does ROI stand for?", a: "Return on Investment", decoys: ["Revenue on Investment", "Return on Income", "Rate of Interest"], department: "Sales", difficulty: "medium" },
-  { q: "What is the final step of the sales process called?", a: "Closing", decoys: ["Pitching", "Prospecting", "Negotiating"], department: "Sales", difficulty: "hard" }
-];
-
-export const generateTrivia = (count: number = 20, difficulty: Difficulty = 'medium') => {
-  const filteredBank = TRIVIA_BANK.filter(t => t.difficulty === difficulty);
-  // Fallback to all if not enough questions in that difficulty yet
-  const bankToUse = filteredBank.length > 0 ? filteredBank : TRIVIA_BANK;
-  
-  const shuffled = shuffle(bankToUse);
-  return Array.from({ length: count }).map((_, i) => {
-    const trivia = i < shuffled.length ? shuffled[i] : getRandomItem(bankToUse);
     return {
-      correctAnswer: trivia.a,
+      correctAnswer: t.answer,
       content: { 
-        question: trivia.q,
-        department: trivia.department 
+        question: t.question,
+        department: t.department 
       },
-      options: shuffle([trivia.a, ...trivia.decoys])
+      options: shuffle([t.answer, ...decoys])
     };
   });
 };
@@ -308,7 +342,7 @@ export const generateSudokuLite = (count: number = 5, difficulty: Difficulty = '
 };
 
 // ------------------------------------------
-// 8. PURE NUMBER MEMORY
+// 8. MIXED MEMORY CHALLENGE
 // ------------------------------------------
 export const generateMemory = (count: number = 5, difficulty: Difficulty = 'medium') => {
   return Array.from({ length: count }).map(() => {
@@ -316,9 +350,21 @@ export const generateMemory = (count: number = 5, difficulty: Difficulty = 'medi
     if (difficulty === 'medium') length = 7;
     if (difficulty === 'hard') length = 9;
 
+    const mode = Math.random();
+    const numbers = "0123456789";
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const symbols = "!@#$%&*?";
+    
+    let charSet = numbers;
+    if (mode > 0.66) {
+      charSet = letters; // Pure Letters
+    } else if (mode > 0.33) {
+      charSet = numbers + letters + symbols; // Mixed
+    }
+
     let seq = "";
     for (let j = 0; j < length; j++) {
-      seq += Math.floor(Math.random() * 10).toString();
+      seq += charSet[Math.floor(Math.random() * charSet.length)];
     }
     return {
       correctAnswer: seq,

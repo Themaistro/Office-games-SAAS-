@@ -100,46 +100,63 @@ export async function startDailySession() {
     console.log("Generating dynamic daily pool for", today);
     const newQuestions = [];
     
-    // Seed for today so we can deterministically generate questions if needed, 
-    // or we just rely on random since it's saved in the DB once per day.
+    // Fetch master banks and system settings for today's pool
+    const [{ data: masterTrivia }, { data: masterWords }, { data: masterTyping }, { data: masterOdd }, { data: settings }] = await Promise.all([
+      supabase.from('master_trivia_bank').select('*'),
+      supabase.from('master_word_bank').select('*'),
+      supabase.from('master_typing_bank').select('*'),
+      supabase.from('master_odd_object_bank').select('*'),
+      supabase.from('system_settings').select('*').single()
+    ]);
+
+    const currentSeason = settings?.current_season || 1;
+    const seasonStart = settings?.season_start_date ? new Date(settings.season_start_date) : new Date();
+    const daysSinceSeasonStart = Math.floor((new Date().getTime() - seasonStart.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // Offset calculation: (Season Number - 1) * 30 days + Days into current season
+    const dayOffset = Math.max(0, ((currentSeason - 1) * 30) + daysSinceSeasonStart);
+
     for (const game of activeGames || []) {
-      // Generate 15 questions per active game for the daily pool
-      // Generate 15 questions per active game for the daily pool (5 Easy, 5 Medium, 5 Hard)
       const difficulties: ('easy' | 'medium' | 'hard')[] = ['easy', 'medium', 'hard'];
       let generatedBatch: any[] = [];
       
-      for (const diff of difficulties) {
+      difficulties.forEach((diff, diffIndex) => {
         let diffBatch: any[] = [];
+        // Offset the dayOffset by diffIndex so easy/medium/hard don't pull the exact same slice if they fall back to the same master bank
+        const sliceIndex = dayOffset * 3 + diffIndex; 
+
         if (game.slug === "mental-math" || game.slug === "mental_math" || game.slug === "math") {
-          diffBatch = generateMentalMath(5, diff);
+          diffBatch = generateMentalMath(25, diff);
         } else if (game.slug === "word-unscramble" || game.slug === "unscramble") {
-          diffBatch = generateWordUnscramble(5, diff);
+          const shuffledWords = [...(masterWords || [])].sort(() => 0.5 - Math.random());
+          diffBatch = generateWordUnscramble(shuffledWords, 25, diff, sliceIndex);
         } else if (game.slug === "typing-challenge" || game.slug === "typing") {
-          diffBatch = generateTypingChallenge(5, diff);
+          const shuffledTyping = [...(masterTyping || [])].sort(() => 0.5 - Math.random());
+          diffBatch = generateTypingChallenge(shuffledTyping, 25, diff, sliceIndex);
         } else if (game.slug === "memory") {
-          diffBatch = generateMemory(5, diff);
+          diffBatch = generateMemory(25, diff);
         } else if (game.slug === "sudoku-lite" || game.slug === "sudoku_lite") {
-          diffBatch = generateSudokuLite(5, diff);
+          diffBatch = generateSudokuLite(25, diff);
         } else if (game.slug === "odd-object" || game.slug === "odd_object") {
-          diffBatch = generateOddObject(5, diff);
+          const shuffledOdd = [...(masterOdd || [])].sort(() => 0.5 - Math.random());
+          diffBatch = generateOddObject(shuffledOdd, 25, diff, sliceIndex);
         } else if (game.slug === "logic") {
-          diffBatch = generateSequence(5, diff);
+          diffBatch = generateSequence(25, diff);
         } else if (['reaction', 'stroop', 'card_match', 'card-match', 'sequence'].includes(game.slug)) {
-          diffBatch = Array.from({ length: 5 }).map(() => ({
+          diffBatch = Array.from({ length: 25 }).map(() => ({
             correctAnswer: "none",
             content: {},
             options: []
           }));
         } else {
-          // For trivia, generate a large pool (20 per difficulty = 60 total) to ensure department mix
-          diffBatch = generateTrivia(20, diff);
+          const shuffledTrivia = [...(masterTrivia || [])].sort(() => 0.5 - Math.random());
+          diffBatch = generateTrivia(shuffledTrivia, 150, diff, sliceIndex);
         }
 
-        // Attach difficulty to the generated items before flattening
         for (const gen of diffBatch) {
           generatedBatch.push({ ...gen, difficulty: diff });
         }
-      }
+      });
 
       for (const gen of generatedBatch) {
         newQuestions.push({
@@ -184,12 +201,22 @@ export async function startDailySession() {
         console.error("Failed to inject custom trivia", e);
       }
 
-      const { data: insertedQuestions, error: insertError } = await supabase
+      // Use admin client to bypass RLS for inserting questions (since regular users can't create questions)
+      const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+      const adminClient = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+
+      const { data: insertedQuestions, error: insertError } = await adminClient
         .from("questions")
         .insert(newQuestions)
         .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active)");
         
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error("Failed inserting new questions:", insertError);
+        throw new Error("Failed generating today's questions due to database error.");
+      }
       todaysQuestions = insertedQuestions || [];
     }
   }
@@ -251,13 +278,23 @@ export async function startDailySession() {
       const medQs = questionsByGame[gameId].filter(q => q.difficulty === 'medium').sort(() => 0.5 - Math.random());
       const hardQs = questionsByGame[gameId].filter(q => q.difficulty === 'hard').sort(() => 0.5 - Math.random());
       
-      // Assign exactly 3 questions in escalating difficulty order
-      questionsByGame[gameId] = [easyQs[0], medQs[0], hardQs[0]].filter(Boolean);
+      const getRandomQ = (qs: any[]) => qs.length > 0 ? qs[Math.floor(Math.random() * qs.length)] : null;
+      
+      // Select 3 random questions (1 easy, 1 medium, 1 hard) from today's pool
+      questionsByGame[gameId] = [
+        getRandomQ(easyQs),
+        getRandomQ(medQs),
+        getRandomQ(hardQs)
+      ].filter(Boolean);
     }
 
     const selectedQuestions: any[] = [];
-    // Shuffle the order of the games so it's not the exact same sequence every day
-    const gameIds = Object.keys(questionsByGame).sort(() => 0.5 - Math.random());
+    
+    // Shuffle the order of the games completely randomly for every single session!
+    let gameIds = Object.keys(questionsByGame).sort(() => 0.5 - Math.random());
+    
+    // Limit to 10 games per daily session (30 questions total)
+    gameIds = gameIds.slice(0, 10);
     
     // Group them so the user plays Game A (Easy, Med, Hard), then Game B (Easy, Med, Hard)
     for (const gameId of gameIds) {

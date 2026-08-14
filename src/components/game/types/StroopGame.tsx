@@ -8,12 +8,17 @@ const COLORS = [
   { name: "BLUE", hex: "#3B82F6", tailwind: "text-blue-500" },
   { name: "GREEN", hex: "#22C55E", tailwind: "text-green-500" },
   { name: "YELLOW", hex: "#EAB308", tailwind: "text-yellow-500" },
+  { name: "PURPLE", hex: "#A855F7", tailwind: "text-purple-500" },
+  { name: "ORANGE", hex: "#F97316", tailwind: "text-orange-500" },
+  { name: "PINK", hex: "#EC4899", tailwind: "text-pink-500" },
+  { name: "CYAN", hex: "#06B6D4", tailwind: "text-cyan-500" }
 ];
 
 export default function StroopGame({ question, onAnswer, isSubmitting }: GameProps) {
   const [startTime] = useState(Date.now());
   const [wordIdx, setWordIdx] = useState(0);
   const [colorIdx, setColorIdx] = useState(0);
+  const [choices, setChoices] = useState<typeof COLORS>([]);
   
   // Timer setup based on difficulty
   const difficulty = question.difficulty || 'medium';
@@ -30,6 +35,11 @@ export default function StroopGame({ question, onAnswer, isSubmitting }: GamePro
     }
     setWordIdx(wIdx);
     setColorIdx(cIdx);
+
+    const correctColor = COLORS[cIdx];
+    const otherColors = COLORS.filter(c => c.name !== correctColor.name).sort(() => 0.5 - Math.random());
+    const selectedDecoys = otherColors.slice(0, 3);
+    setChoices([correctColor, ...selectedDecoys].sort(() => 0.5 - Math.random()));
   }, []);
 
   // Timer countdown
@@ -84,12 +94,12 @@ export default function StroopGame({ question, onAnswer, isSubmitting }: GamePro
       </div>
       
       <div className="grid grid-cols-2 gap-4 w-full max-w-md">
-        {COLORS.map((color) => (
+        {choices.map((color) => (
           <button
             key={color.name}
             onClick={() => handleSelect(color.name)}
             disabled={isSubmitting}
-            className="font-bold py-6 rounded-xl border border-border bg-card hover:bg-secondary/50 text-foreground transition-transform active:scale-95 shadow-sm text-xl"
+            className="font-bold py-6 rounded-2xl border-2 border-border bg-card hover:bg-secondary/50 text-foreground transition-all active:scale-95 shadow-sm text-2xl"
           >
             {color.name}
           </button>

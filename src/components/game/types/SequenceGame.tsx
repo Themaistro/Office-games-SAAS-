@@ -5,6 +5,7 @@ import { Grid3x3, Clock, Sparkles } from "lucide-react";
 
 export default function SequenceGame({ question, onAnswer, isSubmitting, showHint }: GameProps & { showHint?: boolean }) {
   const [gameState, setGameState] = useState<'memorize' | 'play'>('memorize');
+  const [mode, setMode] = useState<'numbers' | 'letters'>('numbers');
   
   // Scale difficulty
   const difficulty = question?.difficulty || 'medium';
@@ -32,6 +33,9 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
   const [isPeeking, setIsPeeking] = useState(false);
   
   useEffect(() => {
+    // Randomize mode
+    setMode(Math.random() > 0.5 ? 'letters' : 'numbers');
+
     // Distribute numbers 1 to SEQUENCE_LENGTH randomly in the grid
     const newGrid = Array(GRID_SIZE).fill(null);
     let placed = 0;
@@ -121,6 +125,13 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
     }
   };
 
+  const getDisplayValue = (num: number) => {
+    if (mode === 'letters') {
+      return String.fromCharCode(64 + num); // 1 = A, 2 = B, etc.
+    }
+    return num;
+  };
+
   return (
     <div className="relative flex flex-col items-center justify-center w-full z-0 overflow-hidden rounded-3xl p-4 sm:p-8">
       {/* Background glowing orbs */}
@@ -134,14 +145,14 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
       <p className="text-muted-foreground mb-8 text-center px-4 h-16 max-w-sm flex flex-col items-center justify-center">
         {gameState === 'memorize' ? (
           <>
-            <span>Memorize the numbers from <strong className="text-foreground">1 to {SEQUENCE_LENGTH}</strong>.</span>
+            <span>Memorize the {mode} from <strong className="text-foreground">{getDisplayValue(1)} to {getDisplayValue(SEQUENCE_LENGTH)}</strong>.</span>
             <span className="flex items-center gap-1 mt-2 text-primary font-bold bg-primary/10 px-3 py-1 rounded-full">
                Hiding in {timeLeft}s
             </span>
           </>
         ) : (
           <>
-            <span>Click the hidden tiles in order from <strong className="text-foreground">1 to {SEQUENCE_LENGTH}</strong>.</span>
+            <span>Click the hidden tiles in order from <strong className="text-foreground">{getDisplayValue(1)} to {getDisplayValue(SEQUENCE_LENGTH)}</strong>.</span>
             <span className="flex items-center gap-1 mt-2 text-primary font-bold bg-primary/10 px-3 py-1 rounded-full">
               <Clock size={16} className={playTimeLeft <= 5 ? "text-destructive animate-pulse" : ""} /> 
               <span className={playTimeLeft <= 5 ? "text-destructive animate-pulse" : ""}>{playTimeLeft}s</span>
@@ -183,7 +194,7 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
               style={{ animationDelay: `${i * 20}ms` }}
             >
               {/* Show number if it's memorize state, peeking, step 1, or failed */}
-              {(!isHidden || failed || isPeeking) && num}
+              {(!isHidden || failed || isPeeking) && num !== null && getDisplayValue(num)}
             </button>
           );
         })}

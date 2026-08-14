@@ -4,61 +4,62 @@ import { clsx } from "clsx";
 import { Zap } from "lucide-react";
 
 export default function ReactionGame({ question, onAnswer, isSubmitting }: GameProps) {
-  const [gameState, setGameState] = useState<'idle' | 'waiting' | 'go' | 'early' | 'done' | 'timeout'>('idle');
+  const [gameState, setGameState] = useState<'idle' | 'flashing' | 'go' | 'early' | 'done' | 'timeout'>('idle');
   const [startTime, setStartTime] = useState<number>(0);
   const [reactionTime, setReactionTime] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(10);
+  const [currentColor, setCurrentColor] = useState<string>('');
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const goTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+
+  const difficulty = question.difficulty || 'medium';
 
   useEffect(() => {
-    // Start idle timer when component mounts (they have 10 seconds to click start)
-    countdownRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          if (countdownRef.current) clearInterval(countdownRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    idleTimerRef.current = setTimeout(() => {
-      setGameState('timeout');
-      onAnswer("Too Slow!", false, 10);
-    }, 10000);
-
     return () => {
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       if (timerRef.current) clearTimeout(timerRef.current);
       if (goTimerRef.current) clearTimeout(goTimerRef.current);
-      if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [onAnswer]);
+  }, []);
 
-  const startGame = () => {
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    if (countdownRef.current) clearInterval(countdownRef.current);
-    setGameState('waiting');
-    // Random wait between 2 to 5 seconds
-    const randomDelay = Math.floor(Math.random() * 3000) + 2000;
-    
-    timerRef.current = setTimeout(() => {
+  const scheduleNextFlash = (decoysLeft: number) => {
+    if (decoysLeft > 0) {
+      setGameState('flashing');
+      const colors = ["bg-red-500", "bg-yellow-500", "bg-purple-500", "bg-cyan-500", "bg-orange-500", "bg-pink-500", "bg-blue-500"];
+      setCurrentColor(colors[Math.floor(Math.random() * colors.length)]);
+      
+      // Each decoy flashes for 400ms to 800ms
+      const flashDuration = Math.floor(Math.random() * 400) + 400;
+      
+      timerRef.current = setTimeout(() => {
+        // Very brief empty pause between flashes? Or just immediate? 
+        // Let's do a tiny gap so it looks like distinct flashes
+        setCurrentColor("bg-slate-800"); 
+        timerRef.current = setTimeout(() => {
+          scheduleNextFlash(decoysLeft - 1);
+        }, 100);
+      }, flashDuration);
+      
+    } else {
+      // Show Target (Green)
       setGameState('go');
+      setCurrentColor("bg-green-500");
       setStartTime(Date.now());
       
-      const difficulty = question.difficulty || 'medium';
-      const maxGoTime = difficulty === 'easy' ? 5000 : (difficulty === 'medium' ? 1500 : 700);
+      // The green flash duration (they must click before it vanishes!)
+      const maxGoTime = difficulty === 'easy' ? 1000 : (difficulty === 'medium' ? 600 : 400);
 
-      // If they don't click within the limit, fail them
       goTimerRef.current = setTimeout(() => {
         setGameState('timeout');
+        setCurrentColor("bg-slate-800");
         onAnswer("Missed it!", false, maxGoTime / 1000);
       }, maxGoTime);
-    }, randomDelay);
+    }
+  };
+
+  const startGame = () => {
+    // 2 to 6 decoy flashes before green appears
+    const decoyCount = Math.floor(Math.random() * 5) + 2; 
+    scheduleNextFlash(decoyCount);
   };
 
   const handleClick = () => {
@@ -66,11 +67,11 @@ export default function ReactionGame({ question, onAnswer, isSubmitting }: GameP
 
     if (gameState === 'idle') {
       startGame();
-    } else if (gameState === 'waiting') {
-      // Clicked too early
+    } else if (gameState === 'flashing') {
+      // Clicked on a decoy color
       if (timerRef.current) clearTimeout(timerRef.current);
       setGameState('early');
-      onAnswer("Too Early!", false, 0); // instantly fail
+      onAnswer("Wrong Color!", false, 0); 
     } else if (gameState === 'go') {
       // Success! Calculate reaction time
       if (goTimerRef.current) clearTimeout(goTimerRef.current);
@@ -84,42 +85,53 @@ export default function ReactionGame({ question, onAnswer, isSubmitting }: GameP
     }
   };
 
+  const getBackgroundColor = () => {
+    switch (gameState) {
+      case 'idle': return "bg-blue-500 border-blue-400/50";
+      case 'flashing': return `${currentColor} border-white/30 shadow-[0_0_40px_rgba(255,255,255,0.4)]`;
+      case 'go': return "bg-green-500 border-green-400 shadow-[0_0_50px_rgba(34,197,94,0.6)]";
+      case 'early': return "bg-slate-700 border-slate-600";
+      case 'timeout': return "bg-slate-700 border-slate-600";
+      case 'done': return "bg-blue-600 border-blue-500";
+      default: return "bg-slate-800";
+    }
+  };
+
   return (
     <div className="w-full flex flex-col items-center">
       <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <Zap className="text-yellow-500" /> Reaction Speed Test
+        <Zap className="text-yellow-500" /> Reaction Speed
       </h2>
-      
+
+      <div className="mb-4 text-center px-4 h-12">
+        {gameState === 'idle' && (
+          <p className="text-muted-foreground">Click START, then wait... only click when it flashes <strong className="text-green-500">GREEN</strong>!</p>
+        )}
+        {gameState === 'flashing' && <p className="text-lg font-medium text-foreground">Wait for green...</p>}
+        {gameState === 'go' && <p className="text-2xl font-black text-green-500 animate-bounce">CLICK NOW!</p>}
+        {gameState === 'early' && <p className="text-xl font-bold text-destructive">Wrong color! You clicked a decoy!</p>}
+        {gameState === 'timeout' && <p className="text-xl font-bold text-destructive">Too slow! You missed the green flash!</p>}
+        {gameState === 'done' && <p className="text-xl font-bold text-primary">Great job!</p>}
+      </div>
+
       <button
         onClick={handleClick}
         disabled={isSubmitting || gameState === 'early' || gameState === 'done' || gameState === 'timeout'}
         className={clsx(
-          "w-full max-w-lg aspect-video rounded-3xl flex flex-col items-center justify-center text-3xl font-black text-white shadow-xl transition-transform active:scale-95",
-          gameState === 'idle' && "bg-blue-500 hover:bg-blue-600 cursor-pointer",
-          gameState === 'waiting' && "bg-red-500 cursor-pointer",
-          gameState === 'go' && "bg-green-500 cursor-pointer",
-          gameState === 'early' && "bg-gray-500 cursor-not-allowed",
-          gameState === 'done' && "bg-green-600 cursor-not-allowed",
-          gameState === 'timeout' && "bg-gray-800 cursor-not-allowed"
+          "relative w-full max-w-sm aspect-square rounded-3xl flex flex-col items-center justify-center text-4xl font-black shadow-2xl transition-all border-4 text-white select-none",
+          getBackgroundColor(),
+          (gameState === 'idle' || gameState === 'go' || gameState === 'flashing') ? "cursor-pointer active:scale-95" : "cursor-default",
+          (gameState === 'idle') ? "hover:scale-[1.02]" : "",
+          (isSubmitting || gameState === 'early' || gameState === 'timeout') ? "opacity-80" : ""
         )}
       >
-        {gameState === 'idle' && (
-          <div className="flex flex-col items-center gap-2">
-            <span>CLICK TO START</span>
-            <span className="text-base font-normal text-white/80 animate-pulse">Auto-fails in {timeLeft}s</span>
-          </div>
-        )}
-        {gameState === 'waiting' && "WAIT FOR GREEN..."}
-        {gameState === 'go' && "CLICK NOW!"}
-        {gameState === 'early' && "TOO EARLY!"}
-        {gameState === 'timeout' && "TOO SLOW!"}
-        {gameState === 'done' && `${reactionTime} ms`}
+        {gameState === 'idle' && <span className="drop-shadow-md">START</span>}
+        {gameState === 'flashing' && <span className="drop-shadow-md opacity-0">WAIT</span>}
+        {gameState === 'go' && <span className="drop-shadow-md">CLICK!</span>}
+        {gameState === 'early' && <span className="drop-shadow-md text-2xl text-center px-4 text-white/90">TOO EARLY</span>}
+        {gameState === 'timeout' && <span className="drop-shadow-md text-2xl text-center px-4 text-white/90">MISSED IT</span>}
+        {gameState === 'done' && <span className="drop-shadow-md">{reactionTime} ms</span>}
       </button>
-
-      <p className="mt-6 text-muted-foreground text-center px-4">
-        {gameState === 'idle' && "When the red box turns green, click as fast as you can!"}
-        {gameState === 'timeout' && "You took too long to react."}
-      </p>
     </div>
   );
 }

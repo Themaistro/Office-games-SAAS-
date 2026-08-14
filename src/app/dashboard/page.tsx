@@ -4,6 +4,8 @@ import { Play, Flame, Shield, Trophy } from "lucide-react";
 import Link from "next/link";
 import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -51,13 +53,14 @@ export default async function DashboardPage() {
   // Calculate Rank
   let userRank = "--";
   if (profile) {
-    const { count: rankCount } = await supabase
+    const { count: higherRankCount } = await supabase
       .from("profiles")
       .select("id", { count: "exact", head: true })
-      .gte("total_xp", profile.total_xp || 0);
-    if (rankCount) userRank = rankCount.toString();
+      .gt("total_xp", profile.total_xp || 0);
+    userRank = ((higherRankCount || 0) + 1).toString();
   }
 
+  // Force dynamic rendering to ensure fresh data
   const isCompleted = todaySession?.is_completed || todaySession?.status === "completed" || todaySession?.status === "expired";
   const isInProgress = todaySession && !isCompleted;
   
