@@ -141,6 +141,22 @@ export default async function DashboardPage() {
                 <Play fill="currentColor" size={20} />
                 {isInProgress ? "RESUME CHALLENGE" : "START CHALLENGE"}
               </Link>
+              
+              {isInProgress && (
+                <form action={async () => {
+                  "use server";
+                  const { resetDailySession } = await import('@/app/play/actions');
+                  const { redirect } = await import('next/navigation');
+                  const result = await resetDailySession();
+                  if (result.success) {
+                    redirect('/play/start');
+                  }
+                }}>
+                  <button type="submit" className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-8 py-3 text-sm font-bold text-secondary-foreground hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 transition-all shadow-sm">
+                    RESTART MISSION (WIPE PROGRESS)
+                  </button>
+                </form>
+              )}
             </div>
           )}
 
