@@ -486,7 +486,9 @@ export async function endSession(sessionId: string) {
     .from("daily_sessions")
     .update({
       is_completed: true,
-      total_score: totalXp
+      total_score: totalXp,
+      total_xp_earned: totalXp,
+      ended_at: new Date().toISOString()
     })
     .eq("id", sessionId);
 

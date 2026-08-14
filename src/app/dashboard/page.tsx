@@ -48,9 +48,30 @@ export default async function DashboardPage() {
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
+  // Calculate Rank
+  let userRank = "--";
+  if (profile) {
+    const { count: rankCount } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .gte("total_xp", profile.total_xp || 0);
+    if (rankCount) userRank = rankCount.toString();
+  }
+
   const isCompleted = todaySession?.is_completed || todaySession?.status === "completed" || todaySession?.status === "expired";
   const isInProgress = todaySession && !isCompleted;
   
+  // Format Time
+  let formattedTime = "--:--";
+  if (todaySession?.started_at && todaySession?.ended_at) {
+    const start = new Date(todaySession.started_at);
+    const end = new Date(todaySession.ended_at);
+    const diffSecs = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
+    const m = Math.floor(diffSecs / 60);
+    const s = diffSecs % 60;
+    formattedTime = `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-5xl">
       {/* Announcements Banner */}
@@ -78,7 +99,7 @@ export default async function DashboardPage() {
             <Trophy className="text-yellow-500" size={20} />
             <div className="flex flex-col">
               <span className="text-xs font-medium text-muted-foreground uppercase">Rank</span>
-              <span className="font-bold leading-none">#--</span>
+              <span className="font-bold leading-none">#{userRank}</span>
             </div>
           </div>
         </div>
@@ -102,11 +123,11 @@ export default async function DashboardPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full bg-background/50 rounded-xl p-4 border border-border/50">
                 <div className="flex flex-col items-center p-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Score</span>
-                  <span className="text-xl font-bold">{todaySession.total_score}</span>
+                  <span className="text-xl font-bold">{todaySession.total_score || 0}</span>
                 </div>
                 <div className="flex flex-col items-center p-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase mb-1">XP Earned</span>
-                  <span className="text-xl font-bold text-accent">+{todaySession.total_xp_earned}</span>
+                  <span className="text-xl font-bold text-accent">+{todaySession.total_xp_earned ?? todaySession.total_score ?? 0}</span>
                 </div>
                 <div className="flex flex-col items-center p-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Status</span>
@@ -114,7 +135,7 @@ export default async function DashboardPage() {
                 </div>
                 <div className="flex flex-col items-center p-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Time</span>
-                  <span className="text-xl font-bold">--:--</span>
+                  <span className="text-xl font-bold">{formattedTime}</span>
                 </div>
               </div>
               <form action={async () => {
@@ -161,21 +182,23 @@ export default async function DashboardPage() {
           )}
 
           {/* DEV MODE TEST BUTTON ALWAYS AVAILABLE ON DASHBOARD */}
-          <div className="mt-6 border-t border-border/50 pt-6 w-full max-w-sm flex flex-col items-center">
-             <form action={async () => {
-               "use server";
-               const { startTestSession } = await import('@/app/play/actions');
-               const { redirect } = await import('next/navigation');
-               const result = await startTestSession();
-               if (result.success) {
-                 redirect('/play');
-               }
-             }}>
-               <button type="submit" className="flex items-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-bold py-3 px-6 rounded-xl transition-all border border-border text-sm shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95">
-                 <Trophy size={16} /> TEST ALL GAMES (DEV MODE)
-               </button>
-             </form>
-             <p className="text-xs text-muted-foreground text-center mt-3">Clicking this instantly starts a test session with 1 of every active game type.</p>
+          <div className="mt-8 pt-6 border-t border-border/50 w-full flex flex-col items-center opacity-80 hover:opacity-100 transition-opacity">
+            <form action={async () => {
+              "use server";
+              const { startTestSession } = await import('@/app/play/actions');
+              const { redirect } = await import('next/navigation');
+              const result = await startTestSession();
+              if (result.success) {
+                redirect('/play');
+              }
+            }}>
+              <button type="submit" className="flex items-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-bold py-2 px-6 rounded-full transition-all border border-border text-xs shadow-sm active:scale-95">
+                <Trophy size={14} /> TEST ALL GAMES (DEV MODE)
+              </button>
+            </form>
+            <p className="text-[10px] text-muted-foreground mt-2 text-center max-w-xs">
+              Clicking this instantly starts a test session with 1 of every active game type.
+            </p>
           </div>
         </div>
       </div>
