@@ -56,6 +56,10 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   const [wasHintUsed, setWasHintUsed] = useState(false);
   const [hintsLeft, setHintsLeft] = useState(3); // Max 3 hints per session
 
+  // Difficulty & Overlay State
+  const [currentDifficulty, setCurrentDifficulty] = useState(sessionQuestions[currentIndex]?.question?.difficulty || 'medium');
+  const [showLevelUp, setShowLevelUp] = useState(false);
+
   // Stats tracking
   const [stats, setStats] = useState({
     totalScore: 0,
@@ -66,9 +70,19 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   const currentSessionQuestion = sessionQuestions[currentIndex];
 
   useEffect(() => {
+    const nextDiff = sessionQuestions[currentIndex]?.question?.difficulty;
+    
+    // Only show level up animation if difficulty goes from easy->med or med->hard
+    // We can just check if nextDiff is 'medium' or 'hard' and it's different from the previous.
+    if (nextDiff && currentDifficulty !== nextDiff && (nextDiff === 'medium' || nextDiff === 'hard')) {
+      setShowLevelUp(true);
+      setTimeout(() => setShowLevelUp(false), 1500);
+    }
+    setCurrentDifficulty(nextDiff || 'medium');
+    
     setQuestionStartTime(Date.now());
     setWasHintUsed(false); // Reset hint for new question
-  }, [currentIndex]);
+  }, [currentIndex, sessionQuestions]);
   
   const currentSlug = currentSessionQuestion?.question?.game_type?.slug || '';
   const noHintSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'card_match', 'card-match', 'sequence'];
@@ -354,10 +368,23 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
 
   return (
     <div className="w-full flex flex-col items-center">
-      <div className="w-full mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card border border-border px-6 py-4 rounded-2xl shadow-sm">
+      <div className="w-full mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card border border-border px-6 py-4 rounded-2xl shadow-sm relative overflow-hidden">
+        {showLevelUp && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-accent text-accent-foreground animate-in zoom-in duration-300">
+            <div className="flex items-center gap-2 text-xl font-black tracking-widest uppercase">
+              <Zap size={24} className="animate-pulse" />
+              Difficulty Increased
+              <Zap size={24} className="animate-pulse" />
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
             Sprint Progress
+            {currentDifficulty === 'easy' && <span className="bg-green-500/20 text-green-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-green-500" /> EASY</span>}
+            {currentDifficulty === 'medium' && <span className="bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-yellow-500" /> MEDIUM</span>}
+            {currentDifficulty === 'hard' && <span className="bg-red-500/20 text-red-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> HARD</span>}
           </span>
           <span className="font-bold text-lg">
             Challenge #{currentIndex + 1}
@@ -397,7 +424,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
         </div>
       </div>
       
-      <div className="w-full animate-in fade-in slide-in-from-right-4 duration-300">
+      <div className={`w-full transition-opacity duration-300 ${showLevelUp ? 'opacity-0' : 'opacity-100 animate-in fade-in slide-in-from-right-4'}`}>
         {renderGame()}
       </div>
     </div>

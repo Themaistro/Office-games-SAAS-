@@ -185,18 +185,33 @@ export const generateSequence = (count: number = 5, difficulty: Difficulty = 'me
 // ------------------------------------------
 // 5. ODD OBJECT GENERATOR
 // ------------------------------------------
-const CATEGORIES = [
+const CATEGORIES_EASY = [
   { theme: 'Fruits', items: ['Apple', 'Banana', 'Orange', 'Mango', 'Grape', 'Pear'] },
-  { theme: 'Vegetables', items: ['Carrot', 'Broccoli', 'Spinach', 'Potato', 'Onion'] },
-  { theme: 'Languages', items: ['Python', 'JavaScript', 'Java', 'C++', 'Ruby', 'Go'] },
-  { theme: 'Databases', items: ['PostgreSQL', 'MongoDB', 'Redis', 'MySQL', 'Cassandra'] },
-  { theme: 'Cities', items: ['London', 'Tokyo', 'New York', 'Paris', 'Berlin', 'Sydney'] },
+  { theme: 'Cars', items: ['Toyota', 'Ford', 'Honda', 'Chevrolet', 'Nissan'] },
   { theme: 'Animals', items: ['Dog', 'Cat', 'Elephant', 'Lion', 'Tiger', 'Bear'] }
+];
+
+const CATEGORIES_MEDIUM = [
+  { theme: 'Compiled Languages', items: ['C', 'C++', 'Rust', 'Go', 'Java'] },
+  { theme: 'Interpreted Languages', items: ['Python', 'JavaScript', 'Ruby', 'PHP'] },
+  { theme: 'Relational DBs', items: ['PostgreSQL', 'MySQL', 'Oracle', 'SQL Server'] },
+  { theme: 'NoSQL DBs', items: ['MongoDB', 'Cassandra', 'Redis', 'DynamoDB'] }
+];
+
+const CATEGORIES_HARD = [
+  { theme: 'React Hooks', items: ['useState', 'useEffect', 'useContext', 'useMemo'] },
+  { theme: 'React Component Methods', items: ['componentDidMount', 'render', 'shouldComponentUpdate'] },
+  { theme: 'CSS Layout', items: ['flex', 'grid', 'block', 'inline'] },
+  { theme: 'CSS Typography', items: ['font-size', 'line-height', 'letter-spacing', 'text-align'] }
 ];
 
 export const generateOddObject = (count: number = 5, difficulty: Difficulty = 'medium') => {
   return Array.from({ length: count }).map(() => {
-    const shuffledCats = shuffle(CATEGORIES);
+    let activeCats = CATEGORIES_MEDIUM;
+    if (difficulty === 'easy') activeCats = CATEGORIES_EASY;
+    if (difficulty === 'hard') activeCats = CATEGORIES_HARD;
+
+    const shuffledCats = shuffle(activeCats);
     const mainCat = shuffledCats[0];
     const oddCat = shuffledCats[1];
 
@@ -216,37 +231,43 @@ export const generateOddObject = (count: number = 5, difficulty: Difficulty = 'm
 // ------------------------------------------
 export const TRIVIA_BANK = [
   // General
-  { q: "What planet is known as the Red Planet?", a: "Mars", decoys: ["Venus", "Jupiter", "Saturn"], department: "General" },
-  { q: "What is the capital of Australia?", a: "Canberra", decoys: ["Sydney", "Melbourne", "Perth"], department: "General" },
-  { q: "In what year was the first iPhone released?", a: "2007", decoys: ["2005", "2008", "2010"], department: "General" },
-  { q: "What is the powerhouse of the cell?", a: "Mitochondria", decoys: ["Nucleus", "Ribosome", "Endoplasmic Reticulum"], department: "General" },
+  { q: "What planet is known as the Red Planet?", a: "Mars", decoys: ["Venus", "Jupiter", "Saturn"], department: "General", difficulty: "easy" },
+  { q: "What is the capital of Australia?", a: "Canberra", decoys: ["Sydney", "Melbourne", "Perth"], department: "General", difficulty: "medium" },
+  { q: "In what year was the first iPhone released?", a: "2007", decoys: ["2005", "2008", "2010"], department: "General", difficulty: "medium" },
+  { q: "What is the powerhouse of the cell?", a: "Mitochondria", decoys: ["Nucleus", "Ribosome", "Endoplasmic Reticulum"], department: "General", difficulty: "easy" },
+  { q: "Which element has the chemical symbol 'Au'?", a: "Gold", decoys: ["Silver", "Argon", "Aluminum"], department: "General", difficulty: "hard" },
+  { q: "Who painted the Mona Lisa?", a: "Leonardo da Vinci", decoys: ["Vincent van Gogh", "Pablo Picasso", "Claude Monet"], department: "General", difficulty: "hard" },
   
   // Engineering
-  { q: "What does HTML stand for?", a: "Hyper Text Markup Language", decoys: ["Home Tool Markup Language", "Hyperlinks and Text Markup Language", "Hyper Tool Multi Language"], department: "Engineering" },
-  { q: "Which company created React?", a: "Facebook (Meta)", decoys: ["Google", "Microsoft", "Twitter"], department: "Engineering" },
-  { q: "Which programming language is known as the mother of all languages?", a: "C", decoys: ["Java", "Assembly", "Python"], department: "Engineering" },
-  { q: "What does API stand for?", a: "Application Programming Interface", decoys: ["Advanced Program Integration", "Automated Programming Interface", "Application Process Integration"], department: "Engineering" },
-  { q: "In Git, what command saves your changes to the local repository?", a: "git commit", decoys: ["git push", "git save", "git store"], department: "Engineering" },
+  { q: "What does HTML stand for?", a: "Hyper Text Markup Language", decoys: ["Home Tool Markup Language", "Hyperlinks and Text Markup Language", "Hyper Tool Multi Language"], department: "Engineering", difficulty: "easy" },
+  { q: "Which company created React?", a: "Facebook (Meta)", decoys: ["Google", "Microsoft", "Twitter"], department: "Engineering", difficulty: "easy" },
+  { q: "Which programming language is known as the mother of all languages?", a: "C", decoys: ["Java", "Assembly", "Python"], department: "Engineering", difficulty: "medium" },
+  { q: "What does API stand for?", a: "Application Programming Interface", decoys: ["Advanced Program Integration", "Automated Programming Interface", "Application Process Integration"], department: "Engineering", difficulty: "medium" },
+  { q: "In Git, what command saves your changes to the local repository?", a: "git commit", decoys: ["git push", "git save", "git store"], department: "Engineering", difficulty: "hard" },
 
   // HR
-  { q: "What does FMLA stand for?", a: "Family and Medical Leave Act", decoys: ["Federal Medical Leave Allowance", "Family Maternity Leave Act", "Fair Medical Leave Agreement"], department: "HR" },
-  { q: "In HR, what is the term for the rate at which employees leave a workforce?", a: "Turnover Rate", decoys: ["Attrition Factor", "Departure Index", "Retention Loss"], department: "HR" },
-  { q: "What does KPI stand for in performance management?", a: "Key Performance Indicator", decoys: ["Key Process Index", "Knowledge Performance Index", "Key Productivity Indicator"], department: "HR" },
-  { q: "Which act established the minimum wage in the US?", a: "Fair Labor Standards Act", decoys: ["Equal Pay Act", "Civil Rights Act", "National Labor Relations Act"], department: "HR" },
-  { q: "What is the process of integrating a new employee into an organization called?", a: "Onboarding", decoys: ["Induction", "Orientation", "Assimilation"], department: "HR" },
+  { q: "What does FMLA stand for?", a: "Family and Medical Leave Act", decoys: ["Federal Medical Leave Allowance", "Family Maternity Leave Act", "Fair Medical Leave Agreement"], department: "HR", difficulty: "easy" },
+  { q: "In HR, what is the term for the rate at which employees leave a workforce?", a: "Turnover Rate", decoys: ["Attrition Factor", "Departure Index", "Retention Loss"], department: "HR", difficulty: "medium" },
+  { q: "What does KPI stand for in performance management?", a: "Key Performance Indicator", decoys: ["Key Process Index", "Knowledge Performance Index", "Key Productivity Indicator"], department: "HR", difficulty: "medium" },
+  { q: "Which act established the minimum wage in the US?", a: "Fair Labor Standards Act", decoys: ["Equal Pay Act", "Civil Rights Act", "National Labor Relations Act"], department: "HR", difficulty: "hard" },
+  { q: "What is the process of integrating a new employee into an organization called?", a: "Onboarding", decoys: ["Induction", "Orientation", "Assimilation"], department: "HR", difficulty: "easy" },
 
   // Sales
-  { q: "What does CRM stand for?", a: "Customer Relationship Management", decoys: ["Client Retention Model", "Customer Revenue Management", "Client Relationship Marketing"], department: "Sales" },
-  { q: "In sales, what does B2B stand for?", a: "Business to Business", decoys: ["Business to Buyer", "Buyer to Buyer", "Brand to Business"], department: "Sales" },
-  { q: "What is the term for a potential customer who has shown interest in a product?", a: "Lead", decoys: ["Prospect", "Target", "Suspect"], department: "Sales" },
-  { q: "What does ROI stand for?", a: "Return on Investment", decoys: ["Revenue on Investment", "Return on Income", "Rate of Interest"], department: "Sales" },
-  { q: "What is the final step of the sales process called?", a: "Closing", decoys: ["Pitching", "Prospecting", "Negotiating"], department: "Sales" }
+  { q: "What does CRM stand for?", a: "Customer Relationship Management", decoys: ["Client Retention Model", "Customer Revenue Management", "Client Relationship Marketing"], department: "Sales", difficulty: "easy" },
+  { q: "In sales, what does B2B stand for?", a: "Business to Business", decoys: ["Business to Buyer", "Buyer to Buyer", "Brand to Business"], department: "Sales", difficulty: "easy" },
+  { q: "What is the term for a potential customer who has shown interest in a product?", a: "Lead", decoys: ["Prospect", "Target", "Suspect"], department: "Sales", difficulty: "medium" },
+  { q: "What does ROI stand for?", a: "Return on Investment", decoys: ["Revenue on Investment", "Return on Income", "Rate of Interest"], department: "Sales", difficulty: "medium" },
+  { q: "What is the final step of the sales process called?", a: "Closing", decoys: ["Pitching", "Prospecting", "Negotiating"], department: "Sales", difficulty: "hard" }
 ];
 
 export const generateTrivia = (count: number = 20, difficulty: Difficulty = 'medium') => {
-  const shuffled = shuffle(TRIVIA_BANK);
+  const filteredBank = TRIVIA_BANK.filter(t => t.difficulty === difficulty);
+  // Fallback to all if not enough questions in that difficulty yet
+  const bankToUse = filteredBank.length > 0 ? filteredBank : TRIVIA_BANK;
+  
+  const shuffled = shuffle(bankToUse);
   return Array.from({ length: count }).map((_, i) => {
-    const trivia = i < shuffled.length ? shuffled[i] : getRandomItem(TRIVIA_BANK);
+    const trivia = i < shuffled.length ? shuffled[i] : getRandomItem(bankToUse);
     return {
       correctAnswer: trivia.a,
       content: { 

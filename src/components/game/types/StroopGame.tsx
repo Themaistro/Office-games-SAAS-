@@ -10,11 +10,16 @@ const COLORS = [
   { name: "YELLOW", hex: "#EAB308", tailwind: "text-yellow-500" },
 ];
 
-export default function StroopGame({ onAnswer, isSubmitting }: GameProps) {
+export default function StroopGame({ question, onAnswer, isSubmitting }: GameProps) {
   const [startTime] = useState(Date.now());
   const [wordIdx, setWordIdx] = useState(0);
   const [colorIdx, setColorIdx] = useState(0);
   
+  // Timer setup based on difficulty
+  const difficulty = question.difficulty || 'medium';
+  const initialTime = difficulty === 'easy' ? 5 : (difficulty === 'medium' ? 3 : 1.5);
+  const [timeLeft, setTimeLeft] = useState(initialTime);
+
   useEffect(() => {
     // Generate a mismatch on mount
     const wIdx = Math.floor(Math.random() * COLORS.length);
@@ -26,6 +31,22 @@ export default function StroopGame({ onAnswer, isSubmitting }: GameProps) {
     setWordIdx(wIdx);
     setColorIdx(cIdx);
   }, []);
+
+  // Timer countdown
+  useEffect(() => {
+    if (isSubmitting) return;
+
+    if (timeLeft <= 0) {
+      onAnswer("TIME_OUT", false, initialTime);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => Math.max(0, prev - 0.1));
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [timeLeft, isSubmitting, initialTime, onAnswer]);
 
   const handleSelect = (selectedColorName: string) => {
     if (isSubmitting) return;
@@ -42,9 +63,19 @@ export default function StroopGame({ onAnswer, isSubmitting }: GameProps) {
       <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
         <Palette className="text-pink-500" /> Color Confusion
       </h2>
-      <p className="text-muted-foreground mb-8">
+      <p className="text-muted-foreground mb-4">
         Click the button that matches the <strong>FONT COLOR</strong>, not the word!
       </p>
+
+      {/* Progress Bar for Time Limit */}
+      <div className="w-full max-w-md h-2 bg-muted rounded-full mb-8 overflow-hidden">
+        <div 
+          className={clsx("h-full transition-all duration-100 linear", 
+            timeLeft / initialTime < 0.3 ? "bg-red-500" : "bg-primary"
+          )}
+          style={{ width: `${(timeLeft / initialTime) * 100}%` }}
+        />
+      </div>
       
       <div className="w-full h-48 flex items-center justify-center bg-card border border-border rounded-2xl mb-8 shadow-inner">
         <span className={clsx("text-6xl sm:text-7xl font-black tracking-widest", COLORS[colorIdx].tailwind)}>

@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
 import { Zap } from "lucide-react";
 
-export default function ReactionGame({ onAnswer, isSubmitting }: GameProps) {
+export default function ReactionGame({ question, onAnswer, isSubmitting }: GameProps) {
   const [gameState, setGameState] = useState<'idle' | 'waiting' | 'go' | 'early' | 'done' | 'timeout'>('idle');
   const [startTime, setStartTime] = useState<number>(0);
   const [reactionTime, setReactionTime] = useState<number | null>(null);
@@ -50,11 +50,14 @@ export default function ReactionGame({ onAnswer, isSubmitting }: GameProps) {
       setGameState('go');
       setStartTime(Date.now());
       
-      // If they don't click within 5 seconds of it turning green, fail them
+      const difficulty = question.difficulty || 'medium';
+      const maxGoTime = difficulty === 'easy' ? 5000 : (difficulty === 'medium' ? 1500 : 700);
+
+      // If they don't click within the limit, fail them
       goTimerRef.current = setTimeout(() => {
         setGameState('timeout');
-        onAnswer("Missed it!", false, 5);
-      }, 5000);
+        onAnswer("Missed it!", false, maxGoTime / 1000);
+      }, maxGoTime);
     }, randomDelay);
   };
 

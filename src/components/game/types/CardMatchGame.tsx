@@ -17,16 +17,25 @@ interface Card {
   emoji: string;
 }
 
-export default function CardMatchGame({ onAnswer, isSubmitting }: GameProps) {
+export default function CardMatchGame({ question, onAnswer, isSubmitting }: GameProps) {
+  const difficulty = question.difficulty || 'medium';
+  const initialTime = difficulty === 'easy' ? 30 : (difficulty === 'medium' ? 20 : 15);
+  const previewDuration = difficulty === 'easy' ? 3000 : (difficulty === 'medium' ? 1000 : 0);
+  
   const [startTime] = useState(Date.now());
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedIdxs, setFlippedIdxs] = useState<number[]>([]);
   const [matchedIdxs, setMatchedIdxs] = useState<number[]>([]);
   const [errors, setErrors] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(initialTime);
+  const [isPreviewing, setIsPreviewing] = useState(previewDuration > 0);
+  
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Only start countdown timer AFTER preview finishes
+    if (isPreviewing) return;
+    
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -40,13 +49,13 @@ export default function CardMatchGame({ onAnswer, isSubmitting }: GameProps) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, []);
+  }, [isPreviewing]);
 
   useEffect(() => {
     if (timeLeft === 0 && matchedIdxs.length < 12 && !isSubmitting) {
-      onAnswer(`Time's up!`, false, 60);
+      onAnswer(`Time's up!`, false, initialTime);
     }
-  }, [timeLeft, matchedIdxs.length, onAnswer, isSubmitting]);
+  }, [timeLeft, matchedIdxs.length, onAnswer, isSubmitting, initialTime]);
 
   useEffect(() => {
     // Pick 6 random emojis
@@ -56,7 +65,18 @@ export default function CardMatchGame({ onAnswer, isSubmitting }: GameProps) {
       .map((emoji, index) => ({ id: index, emoji }))
       .sort(() => Math.random() - 0.5);
     setCards(deck);
-  }, []);
+    
+    // Handle Preview Phase
+    if (previewDuration > 0) {
+      const allIdxs = Array.from({ length: 12 }).map((_, i) => i);
+      setFlippedIdxs(allIdxs);
+      
+      setTimeout(() => {
+        setFlippedIdxs([]);
+        setIsPreviewing(false);
+      }, previewDuration);
+    }
+  }, [previewDuration]);
 
   useEffect(() => {
     if (matchedIdxs.length === 12 && !isSubmitting) {
@@ -77,7 +97,7 @@ export default function CardMatchGame({ onAnswer, isSubmitting }: GameProps) {
   }, [matchedIdxs.length, errors, startTime, onAnswer, isSubmitting]);
 
   const handleCardClick = (idx: number) => {
-    if (isSubmitting || flippedIdxs.length === 2 || flippedIdxs.includes(idx) || matchedIdxs.includes(idx)) {
+    if (isSubmitting || isPreviewing || flippedIdxs.length === 2 || flippedIdxs.includes(idx) || matchedIdxs.includes(idx)) {
       return;
     }
 
