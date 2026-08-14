@@ -100,36 +100,47 @@ export async function startDailySession() {
     // or we just rely on random since it's saved in the DB once per day.
     for (const game of activeGames || []) {
       // Generate 15 questions per active game for the daily pool
+      // Generate 15 questions per active game for the daily pool (5 Easy, 5 Medium, 5 Hard)
+      const difficulties: ('easy' | 'medium' | 'hard')[] = ['easy', 'medium', 'hard'];
       let generatedBatch: any[] = [];
-      if (game.slug === "mental-math" || game.slug === "mental_math" || game.slug === "math") {
-        generatedBatch = generateMentalMath(15);
-      } else if (game.slug === "word-unscramble" || game.slug === "unscramble") {
-        generatedBatch = generateWordUnscramble(15);
-      } else if (game.slug === "typing-challenge" || game.slug === "typing") {
-        generatedBatch = generateTypingChallenge(15);
-      } else if (game.slug === "memory") {
-        generatedBatch = generateMemory(15);
-      } else if (game.slug === "sudoku-lite" || game.slug === "sudoku_lite") {
-        generatedBatch = generateSudokuLite(15);
-      } else if (game.slug === "odd-object" || game.slug === "odd_object") {
-        generatedBatch = generateOddObject(15);
-      } else if (game.slug === "sequence" || game.slug === "logic") {
-        generatedBatch = generateSequence(15);
-      } else if (['reaction', 'stroop', 'card_match', 'card-match'].includes(game.slug)) {
-        // Mechanic games don't use text content, pass blank payloads so GameEngine doesn't trap them as Trivia
-        generatedBatch = Array.from({ length: 15 }).map(() => ({
-          correctAnswer: "none",
-          content: {},
-          options: []
-        }));
-      } else {
-        generatedBatch = generateTrivia(60);
+      
+      for (const diff of difficulties) {
+        let diffBatch: any[] = [];
+        if (game.slug === "mental-math" || game.slug === "mental_math" || game.slug === "math") {
+          diffBatch = generateMentalMath(5, diff);
+        } else if (game.slug === "word-unscramble" || game.slug === "unscramble") {
+          diffBatch = generateWordUnscramble(5, diff);
+        } else if (game.slug === "typing-challenge" || game.slug === "typing") {
+          diffBatch = generateTypingChallenge(5, diff);
+        } else if (game.slug === "memory") {
+          diffBatch = generateMemory(5, diff);
+        } else if (game.slug === "sudoku-lite" || game.slug === "sudoku_lite") {
+          diffBatch = generateSudokuLite(5, diff);
+        } else if (game.slug === "odd-object" || game.slug === "odd_object") {
+          diffBatch = generateOddObject(5, diff);
+        } else if (game.slug === "sequence" || game.slug === "logic") {
+          diffBatch = generateSequence(5, diff);
+        } else if (['reaction', 'stroop', 'card_match', 'card-match'].includes(game.slug)) {
+          diffBatch = Array.from({ length: 5 }).map(() => ({
+            correctAnswer: "none",
+            content: {},
+            options: []
+          }));
+        } else {
+          // For trivia, generate a large pool (20 per difficulty = 60 total) to ensure department mix
+          diffBatch = generateTrivia(20, diff);
+        }
+
+        // Attach difficulty to the generated items before flattening
+        for (const gen of diffBatch) {
+          generatedBatch.push({ ...gen, difficulty: diff });
+        }
       }
 
       for (const gen of generatedBatch) {
         newQuestions.push({
           game_type_id: game.id,
-          difficulty: "medium",
+          difficulty: gen.difficulty,
           content: gen.content,
           options: gen.options || [],
           correct_answer: gen.correctAnswer,
@@ -230,32 +241,26 @@ export async function startDailySession() {
       questionsByGame[q.game_type_id].push(q);
     }
 
-    // Shuffle questions within each game type
+    // Sort and select exactly 3 rounds per game (Easy -> Medium -> Hard)
     for (const gameId in questionsByGame) {
-      questionsByGame[gameId] = questionsByGame[gameId].sort(() => 0.5 - Math.random());
+      const easyQs = questionsByGame[gameId].filter(q => q.difficulty === 'easy').sort(() => 0.5 - Math.random());
+      const medQs = questionsByGame[gameId].filter(q => q.difficulty === 'medium').sort(() => 0.5 - Math.random());
+      const hardQs = questionsByGame[gameId].filter(q => q.difficulty === 'hard').sort(() => 0.5 - Math.random());
+      
+      // Assign exactly 3 questions in escalating difficulty order
+      questionsByGame[gameId] = [easyQs[0], medQs[0], hardQs[0]].filter(Boolean);
     }
 
-    // Smart Balancing: Pull chunks of 5 from each game type repeatedly
     const selectedQuestions: any[] = [];
     // Shuffle the order of the games so it's not the exact same sequence every day
     const gameIds = Object.keys(questionsByGame).sort(() => 0.5 - Math.random());
     
-    let poolHasQuestions = true;
-    while (selectedQuestions.length < 150 && poolHasQuestions) {
-      poolHasQuestions = false;
-      
-      for (const gameId of gameIds) {
-        if (selectedQuestions.length >= 150) break;
-        
-        const chunk = questionsByGame[gameId].splice(0, 5);
-        if (chunk.length > 0) {
-          poolHasQuestions = true;
-          selectedQuestions.push(...chunk);
-        }
-      }
+    // Group them so the user plays Game A (Easy, Med, Hard), then Game B (Easy, Med, Hard)
+    for (const gameId of gameIds) {
+      selectedQuestions.push(...questionsByGame[gameId]);
     }
 
-    const sessionQuestionsData = selectedQuestions.slice(0, 150).map((q, index) => ({
+    const sessionQuestionsData = selectedQuestions.map((q, index) => ({
       session_id: session.id,
       question_id: q.id,
       order_index: index,

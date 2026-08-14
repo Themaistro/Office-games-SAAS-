@@ -5,33 +5,40 @@
 export const getRandomItem = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 export const shuffle = <T>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5);
 
+type Difficulty = 'easy' | 'medium' | 'hard';
+
 // ------------------------------------------
 // 1. TYPING CHALLENGE CONTENT
 // ------------------------------------------
-export const TYPING_PROMPTS = [
-  // Office & Business
-  "Synergy is key to our organizational success and long-term viability.",
-  "Please ensure the Q3 quarterly report is submitted by end of day.",
-  "Let's touch base on the deliverable tomorrow before the standup.",
-  "We need to pivot our strategy to align with the new KPIs.",
-  "The onboarding process has been streamlined for new hires.",
-  // Coding & Technical
-  "const initializeApp = async () => { await db.connect(); };",
-  "function factorial(n) { return n <= 1 ? 1 : n * factorial(n-1); }",
-  "Always remember to properly close your HTML tags and format CSS.",
-  "SELECT * FROM users WHERE status = 'active' ORDER BY created_at DESC;",
-  "git commit -m 'fix: resolve race condition in authentication flow'",
-  // Literature & Quotes
-  "The quick brown fox jumps over the lazy dog near the river bank.",
-  "To be, or not to be, that is the question that haunts us all.",
-  "All that glitters is not gold, but it certainly catches the eye.",
-  "Success is not final, failure is not fatal: it is the courage to continue that counts."
-];
+const TYPING_PROMPTS = {
+  easy: [
+    "Welcome to the team.",
+    "Please check your email.",
+    "The meeting is at noon.",
+    "Let's schedule a quick call.",
+    "Have a great weekend."
+  ],
+  medium: [
+    "Synergy is key to our organizational success and long-term viability.",
+    "Please ensure the Q3 quarterly report is submitted by end of day.",
+    "Let's touch base on the deliverable tomorrow before the standup.",
+    "We need to pivot our strategy to align with the new KPIs.",
+    "The onboarding process has been streamlined for new hires."
+  ],
+  hard: [
+    "const initializeApp = async () => { await db.connect(); };",
+    "function factorial(n) { return n <= 1 ? 1 : n * factorial(n-1); }",
+    "SELECT * FROM users WHERE status = 'active' ORDER BY created_at DESC;",
+    "git commit -m 'fix: resolve race condition in authentication flow'",
+    "Array.from({ length: 10 }).map((_, i) => i * Math.PI);"
+  ]
+};
 
-export const generateTypingChallenge = (count: number = 15) => {
-  const shuffled = shuffle(TYPING_PROMPTS);
+export const generateTypingChallenge = (count: number = 5, difficulty: Difficulty = 'medium') => {
+  const bank = TYPING_PROMPTS[difficulty];
+  const shuffled = shuffle(bank);
   return Array.from({ length: count }).map((_, i) => {
-    const text = i < shuffled.length ? shuffled[i] : getRandomItem(TYPING_PROMPTS);
+    const text = i < shuffled.length ? shuffled[i] : getRandomItem(bank);
     return {
       correctAnswer: "type-exactly",
       content: { text },
@@ -43,7 +50,7 @@ export const generateTypingChallenge = (count: number = 15) => {
 // ------------------------------------------
 // 2. WORD UNSCRAMBLE
 // ------------------------------------------
-export const WORD_BANK = [
+const WORD_BANK = [
   "OFFICE", "MEETING", "PROJECT", "COFFEE", "SYNERGY", "DEADLINE", "MANAGER", "LEADER", 
   "SUCCESS", "LAPTOP", "KEYBOARD", "MONITOR", "NETWORK", "SERVER", "DATABASE", "FRONTEND", 
   "BACKEND", "DESIGN", "DEVELOPER", "INNOVATION", "STRATEGY", "AGILE", "SCRUM", "SPRINT",
@@ -51,10 +58,17 @@ export const WORD_BANK = [
   "CUSTOMER", "SUPPORT", "PRODUCT", "FEATURE", "RELEASE", "VERSION", "DEPLOYMENT", "INFRASTRUCTURE"
 ];
 
-export const generateWordUnscramble = (count: number = 15) => {
-  const shuffledBank = shuffle(WORD_BANK);
+export const generateWordUnscramble = (count: number = 5, difficulty: Difficulty = 'medium') => {
+  let filteredBank = WORD_BANK;
+  if (difficulty === 'easy') filteredBank = WORD_BANK.filter(w => w.length <= 5);
+  if (difficulty === 'medium') filteredBank = WORD_BANK.filter(w => w.length > 5 && w.length <= 8);
+  if (difficulty === 'hard') filteredBank = WORD_BANK.filter(w => w.length > 8);
+  
+  if (filteredBank.length === 0) filteredBank = WORD_BANK;
+
+  const shuffledBank = shuffle(filteredBank);
   return Array.from({ length: count }).map((_, i) => {
-    const word = i < shuffledBank.length ? shuffledBank[i] : getRandomItem(WORD_BANK);
+    const word = i < shuffledBank.length ? shuffledBank[i] : getRandomItem(filteredBank);
     let scrambled = word;
     while (scrambled === word) {
       scrambled = shuffle(word.split('')).join('');
@@ -72,25 +86,39 @@ export const generateWordUnscramble = (count: number = 15) => {
 // ------------------------------------------
 // 3. MENTAL MATH GENERATOR
 // ------------------------------------------
-export const generateMentalMath = (count: number = 15) => {
+export const generateMentalMath = (count: number = 5, difficulty: Difficulty = 'medium') => {
   return Array.from({ length: count }).map(() => {
-    const operations = ['+', '-', '*'];
-    const op = getRandomItem(operations);
     let a = 0, b = 0, answer = 0;
+    let op = '+';
 
-    if (op === '+') {
-      a = Math.floor(Math.random() * 50) + 10;
-      b = Math.floor(Math.random() * 50) + 10;
-      answer = a + b;
-    } else if (op === '-') {
-      a = Math.floor(Math.random() * 50) + 30;
-      b = Math.floor(Math.random() * 30) + 1;
-      answer = a - b;
+    if (difficulty === 'easy') {
+      op = getRandomItem(['+', '-']);
+      a = Math.floor(Math.random() * 20) + 1;
+      b = Math.floor(Math.random() * 20) + 1;
+      if (op === '-' && b > a) [a, b] = [b, a]; // keep it positive
+    } else if (difficulty === 'medium') {
+      op = getRandomItem(['+', '-', '*']);
+      if (op === '*') {
+        a = Math.floor(Math.random() * 10) + 2;
+        b = Math.floor(Math.random() * 10) + 2;
+      } else {
+        a = Math.floor(Math.random() * 50) + 20;
+        b = Math.floor(Math.random() * 50) + 10;
+      }
     } else {
-      a = Math.floor(Math.random() * 12) + 2;
-      b = Math.floor(Math.random() * 12) + 2;
-      answer = a * b;
+      op = getRandomItem(['+', '-', '*']);
+      if (op === '*') {
+        a = Math.floor(Math.random() * 15) + 5;
+        b = Math.floor(Math.random() * 15) + 5;
+      } else {
+        a = Math.floor(Math.random() * 500) + 100;
+        b = Math.floor(Math.random() * 500) + 50;
+      }
     }
+
+    if (op === '+') answer = a + b;
+    else if (op === '-') answer = a - b;
+    else if (op === '*') answer = a * b;
 
     const equation = `${a} ${op} ${b} = ?`;
     
@@ -98,9 +126,7 @@ export const generateMentalMath = (count: number = 15) => {
     while(decoys.size < 3) {
       const offset = Math.floor(Math.random() * 10) - 5;
       const decoy = answer + offset;
-      if (decoy !== answer && decoy > 0) {
-        decoys.add(decoy.toString());
-      }
+      if (decoy !== answer && decoy > 0) decoys.add(decoy.toString());
     }
 
     return {
@@ -114,21 +140,19 @@ export const generateMentalMath = (count: number = 15) => {
 // ------------------------------------------
 // 4. LOGIC & SEQUENCE GENERATOR
 // ------------------------------------------
-export const generateSequence = (count: number = 15) => {
+export const generateSequence = (count: number = 5, difficulty: Difficulty = 'medium') => {
   return Array.from({ length: count }).map(() => {
-    const types = ['arithmetic', 'geometric', 'fibonacci'];
-    const type = getRandomItem(types);
     const seq: number[] = [];
     let answer = 0;
 
-    if (type === 'arithmetic') {
+    if (difficulty === 'easy') {
       const start = Math.floor(Math.random() * 10) + 1;
       const step = Math.floor(Math.random() * 5) + 2;
       for(let i=0; i<4; i++) seq.push(start + (step * i));
       answer = start + (step * 4);
-    } else if (type === 'geometric') {
+    } else if (difficulty === 'medium') {
       const start = Math.floor(Math.random() * 3) + 2;
-      const mult = Math.floor(Math.random() * 2) + 2;
+      const mult = Math.floor(Math.random() * 3) + 2;
       for(let i=0; i<4; i++) seq.push(start * Math.pow(mult, i));
       answer = start * Math.pow(mult, 4);
     } else {
@@ -170,7 +194,7 @@ const CATEGORIES = [
   { theme: 'Animals', items: ['Dog', 'Cat', 'Elephant', 'Lion', 'Tiger', 'Bear'] }
 ];
 
-export const generateOddObject = (count: number = 15) => {
+export const generateOddObject = (count: number = 5, difficulty: Difficulty = 'medium') => {
   return Array.from({ length: count }).map(() => {
     const shuffledCats = shuffle(CATEGORIES);
     const mainCat = shuffledCats[0];
@@ -187,6 +211,9 @@ export const generateOddObject = (count: number = 15) => {
   });
 };
 
+// ------------------------------------------
+// 6. TRIVIA BANK
+// ------------------------------------------
 export const TRIVIA_BANK = [
   // General
   { q: "What planet is known as the Red Planet?", a: "Mars", decoys: ["Venus", "Jupiter", "Saturn"], department: "General" },
@@ -216,16 +243,15 @@ export const TRIVIA_BANK = [
   { q: "What is the final step of the sales process called?", a: "Closing", decoys: ["Pitching", "Prospecting", "Negotiating"], department: "Sales" }
 ];
 
-export const generateTrivia = (count: number = 60) => {
+export const generateTrivia = (count: number = 20, difficulty: Difficulty = 'medium') => {
   const shuffled = shuffle(TRIVIA_BANK);
   return Array.from({ length: count }).map((_, i) => {
-    // If count exceeds our bank, we just loop around randomly
     const trivia = i < shuffled.length ? shuffled[i] : getRandomItem(TRIVIA_BANK);
     return {
       correctAnswer: trivia.a,
       content: { 
         question: trivia.q,
-        department: trivia.department // Attach department for routing
+        department: trivia.department 
       },
       options: shuffle([trivia.a, ...trivia.decoys])
     };
@@ -235,7 +261,7 @@ export const generateTrivia = (count: number = 60) => {
 // ------------------------------------------
 // 7. SUDOKU LITE
 // ------------------------------------------
-export const generateSudokuLite = (count: number = 15) => {
+export const generateSudokuLite = (count: number = 5, difficulty: Difficulty = 'medium') => {
   return Array.from({ length: count }).map(() => {
     const fullSet = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     const grid = shuffle([...fullSet]);
@@ -263,9 +289,12 @@ export const generateSudokuLite = (count: number = 15) => {
 // ------------------------------------------
 // 8. PURE NUMBER MEMORY
 // ------------------------------------------
-export const generateMemory = (count: number = 15) => {
+export const generateMemory = (count: number = 5, difficulty: Difficulty = 'medium') => {
   return Array.from({ length: count }).map(() => {
-    const length = Math.floor(Math.random() * 3) + 5; // 5 to 7 digits
+    let length = 5;
+    if (difficulty === 'medium') length = 7;
+    if (difficulty === 'hard') length = 9;
+
     let seq = "";
     for (let j = 0; j < length; j++) {
       seq += Math.floor(Math.random() * 10).toString();
