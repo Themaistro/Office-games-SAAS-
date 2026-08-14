@@ -110,11 +110,11 @@ export default async function DashboardPage() {
         <div className="bg-primary/10 px-6 py-8 sm:p-10 text-center flex flex-col items-center">
           <Shield className="text-primary mb-4" size={48} />
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
-            Today's Mission
+            {isCompleted ? "Mission Complete!" : "Today's Mission"}
           </h2>
           <p className="text-muted-foreground max-w-md mx-auto mb-8">
             {isCompleted 
-              ? "You've completed a mission today. Your XP has been saved. Want to go again?"
+              ? "Great job! Your XP has been permanently saved to your profile. Ready for another round?"
               : "Play at your own pace! Complete as many brain challenges as you can. Ready?"}
           </p>
           
@@ -146,10 +146,10 @@ export default async function DashboardPage() {
                 if (result.success) {
                   redirect('/play/start');
                 }
-              }}>
-                <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
+              }} className="w-full">
+                <button type="submit" className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
                   <Play fill="currentColor" size={20} />
-                  PLAY AGAIN (WIPES CURRENT SCORE)
+                  PLAY ANOTHER ROUND
                 </button>
               </form>
             </div>
