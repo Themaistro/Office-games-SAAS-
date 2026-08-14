@@ -11,6 +11,11 @@ export default async function UsersManagementPage() {
     .eq("role", "employee")
     .order("total_xp", { ascending: false });
 
+  const { data: departments } = await supabase
+    .from("departments")
+    .select("*")
+    .order("name", { ascending: true });
+
   if (error) {
     console.error("Error fetching users:", error);
   }
@@ -63,11 +68,9 @@ export default async function UsersManagementPage() {
                           className="text-xs rounded-md border border-input bg-transparent px-2 py-1 shadow-sm"
                         >
                           <option value="">Unassigned</option>
-                          <option value="Engineering">Engineering</option>
-                          <option value="Sales">Sales</option>
-                          <option value="Marketing">Marketing</option>
-                          <option value="HR">HR</option>
-                          <option value="Finance">Finance</option>
+                          {departments?.map(d => (
+                            <option key={d.id} value={d.name}>{d.name}</option>
+                          ))}
                         </select>
                         <button type="submit" className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-2 py-1 rounded">
                           Save
