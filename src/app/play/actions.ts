@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { 
@@ -162,8 +162,7 @@ export async function startDailySession() {
         console.error("Failed to inject custom trivia", e);
       }
 
-      const adminSupabase = createAdminClient();
-      const { data: insertedQuestions, error: insertError } = await adminSupabase
+      const { data: insertedQuestions, error: insertError } = await supabase
         .from("questions")
         .insert(newQuestions)
         .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active)");

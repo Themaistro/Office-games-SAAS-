@@ -2,7 +2,7 @@ const { Client } = require('pg');
 const fs = require('fs');
 
 async function applySql() {
-  const connectionString = 'postgresql://postgres:0123853229QWEASDZXC@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?options=project%3Dncuwnuihndfxegpouoeb';
+  const connectionString = 'postgresql://postgres:0123853229QWEASDZXC@db.ncuwnuihndfxegpouoeb.supabase.co:5432/postgres';
   const sqlFile = process.argv[2];
 
   if (!sqlFile) {
@@ -13,7 +13,12 @@ async function applySql() {
   const sql = fs.readFileSync(sqlFile, 'utf8');
 
   const client = new Client({
-    connectionString: connectionString,
+    user: 'postgres.ncuwnuihndfxegpouoeb',
+    password: '0123853229QWEASDZXC',
+    host: 'aws-0-eu-central-1.pooler.supabase.com',
+    port: 6543,
+    database: 'postgres',
+    ssl: { rejectUnauthorized: false }
   });
 
   try {
