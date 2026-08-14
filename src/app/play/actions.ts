@@ -92,40 +92,39 @@ export async function startDailySession() {
     // or we just rely on random since it's saved in the DB once per day.
     for (const game of activeGames || []) {
       // Generate 15 questions per active game for the daily pool
-      for (let i = 0; i < 15; i++) {
-        let gen;
-        let content: any;
-        let options: string[] = [];
-        let correctAnswer = "";
+      let generatedBatch: any[] = [];
+      if (game.slug === "mental-math" || game.slug === "mental_math" || game.slug === "math") {
+        generatedBatch = generateMentalMath(15);
+      } else if (game.slug === "word-unscramble" || game.slug === "unscramble") {
+        generatedBatch = generateWordUnscramble(15);
+      } else if (game.slug === "typing-challenge" || game.slug === "typing") {
+        generatedBatch = generateTypingChallenge(15);
+      } else if (game.slug === "memory") {
+        generatedBatch = generateMemory(15);
+      } else if (game.slug === "sudoku-lite" || game.slug === "sudoku_lite") {
+        generatedBatch = generateSudokuLite(15);
+      } else if (game.slug === "odd-object" || game.slug === "odd_object") {
+        generatedBatch = generateOddObject(15);
+      } else if (game.slug === "sequence" || game.slug === "logic") {
+        generatedBatch = generateSequence(15);
+      } else if (['reaction', 'stroop', 'card_match', 'card-match'].includes(game.slug)) {
+        // Mechanic games don't use text content, pass blank payloads so GameEngine doesn't trap them as Trivia
+        generatedBatch = Array.from({ length: 15 }).map(() => ({
+          correctAnswer: "none",
+          content: {},
+          options: []
+        }));
+      } else {
+        generatedBatch = generateTrivia(15);
+      }
 
-        if (game.slug === "mental-math" || game.slug === "mental_math" || game.slug === "math") {
-          gen = generateMentalMath();
-        } else if (game.slug === "word-unscramble" || game.slug === "unscramble") {
-          gen = generateWordUnscramble();
-        } else if (game.slug === "typing-challenge" || game.slug === "typing") {
-          gen = generateTypingChallenge();
-        } else if (game.slug === "memory") {
-          gen = generateMemory();
-        } else if (game.slug === "sudoku-lite" || game.slug === "sudoku_lite") {
-          gen = generateSudokuLite();
-        } else if (game.slug === "odd-object" || game.slug === "odd_object") {
-          gen = generateOddObject();
-        } else if (game.slug === "sequence" || game.slug === "logic") {
-          gen = generateSequence();
-        } else {
-          gen = generateTrivia();
-        }
-
-        content = gen.content;
-        options = gen.options || [];
-        correctAnswer = gen.correctAnswer;
-
+      for (const gen of generatedBatch) {
         newQuestions.push({
           game_type_id: game.id,
           difficulty: "medium",
-          content,
-          options,
-          correct_answer: correctAnswer,
+          content: gen.content,
+          options: gen.options || [],
+          correct_answer: gen.correctAnswer,
           base_xp: 100,
           is_active: true
         });

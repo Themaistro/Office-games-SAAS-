@@ -28,12 +28,16 @@ export const TYPING_PROMPTS = [
   "Success is not final, failure is not fatal: it is the courage to continue that counts."
 ];
 
-export const generateTypingChallenge = () => {
-  return {
-    correctAnswer: "type-exactly",
-    content: { text: getRandomItem(TYPING_PROMPTS) },
-    options: []
-  };
+export const generateTypingChallenge = (count: number = 15) => {
+  const shuffled = shuffle(TYPING_PROMPTS);
+  return Array.from({ length: count }).map((_, i) => {
+    const text = i < shuffled.length ? shuffled[i] : getRandomItem(TYPING_PROMPTS);
+    return {
+      correctAnswer: "type-exactly",
+      content: { text },
+      options: []
+    };
+  });
 };
 
 // ------------------------------------------
@@ -47,107 +51,111 @@ export const WORD_BANK = [
   "CUSTOMER", "SUPPORT", "PRODUCT", "FEATURE", "RELEASE", "VERSION", "DEPLOYMENT", "INFRASTRUCTURE"
 ];
 
-export const generateWordUnscramble = () => {
-  const word = getRandomItem(WORD_BANK);
-  let scrambled = word;
-  while (scrambled === word) {
-    scrambled = shuffle(word.split('')).join('');
-  }
-  const decoys = shuffle(WORD_BANK.filter(w => w !== word)).slice(0, 3);
-  const options = shuffle([word, ...decoys]);
-  
-  return {
-    correctAnswer: word,
-    content: { scrambled },
-    options
-  };
+export const generateWordUnscramble = (count: number = 15) => {
+  const shuffledBank = shuffle(WORD_BANK);
+  return Array.from({ length: count }).map((_, i) => {
+    const word = i < shuffledBank.length ? shuffledBank[i] : getRandomItem(WORD_BANK);
+    let scrambled = word;
+    while (scrambled === word) {
+      scrambled = shuffle(word.split('')).join('');
+    }
+    const decoys = shuffle(WORD_BANK.filter(w => w !== word)).slice(0, 3);
+    
+    return {
+      correctAnswer: word,
+      content: { scrambled },
+      options: shuffle([word, ...decoys])
+    };
+  });
 };
 
 // ------------------------------------------
 // 3. MENTAL MATH GENERATOR
 // ------------------------------------------
-export const generateMentalMath = (difficulty: 'easy' | 'medium' | 'hard' = 'medium') => {
-  const operations = ['+', '-', '*'];
-  const op = getRandomItem(operations);
-  let a = 0, b = 0, answer = 0;
+export const generateMentalMath = (count: number = 15) => {
+  return Array.from({ length: count }).map(() => {
+    const operations = ['+', '-', '*'];
+    const op = getRandomItem(operations);
+    let a = 0, b = 0, answer = 0;
 
-  if (op === '+') {
-    a = Math.floor(Math.random() * 50) + 10;
-    b = Math.floor(Math.random() * 50) + 10;
-    answer = a + b;
-  } else if (op === '-') {
-    a = Math.floor(Math.random() * 50) + 30;
-    b = Math.floor(Math.random() * 30) + 1;
-    answer = a - b;
-  } else {
-    a = Math.floor(Math.random() * 12) + 2;
-    b = Math.floor(Math.random() * 12) + 2;
-    answer = a * b;
-  }
-
-  const equation = `${a} ${op} ${b} = ?`;
-  
-  // Generate plausible decoys
-  const decoys = new Set<string>();
-  while(decoys.size < 3) {
-    const offset = Math.floor(Math.random() * 10) - 5;
-    const decoy = answer + offset;
-    if (decoy !== answer && decoy > 0) {
-      decoys.add(decoy.toString());
+    if (op === '+') {
+      a = Math.floor(Math.random() * 50) + 10;
+      b = Math.floor(Math.random() * 50) + 10;
+      answer = a + b;
+    } else if (op === '-') {
+      a = Math.floor(Math.random() * 50) + 30;
+      b = Math.floor(Math.random() * 30) + 1;
+      answer = a - b;
+    } else {
+      a = Math.floor(Math.random() * 12) + 2;
+      b = Math.floor(Math.random() * 12) + 2;
+      answer = a * b;
     }
-  }
 
-  return {
-    correctAnswer: answer.toString(),
-    content: { text: equation },
-    options: shuffle([answer.toString(), ...Array.from(decoys)])
-  };
+    const equation = `${a} ${op} ${b} = ?`;
+    
+    const decoys = new Set<string>();
+    while(decoys.size < 3) {
+      const offset = Math.floor(Math.random() * 10) - 5;
+      const decoy = answer + offset;
+      if (decoy !== answer && decoy > 0) {
+        decoys.add(decoy.toString());
+      }
+    }
+
+    return {
+      correctAnswer: answer.toString(),
+      content: { text: equation },
+      options: shuffle([answer.toString(), ...Array.from(decoys)])
+    };
+  });
 };
 
 // ------------------------------------------
 // 4. LOGIC & SEQUENCE GENERATOR
 // ------------------------------------------
-export const generateSequence = () => {
-  const types = ['arithmetic', 'geometric', 'fibonacci'];
-  const type = getRandomItem(types);
-  const seq: number[] = [];
-  let answer = 0;
+export const generateSequence = (count: number = 15) => {
+  return Array.from({ length: count }).map(() => {
+    const types = ['arithmetic', 'geometric', 'fibonacci'];
+    const type = getRandomItem(types);
+    const seq: number[] = [];
+    let answer = 0;
 
-  if (type === 'arithmetic') {
-    const start = Math.floor(Math.random() * 10) + 1;
-    const step = Math.floor(Math.random() * 5) + 2;
-    for(let i=0; i<4; i++) seq.push(start + (step * i));
-    answer = start + (step * 4);
-  } else if (type === 'geometric') {
-    const start = Math.floor(Math.random() * 3) + 2;
-    const mult = Math.floor(Math.random() * 2) + 2;
-    for(let i=0; i<4; i++) seq.push(start * Math.pow(mult, i));
-    answer = start * Math.pow(mult, 4);
-  } else {
-    // pseudo fibonacci
-    let a = Math.floor(Math.random() * 3) + 1;
-    let b = Math.floor(Math.random() * 3) + 2;
-    seq.push(a, b);
-    for(let i=2; i<4; i++) {
-      const next = seq[i-1] + seq[i-2];
-      seq.push(next);
+    if (type === 'arithmetic') {
+      const start = Math.floor(Math.random() * 10) + 1;
+      const step = Math.floor(Math.random() * 5) + 2;
+      for(let i=0; i<4; i++) seq.push(start + (step * i));
+      answer = start + (step * 4);
+    } else if (type === 'geometric') {
+      const start = Math.floor(Math.random() * 3) + 2;
+      const mult = Math.floor(Math.random() * 2) + 2;
+      for(let i=0; i<4; i++) seq.push(start * Math.pow(mult, i));
+      answer = start * Math.pow(mult, 4);
+    } else {
+      let a = Math.floor(Math.random() * 3) + 1;
+      let b = Math.floor(Math.random() * 3) + 2;
+      seq.push(a, b);
+      for(let i=2; i<4; i++) {
+        const next = seq[i-1] + seq[i-2];
+        seq.push(next);
+      }
+      answer = seq[3] + seq[2];
     }
-    answer = seq[3] + seq[2];
-  }
 
-  const text = `${seq.join(', ')}, ?`;
-  
-  const decoys = new Set<string>();
-  while(decoys.size < 3) {
-    const decoy = answer + Math.floor(Math.random() * 10) - 5;
-    if (decoy !== answer && decoy > 0) decoys.add(decoy.toString());
-  }
+    const text = `${seq.join(', ')}, ?`;
+    
+    const decoys = new Set<string>();
+    while(decoys.size < 3) {
+      const decoy = answer + Math.floor(Math.random() * 10) - 5;
+      if (decoy !== answer && decoy > 0) decoys.add(decoy.toString());
+    }
 
-  return {
-    correctAnswer: answer.toString(),
-    content: { text },
-    options: shuffle([answer.toString(), ...Array.from(decoys)])
-  };
+    return {
+      correctAnswer: answer.toString(),
+      content: { text },
+      options: shuffle([answer.toString(), ...Array.from(decoys)])
+    };
+  });
 };
 
 // ------------------------------------------
@@ -162,21 +170,21 @@ const CATEGORIES = [
   { theme: 'Animals', items: ['Dog', 'Cat', 'Elephant', 'Lion', 'Tiger', 'Bear'] }
 ];
 
-export const generateOddObject = () => {
-  const shuffledCats = shuffle(CATEGORIES);
-  const mainCat = shuffledCats[0];
-  const oddCat = shuffledCats[1];
+export const generateOddObject = (count: number = 15) => {
+  return Array.from({ length: count }).map(() => {
+    const shuffledCats = shuffle(CATEGORIES);
+    const mainCat = shuffledCats[0];
+    const oddCat = shuffledCats[1];
 
-  const mainItems = shuffle(mainCat.items).slice(0, 3);
-  const oddItem = shuffle(oddCat.items)[0];
-  
-  const options = shuffle([...mainItems, oddItem]);
-
-  return {
-    correctAnswer: oddItem,
-    content: { text: "Find the odd one out." },
-    options
-  };
+    const mainItems = shuffle(mainCat.items).slice(0, 3);
+    const oddItem = shuffle(oddCat.items)[0];
+    
+    return {
+      correctAnswer: oddItem,
+      content: { text: "Find the odd one out." },
+      options: shuffle([...mainItems, oddItem])
+    };
+  });
 };
 
 // ------------------------------------------
@@ -207,58 +215,73 @@ export const TRIVIA_BANK = [
     q: "Which planet is known as the Red Planet?",
     a: "Mars",
     decoys: ["Venus", "Jupiter", "Saturn"]
+  },
+  {
+    q: "What is the capital of Australia?",
+    a: "Canberra",
+    decoys: ["Sydney", "Melbourne", "Perth"]
+  },
+  {
+    q: "Which programming language is known as the mother of all languages?",
+    a: "C",
+    decoys: ["Java", "Assembly", "Python"]
   }
 ];
 
-export const generateTrivia = () => {
-  const trivia = getRandomItem(TRIVIA_BANK);
-  return {
-    correctAnswer: trivia.a,
-    content: { question: trivia.q },
-    options: shuffle([trivia.a, ...trivia.decoys])
-  };
+export const generateTrivia = (count: number = 15) => {
+  const shuffled = shuffle(TRIVIA_BANK);
+  return Array.from({ length: count }).map((_, i) => {
+    const trivia = i < shuffled.length ? shuffled[i] : getRandomItem(TRIVIA_BANK);
+    return {
+      correctAnswer: trivia.a,
+      content: { question: trivia.q },
+      options: shuffle([trivia.a, ...trivia.decoys])
+    };
+  });
 };
 
 // ------------------------------------------
 // 7. SUDOKU LITE
 // ------------------------------------------
-// A valid 3x3 grid (1-9) where rows/cols/diagonals don't strictly matter for the MVP, 
-// just missing 1 number out of a 1-9 set.
-export const generateSudokuLite = () => {
-  const fullSet = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-  const grid = shuffle([...fullSet]);
-  
-  const missingIndex = Math.floor(Math.random() * 9);
-  const missingAnswer = grid[missingIndex];
-  
-  const gridWithNull: (number | null)[] = [...grid];
-  gridWithNull[missingIndex] = null;
+export const generateSudokuLite = (count: number = 15) => {
+  return Array.from({ length: count }).map(() => {
+    const fullSet = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const grid = shuffle([...fullSet]);
+    
+    const missingIndex = Math.floor(Math.random() * 9);
+    const missingAnswer = grid[missingIndex];
+    
+    const gridWithNull: (number | null)[] = [...grid];
+    gridWithNull[missingIndex] = null;
 
-  const decoys = new Set<string>();
-  while(decoys.size < 3) {
-    const d = Math.floor(Math.random() * 9) + 1;
-    if (d !== missingAnswer) decoys.add(d.toString());
-  }
+    const decoys = new Set<string>();
+    while(decoys.size < 3) {
+      const d = Math.floor(Math.random() * 9) + 1;
+      if (d !== missingAnswer) decoys.add(d.toString());
+    }
 
-  return {
-    correctAnswer: missingAnswer.toString(),
-    content: { grid: gridWithNull, missingIndex },
-    options: shuffle([missingAnswer.toString(), ...Array.from(decoys)])
-  };
+    return {
+      correctAnswer: missingAnswer.toString(),
+      content: { grid: gridWithNull, missingIndex },
+      options: shuffle([missingAnswer.toString(), ...Array.from(decoys)])
+    };
+  });
 };
 
 // ------------------------------------------
 // 8. PURE NUMBER MEMORY
 // ------------------------------------------
-export const generateMemory = () => {
-  const length = Math.floor(Math.random() * 3) + 5; // 5 to 7 digits
-  let seq = "";
-  for (let j = 0; j < length; j++) {
-    seq += Math.floor(Math.random() * 10).toString();
-  }
-  return {
-    correctAnswer: seq,
-    content: { text: seq },
-    options: []
-  };
+export const generateMemory = (count: number = 15) => {
+  return Array.from({ length: count }).map(() => {
+    const length = Math.floor(Math.random() * 3) + 5; // 5 to 7 digits
+    let seq = "";
+    for (let j = 0; j < length; j++) {
+      seq += Math.floor(Math.random() * 10).toString();
+    }
+    return {
+      correctAnswer: seq,
+      content: { text: seq },
+      options: []
+    };
+  });
 };
