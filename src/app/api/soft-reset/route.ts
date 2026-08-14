@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -16,7 +17,12 @@ export async function GET(request: Request) {
     }).eq("id", user.id);
 
     // 2. Delete ALL past and present daily_sessions for this user
-    await supabase.from("daily_sessions").delete().eq("user_id", user.id);
+    // Use service role key to bypass RLS for deletion
+    const adminClient = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    await adminClient.from("daily_sessions").delete().eq("user_id", user.id);
   }
   
   // Redirect back to dashboard

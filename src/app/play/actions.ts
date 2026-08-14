@@ -530,8 +530,15 @@ export async function resetDailySession() {
 
   const today = new Date().toISOString().split('T')[0];
   
+  // Use service role key to bypass RLS for deletion
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+  
   // Delete the completed session for today
-  await supabase
+  await adminClient
     .from("daily_sessions")
     .delete()
     .eq("user_id", user.id)
