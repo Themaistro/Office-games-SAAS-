@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (user) {
+    // 1. Reset Profile Stats
     await supabase.from("profiles").update({
       total_xp: 0,
       current_streak: 0,
@@ -13,6 +14,9 @@ export async function GET(request: Request) {
       games_played: 0,
       current_level: 1
     }).eq("id", user.id);
+
+    // 2. Delete ALL past and present daily_sessions for this user
+    await supabase.from("daily_sessions").delete().eq("user_id", user.id);
   }
   
   // Redirect back to dashboard
