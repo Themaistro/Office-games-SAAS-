@@ -93,28 +93,44 @@ export default async function DashboardPage() {
           </h2>
           <p className="text-muted-foreground max-w-md mx-auto mb-8">
             {isCompleted 
-              ? "You've completed your daily mission. Great job! Come back tomorrow."
+              ? "You've completed a mission today. Your XP has been saved. Want to go again?"
               : "Play at your own pace! Complete as many brain challenges as you can. Ready?"}
           </p>
           
           {isCompleted ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-2xl bg-background/50 rounded-xl p-4 border border-border/50">
-              <div className="flex flex-col items-center p-2">
-                <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Score</span>
-                <span className="text-xl font-bold">{todaySession.total_score}</span>
+            <div className="flex flex-col items-center gap-6 w-full max-w-2xl">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full bg-background/50 rounded-xl p-4 border border-border/50">
+                <div className="flex flex-col items-center p-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Score</span>
+                  <span className="text-xl font-bold">{todaySession.total_score}</span>
+                </div>
+                <div className="flex flex-col items-center p-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase mb-1">XP Earned</span>
+                  <span className="text-xl font-bold text-accent">+{todaySession.total_xp_earned}</span>
+                </div>
+                <div className="flex flex-col items-center p-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Status</span>
+                  <span className="text-xl font-bold text-green-500">Done</span>
+                </div>
+                <div className="flex flex-col items-center p-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Time</span>
+                  <span className="text-xl font-bold">--:--</span>
+                </div>
               </div>
-              <div className="flex flex-col items-center p-2">
-                <span className="text-xs font-medium text-muted-foreground uppercase mb-1">XP Earned</span>
-                <span className="text-xl font-bold text-accent">+{todaySession.total_xp_earned}</span>
-              </div>
-              <div className="flex flex-col items-center p-2">
-                <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Status</span>
-                <span className="text-xl font-bold text-green-500">Done</span>
-              </div>
-              <div className="flex flex-col items-center p-2">
-                <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Time</span>
-                <span className="text-xl font-bold">--:--</span>
-              </div>
+              <form action={async () => {
+                "use server";
+                const { resetDailySession } = await import('@/app/play/actions');
+                const { redirect } = await import('next/navigation');
+                const result = await resetDailySession();
+                if (result.success) {
+                  redirect('/play/start');
+                }
+              }}>
+                <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
+                  <Play fill="currentColor" size={20} />
+                  PLAY AGAIN (WIPES CURRENT SCORE)
+                </button>
+              </form>
             </div>
           ) : (
             <div className="flex flex-col gap-4">

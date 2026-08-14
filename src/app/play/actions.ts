@@ -599,3 +599,23 @@ export async function startTestSession() {
   revalidatePath("/play");
   return { success: true, session };
 }
+
+export async function resetDailySession() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Delete the completed session for today
+  await supabase
+    .from("daily_sessions")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("date", today);
+    
+  revalidatePath("/dashboard");
+  revalidatePath("/play");
+  return { success: true };
+}
