@@ -20,8 +20,9 @@ export async function addPrize(formData: FormData) {
     throw new Error("Title and Rank Requirement are required.");
   }
 
-  // Optional: check if prize for that rank already exists and delete/update it
-  // But for simplicity, we'll just insert and let them manage it
+  // Delete any existing prize for this rank to ensure only one prize per position
+  await supabase.from("prizes").delete().eq("rank_requirement", rankRequirement);
+
   const { error } = await supabase
     .from("prizes")
     .insert({

@@ -34,17 +34,14 @@ export default async function PrizesManagementPage() {
           <form action={addPrize} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Rank Required</label>
-              <select 
+              <input 
+                type="number"
                 name="rank_requirement" 
                 required 
+                min="1"
+                placeholder="e.g. 1 for 1st Place"
                 className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-              >
-                <option value="1">1st Place</option>
-                <option value="2">2nd Place</option>
-                <option value="3">3rd Place</option>
-                <option value="4">4th Place</option>
-                <option value="5">5th Place</option>
-              </select>
+              />
             </div>
 
             <div>
