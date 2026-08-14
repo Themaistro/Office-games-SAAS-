@@ -32,12 +32,34 @@ export default function AdminGamesPage() {
     }
   };
 
+  const GAME_CATEGORIES: Record<string, string[]> = {
+    "Logic & Problem Solving": ["logic", "sudoku_lite", "odd_object"],
+    "Memory & Reflexes": ["memory", "sequence", "card_match", "reaction", "stroop"],
+    "Knowledge & Language": ["trivia", "unscramble", "typing", "word", "coding"],
+    "Mathematics": ["mental_math", "math"]
+  };
+
+  const getCategory = (slug: string) => {
+    for (const [category, slugs] of Object.entries(GAME_CATEGORIES)) {
+      if (slugs.includes(slug)) return category;
+    }
+    return "Other Games";
+  };
+
+  // Group games
+  const groupedGames = games.reduce((acc, game) => {
+    const cat = getCategory(game.slug);
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(game);
+    return acc;
+  }, {} as Record<string, any[]>);
+
   if (loading) {
     return <div className="p-8 text-center animate-pulse">Loading games...</div>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Games Management</h1>
@@ -48,34 +70,39 @@ export default function AdminGamesPage() {
         <Shield className="text-primary w-12 h-12 opacity-50" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {games.map((game) => (
-          <div key={game.id} className="bg-card border border-border p-6 rounded-2xl shadow-sm flex flex-col justify-between h-full">
-            <div>
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="font-bold text-lg">{game.name}</h3>
-                <span className="bg-muted px-2 py-1 rounded text-xs font-mono">{game.slug}</span>
+      {Object.entries(groupedGames).map(([category, catGames]) => (
+        <div key={category} className="space-y-4">
+          <h2 className="text-xl font-bold border-b border-border pb-2">{category}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {catGames.map((game: any) => (
+              <div key={game.id} className="bg-card border border-border p-6 rounded-2xl shadow-sm flex flex-col justify-between h-full">
+                <div>
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="font-bold text-lg">{game.name}</h3>
+                    <span className="bg-muted px-2 py-1 rounded text-xs font-mono">{game.slug}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-6">{game.description}</p>
+                </div>
+                
+                <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
+                  <span className={`text-sm font-bold flex items-center gap-2 ${game.is_active ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    <span className={`w-2 h-2 rounded-full ${game.is_active ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
+                    {game.is_active ? 'ACTIVE' : 'DISABLED'}
+                  </span>
+                  
+                  <button 
+                    onClick={() => handleToggle(game.id, game.is_active)}
+                    className={`p-2 rounded-lg transition-colors ${game.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+                    title={game.is_active ? "Disable Game" : "Enable Game"}
+                  >
+                    <Power size={20} />
+                  </button>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground mb-6">{game.description}</p>
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
-              <span className={`text-sm font-bold flex items-center gap-2 ${game.is_active ? 'text-green-500' : 'text-muted-foreground'}`}>
-                <span className={`w-2 h-2 rounded-full ${game.is_active ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
-                {game.is_active ? 'ACTIVE' : 'DISABLED'}
-              </span>
-              
-              <button 
-                onClick={() => handleToggle(game.id, game.is_active)}
-                className={`p-2 rounded-lg transition-colors ${game.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                title={game.is_active ? "Disable Game" : "Enable Game"}
-              >
-                <Power size={20} />
-              </button>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
