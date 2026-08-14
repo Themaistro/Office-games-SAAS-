@@ -13,7 +13,8 @@ export default async function ProfilePage() {
     current_level: 8,
     current_streak: 3,
     best_streak: 12,
-    games_played: 45
+    games_played: 45,
+    department: null as string | null
   };
 
   if (user) {

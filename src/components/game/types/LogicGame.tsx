@@ -65,7 +65,7 @@ export default function LogicGame({ question, onAnswer, isSubmitting, showHint }
   const isSequence = questionText.includes('?') && questionText.length < 50;
   // If it's a sequence, split by common delimiters but keep the items
   const sequenceItems = isSequence 
-    ? questionText.split(/[,→\s]+/).filter(b => b.trim().length > 0)
+    ? questionText.split(/[,→\s]+/).filter((b: string) => b.trim().length > 0)
     : [questionText];
 
   const getOptionClasses = (option: string) => {
@@ -134,7 +134,7 @@ export default function LogicGame({ question, onAnswer, isSubmitting, showHint }
 
         {isSequence ? (
           <AnimatePresence>
-            {sequenceItems.map((item, idx) => {
+            {sequenceItems.map((item: string, idx: number) => {
               const isPlaceholder = item.includes('?');
               let displayItem = item;
               

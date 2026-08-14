@@ -1,6 +1,6 @@
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
-export type GameTypeSlug = 'logic' | 'word' | 'memory' | 'observation' | 'speed' | 'trivia' | 'company_trivia' | 'reaction' | 'stroop' | 'sequence' | 'card_match' | 'sudoku_lite' | 'odd_object' | 'unscramble' | 'typing' | 'mental_math' | 'math' | 'coding';
+export type GameTypeSlug = 'logic' | 'word' | 'memory' | 'observation' | 'speed' | 'trivia' | 'company_trivia' | 'reaction' | 'stroop' | 'sequence' | 'card_match' | 'card-match' | 'sudoku_lite' | 'sudoku-lite' | 'odd_object' | 'odd-object' | 'unscramble' | 'word-unscramble' | 'typing' | 'typing-challenge' | 'mental_math' | 'mental-math' | 'math' | 'coding';
 
 export interface GameType {
   id: string;

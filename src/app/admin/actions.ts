@@ -21,7 +21,5 @@ export async function toggleGameStatus(gameId: string, currentStatus: boolean) {
   if (error) throw error;
   
   revalidatePath("/admin/games");
-  revalidatePath("/play");
-  
-  return { success: true };
+  revalidatePath("/admin");
 }

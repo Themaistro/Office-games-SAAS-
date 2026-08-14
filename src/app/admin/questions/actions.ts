@@ -49,7 +49,6 @@ export async function addCompanyTrivia(formData: FormData) {
   }
 
   revalidatePath("/admin/questions");
-  return { success: true };
 }
 
 export async function deleteTrivia(id: string) {

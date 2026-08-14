@@ -52,7 +52,5 @@ export async function resetSeason() {
 
   revalidatePath("/admin");
   revalidatePath("/admin/settings");
-  revalidatePath("/leaderboard");
-  
-  return { success: true };
+  revalidatePath("/admin/settings");
 }

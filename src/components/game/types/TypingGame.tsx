@@ -100,10 +100,7 @@ export default function TypingGame({ onAnswer, isSubmitting }: GameComponentProp
     onAnswer(finalInput || "[Timeout]", { 
       customIsCorrect: accuracy > 0, 
       customTimeSpent: timeSpent, 
-      isPerfect,
-      customScoreModifiers: {
-        accuracy
-      }
+      isPerfect
     }, timeSpent);
   };
 

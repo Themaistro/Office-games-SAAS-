@@ -37,7 +37,6 @@ export async function addDepartment(formData: FormData) {
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
-  return { success: true };
 }
 
 export async function toggleDepartmentStatus(id: string, isActive: boolean) {

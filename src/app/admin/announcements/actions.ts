@@ -29,7 +29,6 @@ export async function addAnnouncement(formData: FormData) {
 
   revalidatePath("/admin/announcements");
   revalidatePath("/dashboard");
-  return { success: true };
 }
 
 export async function toggleAnnouncementStatus(id: string, isActive: boolean) {

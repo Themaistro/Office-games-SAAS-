@@ -35,7 +35,6 @@ export async function addPrize(formData: FormData) {
 
   revalidatePath("/admin/prizes");
   revalidatePath("/leaderboard");
-  return { success: true };
 }
 
 export async function deletePrize(id: string) {

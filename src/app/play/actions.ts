@@ -165,7 +165,7 @@ export async function startDailySession() {
           .eq("is_active", true);
 
         if (customTrivia && customTrivia.length > 0) {
-          const fallbackGameId = activeGames[0]?.id; // Just use any active game ID to satisfy the FK
+          const fallbackGameId = (activeGames || [])[0]?.id; // Just use any active game ID to satisfy the FK
           if (fallbackGameId) {
             for (const trivia of customTrivia) {
               newQuestions.push({
@@ -226,7 +226,9 @@ export async function startDailySession() {
       }
       
       // Limit concentration match to strictly 1 question per session total
-      if (q.game_types?.slug === 'card-match' || q.game_types?.slug === 'card_match') {
+      const gameTypes = q.game_types as any;
+      const qSlug = Array.isArray(gameTypes) ? gameTypes[0]?.slug : gameTypes?.slug;
+      if (qSlug === 'card-match' || qSlug === 'card_match') {
         if (cardMatchAdded) continue;
         cardMatchAdded = true;
       }
