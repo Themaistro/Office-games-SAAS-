@@ -332,6 +332,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       case 'word':
         return <WordGame {...props} />;
       case 'memory':
+        return <MemoryGame {...props} />;
       case 'sequence':
         return <SequenceGame {...props} />;
       case 'reaction':

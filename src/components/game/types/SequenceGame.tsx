@@ -3,11 +3,25 @@ import { useState, useEffect, useCallback } from "react";
 import { clsx } from "clsx";
 import { Grid3x3, Clock, Sparkles } from "lucide-react";
 
-const GRID_SIZE = 16; // 4x4
-const SEQUENCE_LENGTH = 6; // Numbers 1 to 6 for a bit more challenge
-
-export default function SequenceGame({ onAnswer, isSubmitting, showHint }: GameProps & { showHint?: boolean }) {
+export default function SequenceGame({ question, onAnswer, isSubmitting, showHint }: GameProps & { showHint?: boolean }) {
   const [gameState, setGameState] = useState<'memorize' | 'play'>('memorize');
+  
+  // Scale difficulty
+  const difficulty = question?.difficulty || 'medium';
+  let gridSize = 9; // 3x3 for easy
+  let seqLength = 4;
+  
+  if (difficulty === 'medium') {
+    gridSize = 16; // 4x4
+    seqLength = 6;
+  } else if (difficulty === 'hard') {
+    gridSize = 25; // 5x5
+    seqLength = 8;
+  }
+  
+  const GRID_SIZE = gridSize;
+  const SEQUENCE_LENGTH = seqLength;
+  
   const [timeLeft, setTimeLeft] = useState(5);
   const [playTimeLeft, setPlayTimeLeft] = useState(15);
   const [startTime, setStartTime] = useState(Date.now());
@@ -136,7 +150,10 @@ export default function SequenceGame({ onAnswer, isSubmitting, showHint }: GameP
         )}
       </p>
       
-      <div className="grid grid-cols-4 gap-3 sm:gap-4 p-4 sm:p-6 bg-card/50 backdrop-blur-xl border border-border shadow-2xl rounded-3xl max-w-sm mx-auto w-full aspect-square relative">
+      <div 
+        className="grid gap-3 sm:gap-4 p-4 sm:p-6 bg-card/50 backdrop-blur-xl border border-border shadow-2xl rounded-3xl mx-auto w-full max-w-sm aspect-square relative"
+        style={{ gridTemplateColumns: `repeat(${Math.sqrt(GRID_SIZE)}, minmax(0, 1fr))` }}
+      >
         {grid.map((num, i) => {
           // Hide as soon as we enter play state
           const isHidden = gameState === 'play' && num !== null && !isPeeking && !failed;

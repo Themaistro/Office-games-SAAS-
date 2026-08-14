@@ -122,9 +122,9 @@ export async function startDailySession() {
           diffBatch = generateSudokuLite(5, diff);
         } else if (game.slug === "odd-object" || game.slug === "odd_object") {
           diffBatch = generateOddObject(5, diff);
-        } else if (game.slug === "sequence" || game.slug === "logic") {
+        } else if (game.slug === "logic") {
           diffBatch = generateSequence(5, diff);
-        } else if (['reaction', 'stroop', 'card_match', 'card-match'].includes(game.slug)) {
+        } else if (['reaction', 'stroop', 'card_match', 'card-match', 'sequence'].includes(game.slug)) {
           diffBatch = Array.from({ length: 5 }).map(() => ({
             correctAnswer: "none",
             content: {},
