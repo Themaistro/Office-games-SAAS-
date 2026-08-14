@@ -51,7 +51,7 @@ export default async function LandingPage() {
               Welcome to the <span className="text-primary">Daily Brain Arena</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Take a 15-minute break, stretch your cognitive muscles, and compete with your colleagues on the monthly leaderboard.
+              Take a quick break, stretch your cognitive muscles, and compete with your colleagues on the monthly leaderboard.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
               <Link
@@ -76,8 +76,8 @@ export default async function LandingPage() {
               <div className="bg-primary/10 w-12 h-12 rounded-lg flex items-center justify-center mb-6">
                 <Zap className="text-primary" size={24} />
               </div>
-              <h3 className="text-xl font-bold mb-3">15 Minutes Max</h3>
-              <p className="text-muted-foreground">You get exactly 15 minutes a day to complete the mission. If the timer runs out, your score is locked until tomorrow.</p>
+              <h3 className="text-xl font-bold mb-3">Quick Daily Mission</h3>
+              <p className="text-muted-foreground">You get a curated daily mission of fast-paced mini-games. Complete the challenges to lock in your score and climb the leaderboard!</p>
             </div>
             
             <div className="bg-card border border-border p-8 rounded-2xl shadow-sm">

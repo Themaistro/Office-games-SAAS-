@@ -20,7 +20,7 @@ export default async function LoginPage({
             Daily Brain Arena
           </h2>
           <p className="mt-2 text-center text-sm text-muted-foreground">
-            Sign in to start your daily 15-minute mission.
+            Sign in to start your daily mission.
           </p>
         </div>
 

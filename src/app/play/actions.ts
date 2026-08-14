@@ -15,9 +15,6 @@ import {
 } from "@/lib/game-content";
 import { SessionQuestion } from "@/types/game";
 
-// Note: In a real production app, we would perform strict date math to enforce 15 mins calendar day limits.
-// For the MVP source code, we use a simpler model to demonstrate the architecture.
-
 export async function startDailySession() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
