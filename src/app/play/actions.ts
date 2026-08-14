@@ -80,10 +80,14 @@ export async function startDailySession() {
   }
 
   // Check if we have generated questions for today
+  // TEMP FIX: We had an issue with difficulty missing in older questions. 
+  // Let's only pull questions generated in the last 2 hours to bypass the broken pool from earlier today.
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  
   let { data: todaysQuestions, error: qError } = await supabase
     .from("questions")
     .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active)")
-    .gte("created_at", `${today}T00:00:00Z`)
+    .gte("created_at", twoHoursAgo)
     .in("game_type_id", activeGameIds);
 
   if (qError) {
