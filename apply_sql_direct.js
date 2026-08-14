@@ -2,7 +2,7 @@ const { Client } = require('pg');
 const fs = require('fs');
 
 async function applySql() {
-  const connectionString = 'postgresql://postgres:0123853229QWEASDZXC@aws-0-eu-central-1.pooler.supabase.com:6543/postgres';
+  const connectionString = 'postgresql://postgres:0123853229QWEASDZXC@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?options=project%3Dncuwnuihndfxegpouoeb';
   const sqlFile = process.argv[2];
 
   if (!sqlFile) {

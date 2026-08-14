@@ -12,7 +12,10 @@ export async function resetUserStreak(userId: string) {
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   const { error } = await supabase.from("profiles").update({ current_streak: 0 }).eq("id", userId);
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Error resetting streak:", error);
+    throw new Error(error.message);
+  }
 
   revalidatePath("/admin/users");
 }
@@ -30,7 +33,10 @@ export async function updateUserDepartment(formData: FormData) {
 
   if (userId && department !== null) {
     const { error } = await supabase.from("profiles").update({ department }).eq("id", userId);
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("Error updating department:", error);
+      throw new Error(error.message);
+    }
   }
 
   revalidatePath("/admin/users");
