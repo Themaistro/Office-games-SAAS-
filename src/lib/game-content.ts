@@ -187,54 +187,46 @@ export const generateOddObject = (count: number = 15) => {
   });
 };
 
-// ------------------------------------------
-// 6. TRIVIA BANK
-// ------------------------------------------
 export const TRIVIA_BANK = [
-  {
-    q: "What does HTML stand for?",
-    a: "Hyper Text Markup Language",
-    decoys: ["Home Tool Markup Language", "Hyperlinks and Text Markup Language", "Hyper Tool Multi Language"]
-  },
-  {
-    q: "Which company created React?",
-    a: "Facebook (Meta)",
-    decoys: ["Google", "Microsoft", "Twitter"]
-  },
-  {
-    q: "In what year was the first iPhone released?",
-    a: "2007",
-    decoys: ["2005", "2008", "2010"]
-  },
-  {
-    q: "What is the powerhouse of the cell?",
-    a: "Mitochondria",
-    decoys: ["Nucleus", "Ribosome", "Endoplasmic Reticulum"]
-  },
-  {
-    q: "Which planet is known as the Red Planet?",
-    a: "Mars",
-    decoys: ["Venus", "Jupiter", "Saturn"]
-  },
-  {
-    q: "What is the capital of Australia?",
-    a: "Canberra",
-    decoys: ["Sydney", "Melbourne", "Perth"]
-  },
-  {
-    q: "Which programming language is known as the mother of all languages?",
-    a: "C",
-    decoys: ["Java", "Assembly", "Python"]
-  }
+  // General
+  { q: "What planet is known as the Red Planet?", a: "Mars", decoys: ["Venus", "Jupiter", "Saturn"], department: "General" },
+  { q: "What is the capital of Australia?", a: "Canberra", decoys: ["Sydney", "Melbourne", "Perth"], department: "General" },
+  { q: "In what year was the first iPhone released?", a: "2007", decoys: ["2005", "2008", "2010"], department: "General" },
+  { q: "What is the powerhouse of the cell?", a: "Mitochondria", decoys: ["Nucleus", "Ribosome", "Endoplasmic Reticulum"], department: "General" },
+  
+  // Engineering
+  { q: "What does HTML stand for?", a: "Hyper Text Markup Language", decoys: ["Home Tool Markup Language", "Hyperlinks and Text Markup Language", "Hyper Tool Multi Language"], department: "Engineering" },
+  { q: "Which company created React?", a: "Facebook (Meta)", decoys: ["Google", "Microsoft", "Twitter"], department: "Engineering" },
+  { q: "Which programming language is known as the mother of all languages?", a: "C", decoys: ["Java", "Assembly", "Python"], department: "Engineering" },
+  { q: "What does API stand for?", a: "Application Programming Interface", decoys: ["Advanced Program Integration", "Automated Programming Interface", "Application Process Integration"], department: "Engineering" },
+  { q: "In Git, what command saves your changes to the local repository?", a: "git commit", decoys: ["git push", "git save", "git store"], department: "Engineering" },
+
+  // HR
+  { q: "What does FMLA stand for?", a: "Family and Medical Leave Act", decoys: ["Federal Medical Leave Allowance", "Family Maternity Leave Act", "Fair Medical Leave Agreement"], department: "HR" },
+  { q: "In HR, what is the term for the rate at which employees leave a workforce?", a: "Turnover Rate", decoys: ["Attrition Factor", "Departure Index", "Retention Loss"], department: "HR" },
+  { q: "What does KPI stand for in performance management?", a: "Key Performance Indicator", decoys: ["Key Process Index", "Knowledge Performance Index", "Key Productivity Indicator"], department: "HR" },
+  { q: "Which act established the minimum wage in the US?", a: "Fair Labor Standards Act", decoys: ["Equal Pay Act", "Civil Rights Act", "National Labor Relations Act"], department: "HR" },
+  { q: "What is the process of integrating a new employee into an organization called?", a: "Onboarding", decoys: ["Induction", "Orientation", "Assimilation"], department: "HR" },
+
+  // Sales
+  { q: "What does CRM stand for?", a: "Customer Relationship Management", decoys: ["Client Retention Model", "Customer Revenue Management", "Client Relationship Marketing"], department: "Sales" },
+  { q: "In sales, what does B2B stand for?", a: "Business to Business", decoys: ["Business to Buyer", "Buyer to Buyer", "Brand to Business"], department: "Sales" },
+  { q: "What is the term for a potential customer who has shown interest in a product?", a: "Lead", decoys: ["Prospect", "Target", "Suspect"], department: "Sales" },
+  { q: "What does ROI stand for?", a: "Return on Investment", decoys: ["Revenue on Investment", "Return on Income", "Rate of Interest"], department: "Sales" },
+  { q: "What is the final step of the sales process called?", a: "Closing", decoys: ["Pitching", "Prospecting", "Negotiating"], department: "Sales" }
 ];
 
-export const generateTrivia = (count: number = 15) => {
+export const generateTrivia = (count: number = 60) => {
   const shuffled = shuffle(TRIVIA_BANK);
   return Array.from({ length: count }).map((_, i) => {
+    // If count exceeds our bank, we just loop around randomly
     const trivia = i < shuffled.length ? shuffled[i] : getRandomItem(TRIVIA_BANK);
     return {
       correctAnswer: trivia.a,
-      content: { question: trivia.q },
+      content: { 
+        question: trivia.q,
+        department: trivia.department // Attach department for routing
+      },
       options: shuffle([trivia.a, ...trivia.decoys])
     };
   });

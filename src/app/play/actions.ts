@@ -24,6 +24,14 @@ export async function startDailySession() {
 
   if (!user) throw new Error("Unauthorized");
 
+  // Fetch the user's department for personalized content filtering
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("department")
+    .eq("id", user.id)
+    .single();
+  const userDept = profile?.department || "General";
+
   // 1. Check if they have an active (incomplete) session (could be normal or a test session)
   const { data: activeSessions } = await supabase
     .from("daily_sessions")
@@ -115,7 +123,7 @@ export async function startDailySession() {
           options: []
         }));
       } else {
-        generatedBatch = generateTrivia(15);
+        generatedBatch = generateTrivia(60);
       }
 
       for (const gen of generatedBatch) {
@@ -197,13 +205,23 @@ export async function startDailySession() {
     let cardMatchAdded = false;
 
     for (const q of allQuestions) {
+      const gameTypes = q.game_types as any;
+      const qSlug = Array.isArray(gameTypes) ? gameTypes[0]?.slug : gameTypes?.slug;
+
+      // Department Filtering for Trivia
+      if (qSlug === 'trivia') {
+        const qDept = q.content?.department;
+        // If the question has a department, it MUST be either General or match the user's department
+        if (qDept && qDept !== "General" && qDept !== userDept) {
+          continue;
+        }
+      }
+
       if (!questionsByGame[q.game_type_id]) {
         questionsByGame[q.game_type_id] = [];
       }
       
       // Limit concentration match to strictly 1 question per session total
-      const gameTypes = q.game_types as any;
-      const qSlug = Array.isArray(gameTypes) ? gameTypes[0]?.slug : gameTypes?.slug;
       if (qSlug === 'card-match' || qSlug === 'card_match') {
         if (cardMatchAdded) continue;
         cardMatchAdded = true;
