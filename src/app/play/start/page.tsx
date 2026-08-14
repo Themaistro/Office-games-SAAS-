@@ -1,14 +1,13 @@
 "use client";
 
-import { startDailySession, startTestSession } from "../actions";
-import { Brain, Clock, ShieldAlert, Zap, Bug } from "lucide-react";
+import { startDailySession } from "../actions";
+import { Brain, Clock, ShieldAlert, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function StartSessionPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [testLoading, setTestLoading] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -30,26 +29,6 @@ export default function StartSessionPage() {
       console.error(err);
       setErrorMsg(err.message || "An unexpected error occurred");
       setLoading(false);
-    }
-  };
-
-  const handleTestStart = async () => {
-    setTestLoading(true);
-    setErrorMsg("");
-    try {
-      const result = await startTestSession();
-      if (result.error) {
-        setErrorMsg(result.error);
-        setTestLoading(false);
-        return;
-      }
-      if (result.success) {
-        router.push("/play");
-      }
-    } catch (err: any) {
-      console.error(err);
-      setErrorMsg(err.message || "An unexpected error occurred");
-      setTestLoading(false);
     }
   };
 
@@ -92,25 +71,13 @@ export default function StartSessionPage() {
           )}
           <button
             type="submit"
-            disabled={loading || testLoading}
+            disabled={loading}
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-primary/25 disabled:opacity-70"
           >
             <Zap className={loading ? "animate-pulse" : ""} />
             {loading ? "STARTING..." : "START MISSION"}
           </button>
         </form>
-
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={handleTestStart}
-            disabled={loading || testLoading}
-            className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all border border-border disabled:opacity-70 text-sm"
-          >
-            <Bug className={testLoading ? "animate-pulse" : ""} size={16} />
-            {testLoading ? "PREPARING TEST..." : "TEST ALL GAMES (DEV MODE)"}
-          </button>
-        </div>
         
         <div className="pt-2">
           <a href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground">

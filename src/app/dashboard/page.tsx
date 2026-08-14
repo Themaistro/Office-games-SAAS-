@@ -181,25 +181,6 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          {/* DEV MODE TEST BUTTON ALWAYS AVAILABLE ON DASHBOARD */}
-          <div className="mt-8 pt-6 border-t border-border/50 w-full flex flex-col items-center opacity-80 hover:opacity-100 transition-opacity">
-            <form action={async () => {
-              "use server";
-              const { startTestSession } = await import('@/app/play/actions');
-              const { redirect } = await import('next/navigation');
-              const result = await startTestSession();
-              if (result.success) {
-                redirect('/play');
-              }
-            }}>
-              <button type="submit" className="flex items-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-bold py-2 px-6 rounded-full transition-all border border-border text-xs shadow-sm active:scale-95">
-                <Trophy size={14} /> TEST ALL GAMES (DEV MODE)
-              </button>
-            </form>
-            <p className="text-[10px] text-muted-foreground mt-2 text-center max-w-xs">
-              Clicking this instantly starts a test session with 1 of every active game type.
-            </p>
-          </div>
         </div>
       </div>
 
