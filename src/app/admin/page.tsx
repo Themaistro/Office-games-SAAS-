@@ -1,5 +1,6 @@
 import { Users, Target, Activity, Flame } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import ParticipationChart from "./ParticipationChart";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
@@ -24,7 +25,8 @@ export default async function AdminDashboardPage() {
     .from("profiles")
     .select("department, total_xp")
     .eq("role", "employee")
-    .not("department", "is", null);
+    .not("department", "is", null)
+    .limit(10000); // FIX: Increase limit to handle larger organizations
 
   const deptStats: Record<string, { totalXp: number, count: number }> = {};
   if (allProfiles) {
@@ -52,9 +54,37 @@ export default async function AdminDashboardPage() {
     .select("*", { count: "exact", head: true })
     .eq("date", today);
     
-  const participationRate = totalEmployees && totalEmployees > 0 && sessionsToday !== null 
+  let participationRate = totalEmployees && totalEmployees > 0 && sessionsToday !== null 
     ? Math.round((sessionsToday / totalEmployees) * 100) 
     : 0;
+  if (participationRate > 100) participationRate = 100; // Cap at 100% in case admins play
+
+  // 5. Active Games Count
+  const { count: activeGamesCount } = await supabase
+    .from("game_types")
+    .select("*", { count: "exact", head: true })
+    .eq("is_active", true);
+
+  // 6. Participation Data for Chart (Last 7 days)
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d;
+  });
+
+  const chartPromises = last7Days.map(async (d) => {
+    const dateStr = d.toISOString().split('T')[0];
+    const { count } = await supabase
+      .from("daily_sessions")
+      .select("*", { count: "exact", head: true })
+      .eq("date", dateStr);
+    return {
+      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      sessions: count || 0
+    };
+  });
+  
+  const chartData = await Promise.all(chartPromises);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -92,7 +122,7 @@ export default async function AdminDashboardPage() {
             <h3 className="text-sm font-medium text-muted-foreground">Active Games</h3>
             <Target size={16} className="text-accent" />
           </div>
-          <span className="text-3xl font-bold">4</span>
+          <span className="text-3xl font-bold">{activeGamesCount || 0}</span>
           <span className="text-xs text-muted-foreground font-medium mt-2 flex items-center gap-1">
             Minigame formats
           </span>
@@ -114,9 +144,7 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
           <h3 className="font-bold mb-4">Participation Over Time</h3>
-          <div className="h-64 flex items-center justify-center bg-muted/50 rounded-lg border border-dashed border-border text-muted-foreground">
-            Chart coming soon in v2
-          </div>
+          <ParticipationChart data={chartData} />
         </div>
         <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
           <h3 className="font-bold mb-4">Top Performing Departments (By Avg XP)</h3>

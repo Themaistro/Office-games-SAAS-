@@ -35,21 +35,7 @@ export default function SettingsPage() {
       setIsFactoryResetting(false);
     }
   };
-  const handleUpdateSeason = async () => {
-    if (!window.confirm(`Are you sure you want to change the season number to ${newSeasonValue}?`)) return;
-    
-    setIsUpdatingSeason(true);
-    try {
-      await updateSeasonCounter(newSeasonValue);
-      setMessage(`Season counter successfully updated to Season ${newSeasonValue}!`);
-      await loadSettings();
-      setIsEditingSeason(false);
-    } catch (err: any) {
-      setMessage(`Error: ${err.message}`);
-    } finally {
-      setIsUpdatingSeason(false);
-    }
-  };
+
 
   const handleReset = async () => {
     if (!window.confirm("ARE YOU ABSOLUTELY SURE? This will permanently delete all game history, archive top winners, and reset all employee XP and Streaks to zero!")) {

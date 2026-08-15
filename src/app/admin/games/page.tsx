@@ -74,7 +74,7 @@ export default function AdminGamesPage() {
         <div key={category} className="space-y-4">
           <h2 className="text-xl font-bold border-b border-border pb-2">{category}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {catGames.map((game: any) => (
+            {(catGames as any[]).map((game: any) => (
               <div key={game.id} className="bg-card border border-border p-6 rounded-2xl shadow-sm flex flex-col justify-between h-full">
                 <div>
                   <div className="flex justify-between items-start mb-4">
