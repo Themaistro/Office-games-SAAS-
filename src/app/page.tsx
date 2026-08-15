@@ -4,16 +4,21 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export default async function LandingPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-  if (user) {
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (profile?.role === "admin") {
-      redirect("/admin");
-    } else {
-      redirect("/dashboard");
+    if (user) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      if (profile?.role === "admin") {
+        redirect("/admin");
+      } else {
+        redirect("/dashboard");
+      }
     }
+  } catch (e) {
+    console.error("Landing page Supabase error:", e);
+    // Continue to render landing page if db is down
   }
 
   return (
