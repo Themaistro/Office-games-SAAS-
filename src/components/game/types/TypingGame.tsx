@@ -3,16 +3,8 @@ import { GameComponentProps } from '@/types/game';
 import { Clock, Activity, Target } from 'lucide-react';
 import { clsx } from 'clsx';
 
-const sentences = [
-  "The quick brown fox jumps over the lazy dog.",
-  "Typing fast requires practice and muscle memory.",
-  "Always write code as if the guy who ends up maintaining it will be a violent psychopath.",
-  "React is a library for building user interfaces.",
-  "Brain Arena challenges your cognitive speed."
-];
-
-export default function TypingGame({ onAnswer, isSubmitting }: GameComponentProps) {
-  const [targetSentence, setTargetSentence] = useState("");
+export default function TypingGame({ question, onAnswer, isSubmitting }: GameComponentProps) {
+  const [targetSentence, setTargetSentence] = useState(question?.content?.text || "The quick brown fox jumps over the lazy dog.");
   const [input, setInput] = useState("");
   const [startTime, setStartTime] = useState<number | null>(null);
   
@@ -29,8 +21,10 @@ export default function TypingGame({ onAnswer, isSubmitting }: GameComponentProp
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setTargetSentence(sentences[Math.floor(Math.random() * sentences.length)]);
-  }, []);
+    if (question?.content?.text) {
+      setTargetSentence(question.content.text);
+    }
+  }, [question]);
 
   // Prep Timer
   useEffect(() => {
@@ -146,7 +140,7 @@ export default function TypingGame({ onAnswer, isSubmitting }: GameComponentProp
   // Render the text with MonkeyType styling
   const renderText = () => {
     const chars = targetSentence.split('');
-    return chars.map((char, index) => {
+    return chars.map((char: string, index: number) => {
       const isActive = index === input.length && gameState === 'play';
       const isTyped = index < input.length;
       const isCorrect = isTyped && input[index] === char;

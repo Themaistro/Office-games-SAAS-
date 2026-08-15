@@ -56,7 +56,7 @@ export default async function AdminLayout({
           </Link>
           <Link href="/admin/users" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
             <Users size={18} />
-            Employees
+            Player Roster
           </Link>
           <Link href="/admin/departments" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
             <LayoutDashboard size={18} />

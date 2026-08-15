@@ -1,10 +1,20 @@
 import Link from "next/link";
 import { Brain, Target, Users, Zap, Trophy, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 export default async function LandingPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role === "admin") {
+      redirect("/admin");
+    } else {
+      redirect("/dashboard");
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -20,21 +30,12 @@ export default async function LandingPage() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            {user ? (
-              <Link
-                href="/dashboard"
-                className="text-sm font-medium bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
-              >
-                Go to Dashboard
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="text-sm font-medium bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
-              >
-                Log In to Play
-              </Link>
-            )}
+            <Link
+              href="/login"
+              className="text-sm font-medium bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Log In to Play
+            </Link>
           </div>
         </div>
       </header>

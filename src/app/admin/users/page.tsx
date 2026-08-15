@@ -1,15 +1,33 @@
 import { createClient } from "@/lib/supabase/server";
 import ClientExportButton from "./ClientExportButton";
-import { resetUserStreak, updateUserDepartment } from "./actions";
+import UserFilters from "./UserFilters";
+import UserRosterTable from "./UserRosterTable";
 
-export default async function UsersManagementPage() {
+export default async function UsersManagementPage(props: { searchParams: Promise<{ q?: string; department?: string; sort?: string; dir?: string; userId?: string }> }) {
+  const searchParams = await props.searchParams;
   const supabase = await createClient();
 
-  const { data: users, error } = await supabase
+  let query = supabase
     .from("profiles")
     .select("*")
-    .eq("role", "employee")
-    .order("total_xp", { ascending: false });
+    .eq("role", "employee");
+
+  if (searchParams.sort) {
+    const isAsc = searchParams.dir === "asc";
+    query = query.order(searchParams.sort, { ascending: isAsc });
+  } else {
+    query = query.order("total_xp", { ascending: false });
+  }
+
+  if (searchParams.q) {
+    query = query.ilike("full_name", `%${searchParams.q}%`);
+  }
+  
+  if (searchParams.department) {
+    query = query.eq("department", searchParams.department);
+  }
+
+  const { data: users, error } = await query;
 
   const { data: departments } = await supabase
     .from("departments")
@@ -21,86 +39,19 @@ export default async function UsersManagementPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Employee Management</h1>
-          <p className="text-muted-foreground mt-1">View and export employee leaderboard data.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Player Roster</h1>
+          <p className="text-muted-foreground mt-1">View and manage all arena participants.</p>
         </div>
         
-        {/* We pass the data to a client component to handle the browser-based CSV download */}
         <ClientExportButton data={users || []} />
       </div>
 
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs uppercase bg-muted/50 border-b border-border text-muted-foreground">
-              <tr>
-                <th className="px-6 py-4 font-semibold">Employee</th>
-                <th className="px-6 py-4 font-semibold">Department</th>
-                <th className="px-6 py-4 font-semibold">Level</th>
-                <th className="px-6 py-4 font-semibold">Total XP</th>
-                <th className="px-6 py-4 font-semibold">Streak</th>
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {(users || []).length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
-                    No employees found.
-                  </td>
-                </tr>
-              ) : (
-                users?.map((u) => (
-                  <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-foreground">{u.full_name || "Unknown"}</div>
-                      <div className="text-xs text-muted-foreground">{u.email}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <form action={updateUserDepartment} className="flex items-center gap-2">
-                        <input type="hidden" name="userId" value={u.id} />
-                        <select 
-                          name="department" 
-                          defaultValue={u.department || ""}
-                          className="text-xs rounded-md border border-input bg-transparent px-2 py-1 shadow-sm"
-                        >
-                          <option value="">Unassigned</option>
-                          {departments?.map(d => (
-                            <option key={d.id} value={d.name}>{d.name}</option>
-                          ))}
-                        </select>
-                        <button type="submit" className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-2 py-1 rounded">
-                          Save
-                        </button>
-                      </form>
-                    </td>
-                    <td className="px-6 py-4 font-medium">{u.current_level || 1}</td>
-                    <td className="px-6 py-4 font-bold text-primary">{u.total_xp || 0}</td>
-                    <td className="px-6 py-4 font-medium text-orange-500">{u.current_streak || 0} 🔥</td>
-                    <td className="px-6 py-4 text-right">
-                      <form action={async () => {
-                        "use server";
-                        await resetUserStreak(u.id);
-                      }}>
-                        <button 
-                          type="submit" 
-                          className="text-xs text-destructive hover:bg-destructive/10 px-2 py-1 rounded transition-colors"
-                          title="Reset Streak to 0"
-                        >
-                          Reset Streak
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <UserFilters departments={departments || []} />
+
+      <UserRosterTable users={users || []} departments={departments || []} />
     </div>
   );
 }

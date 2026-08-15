@@ -15,6 +15,7 @@ export default async function RegisterPage({
     .from("departments")
     .select("*")
     .eq("is_active", true)
+    .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
   
   return (

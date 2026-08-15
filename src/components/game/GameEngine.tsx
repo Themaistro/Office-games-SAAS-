@@ -15,6 +15,9 @@ import OddObjectGame from "./types/OddObjectGame";
 import UnscrambleGame from "./types/UnscrambleGame";
 import TypingGame from "./types/TypingGame";
 import MentalMathGame from "./types/MentalMathGame";
+import TargetNumberGame from "./types/TargetNumberGame";
+import CompanyTriviaGame from "./types/CompanyTriviaGame";
+import MissingLettersGame from "./types/MissingLettersGame";
 import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap, Star, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { submitAnswer } from "@/app/play/actions";
@@ -85,7 +88,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   }, [currentIndex, sessionQuestions]);
   
   const currentSlug = currentSessionQuestion?.question?.game_type?.slug || '';
-  const noHintSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'card_match', 'card-match', 'sequence'];
+  const noHintSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'sequence'];
   const canUseHint = !noHintSlugs.includes(currentSlug);
   
   const handleAnswer = async (
@@ -320,51 +323,51 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     }
 
     const question = currentSessionQuestion.question;
-    const props = { question, onAnswer: handleAnswer, isSubmitting, showHint: wasHintUsed };
-
     if (question.content && question.content.question && question.options && question.options.length > 0) {
-      return <TriviaGame {...props} />;
+      if (question.content.isCompanyTrivia) {
+        return <CompanyTriviaGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+      }
+      return <TriviaGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
     }
 
     switch (question.game_type.slug) {
       case 'logic':
-        return <LogicGame {...props} />;
+        return <LogicGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       case 'word':
-        return <WordGame {...props} />;
-      case 'memory':
-        return <MemoryGame {...props} />;
-      case 'sequence':
-        return <SequenceGame {...props} />;
-      case 'reaction':
-        return <ReactionGame {...props} />;
-      case 'stroop':
-        return <StroopGame {...props} />;
-      case 'card_match':
-      case 'card-match':
-        return <CardMatchGame {...props} />;
-      case 'sudoku_lite':
-      case 'sudoku-lite':
-        return <SudokuLiteGame {...props} />;
-      case 'odd_object':
-      case 'odd-object':
-        return <OddObjectGame {...props} />;
+        return <MissingLettersGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       case 'unscramble':
       case 'word-unscramble':
-        return <UnscrambleGame {...props} />;
+        return <UnscrambleGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+      case 'memory':
+        return <MemoryGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+      case 'sequence':
+        return <SequenceGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+      case 'reaction':
+        return <ReactionGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+      case 'stroop':
+        return <StroopGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+      case 'card_match':
+      case 'card-match':
+        return <CardMatchGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+      case 'sudoku_lite':
+      case 'sudoku-lite':
+        return <SudokuLiteGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+      case 'odd_object':
+      case 'odd-object':
+        return <OddObjectGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       case 'typing':
       case 'typing-challenge':
-        return <TypingGame {...props} />;
+        return <TypingGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       case 'mental_math':
       case 'mental-math':
+        return <MentalMathGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       case 'math':
-        return <MentalMathGame {...props} />;
+        return <TargetNumberGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       case 'trivia':
       case 'company_trivia':
-      case 'math':
-      case 'coding':
-        return <TriviaGame {...props} />;
+        return <TriviaGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       default:
-        return <TriviaGame {...props} />; 
+        return <TriviaGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />; 
     }
   };
 
@@ -391,6 +394,12 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           <span className="font-bold text-lg">
             Challenge #{currentIndex + 1}
           </span>
+          {currentSessionQuestion?.question?.content?.isCompanyTrivia && (
+            <span className="mt-1 bg-purple-500 text-white px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm w-fit">
+              <Star size={12} className="fill-white" />
+              Company Bonus
+            </span>
+          )}
         </div>
         
         <div className="flex items-center gap-3 self-end sm:self-auto">

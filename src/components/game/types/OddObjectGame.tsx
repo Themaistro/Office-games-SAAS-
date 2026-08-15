@@ -3,35 +3,20 @@ import { GameProps } from '@/types/game';
 import { Target, Clock, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
 
-// A collection of visually similar emoji pairs to trick the player's eyes
-const TRICKY_PAIRS = [
-  ["😀", "😃"], ["😁", "😆"], ["🙂", "🙃"], ["😉", "😜"],
-  ["😎", "🤓"], ["😍", "🥰"], ["🤔", "🤫"], ["😐", "😑"],
-  ["😏", "😒"], ["😔", "😟"], ["😭", "😢"], ["🍎", "🍅"],
-  ["🍊", "🍑"], ["🥑", "🍐"], ["🥞", "🧇"], ["🍨", "🍧"],
-  ["🍩", "🥯"], ["🚗", "🚙"], ["🚌", "🚐"], ["🏠", "🏡"],
-  ["🏢", "🏬"], ["🏦", "🏛️"], ["⌚", "⏰"], ["📱", "📲"],
-  ["💻", "🖥️"], ["📖", "📕"], ["🔨", "🪓"], ["⚔️", "🗡️"],
-  ["🛡️", "🚪"], ["🎈", "🏮"], ["🎀", "🧣"], ["🐶", "🐱"],
-  ["🐻", "🐼"], ["🦊", "🐺"], ["🐸", "🐢"], ["🐝", "🪰"],
-  ["🌸", "🌺"], ["☀️", "🌞"], ["🌙", "🌛"], ["☁️", "🌧️"]
-];
-
-export default function OddObjectGame({ onAnswer, isSubmitting, showHint }: GameProps & { showHint?: boolean }) {
+export default function OddObjectGame({ question, onAnswer, isSubmitting, showHint }: GameProps) {
   const [grid, setGrid] = useState<{ id: number, isOdd: boolean, emoji: string, isEliminated: boolean }[]>([]);
   const [timeLeft, setTimeLeft] = useState(15);
   const [startTime, setStartTime] = useState(Date.now());
   const [failed, setFailed] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
-  const gridSize = 36; // 6x6 grid
+  
+  const difficulty = question?.difficulty || 'medium';
+  const cols = difficulty === 'easy' ? 4 : difficulty === 'medium' ? 5 : 6;
+  const gridSize = cols * cols;
 
   useEffect(() => {
-    // Pick a random tricky pair
-    const pair = TRICKY_PAIRS[Math.floor(Math.random() * TRICKY_PAIRS.length)];
-    // Randomly decide which one is the base and which is the odd one
-    const isReversed = Math.random() > 0.5;
-    const baseEmoji = isReversed ? pair[1] : pair[0];
-    const oddEmoji = isReversed ? pair[0] : pair[1];
+    let baseEmoji = question?.content?.even || "🍎";
+    let oddEmoji = question?.content?.odd || "🍅";
 
     const oddIndex = Math.floor(Math.random() * gridSize);
     
@@ -121,8 +106,11 @@ export default function OddObjectGame({ onAnswer, isSubmitting, showHint }: Game
         </span>
       </p>
 
-      <div className="grid grid-cols-6 gap-2 sm:gap-3 p-3 sm:p-5 bg-card/50 backdrop-blur-xl border border-border shadow-2xl rounded-3xl max-w-xl mx-auto w-full aspect-square">
-        {grid.map((item, i) => (
+      <div className="grid gap-2 sm:gap-3 p-3 sm:p-5 bg-card/50 backdrop-blur-xl border border-border shadow-2xl rounded-3xl max-w-xl mx-auto w-full aspect-square"
+           style={{ 
+             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`
+           }}>
+        {grid.map((item) => (
           <button
             key={item.id}
             disabled={isSubmitting || failed || item.isEliminated}

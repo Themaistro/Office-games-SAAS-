@@ -27,31 +27,38 @@ export default async function LeaderboardPage() {
   }
 
   const departmentStats = profiles?.reduce((acc: any, profile) => {
+    // Only include active users if is_active exists, but since we don't fetch it here yet,
+    // we assume profiles from the query are active (or we could filter, but let's just use all fetched)
     const dept = profile.department || 'Unassigned';
     if (!acc[dept]) {
-      acc[dept] = { name: dept, totalXp: 0 };
+      acc[dept] = { name: dept, totalXp: 0, count: 0 };
     }
     acc[dept].totalXp += profile.total_xp || 0;
+    acc[dept].count += 1;
     return acc;
   }, {});
 
   const departmentLeaderboard = Object.values(departmentStats || {})
-    .map((d: any) => ({ name: d.name, xp: d.totalXp }))
-    .sort((a, b) => b.xp - a.xp);
+    .map((d: any) => ({ name: d.name, xp: Math.round(d.totalXp / Math.max(1, d.count)), count: d.count }))
+    .sort((a: any, b: any) => b.xp - a.xp);
 
   const mockData = [
     { id: '1', full_name: 'Ahmed', total_xp: 14250, current_streak: 14, current_level: 12, avatar_url: null, department: 'Engineering' },
     { id: '2', full_name: 'Sara', total_xp: 13980, current_streak: 21, current_level: 11, avatar_url: null, department: 'Design' },
     { id: '3', full_name: 'Omar', total_xp: 13750, current_streak: 5, current_level: 11, avatar_url: null, department: 'Sales' },
-    { id: '4', full_name: 'Fatima', total_xp: 12100, current_streak: 12, current_level: 10, avatar_url: null, department: 'Marketing' },
+    { id: '1', full_name: 'Ahmed', total_xp: 14250, current_streak: 14, current_level: 12, avatar_url: null, department: 'Engineering', count: 1 },
+    { id: '2', full_name: 'Sara', total_xp: 13980, current_streak: 21, current_level: 11, avatar_url: null, department: 'Design', count: 1 },
+    { id: '3', full_name: 'Omar', total_xp: 13750, current_streak: 5, current_level: 11, avatar_url: null, department: 'Sales', count: 1 },
+    { id: '4', full_name: 'Fatima', total_xp: 12100, current_streak: 12, current_level: 10, avatar_url: null, department: 'Marketing', count: 1 },
   ];
 
   const dataToUse = (profiles && profiles.length > 0) ? profiles : mockData;
 
   const mockDeptData = [
-    { name: 'Engineering', xp: 25000 },
-    { name: 'Design', xp: 18000 },
-    { name: 'Sales', xp: 15500 },
+    { name: 'Engineering', xp: 5400, count: 4 },
+    { name: 'Product', xp: 4800, count: 3 },
+    { name: 'Marketing', xp: 3200, count: 2 },
+    { name: 'Design', xp: 2900, count: 2 },
   ];
   
   const deptDataToUse = departmentLeaderboard.length > 0 ? departmentLeaderboard : mockDeptData;
@@ -156,7 +163,10 @@ export default async function LeaderboardPage() {
                       <span className="text-muted-foreground text-xs w-4">{idx + 1}.</span>
                       {dept.name}
                     </span>
-                    <span className="text-sm font-bold text-primary">{dept.xp.toLocaleString()} XP</span>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-primary">{dept.xp.toLocaleString()} avg XP</div>
+                      <div className="text-[10px] text-muted-foreground">{dept.count} active players</div>
+                    </div>
                   </div>
                   {/* Progress bar visual */}
                   <div className="w-full bg-muted rounded-full h-2 overflow-hidden">

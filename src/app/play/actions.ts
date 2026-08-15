@@ -3,16 +3,19 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { 
-  generateTypingChallenge, 
-  generateWordUnscramble, 
-  generateMentalMath, 
-  generateSequence, 
-  generateOddObject, 
-  generateTrivia, 
-  generateSudokuLite, 
-  generateMemory 
-} from "@/lib/game-content";
+import {
+  generateTrivia,
+  generateSudokuLite,
+  generateCardMatch,
+  generateSequence,
+  generateWordUnscramble,
+  generateTypingChallenge,
+  generateMentalMath,
+  generateTargetNumber,
+  generateMissingLetters,
+  generateOddObject,
+  generateMemory
+} from '@/lib/game-content';
 import { SessionQuestion } from "@/types/game";
 
 export async function startDailySession() {
@@ -54,19 +57,30 @@ export async function startDailySession() {
     }
   }
 
-  // 1.b Check if they already completed today's session
-  const today = new Date().toISOString().split('T')[0];
-  
-  const { data: todaySession } = await supabase
+  // 1.b Check if they already completed a session within the last 24 hours
+  const { data: lastSession } = await supabase
     .from("daily_sessions")
     .select("*")
     .eq("user_id", user.id)
-    .eq("date", today)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
-  if (todaySession && todaySession.is_completed) {
-    return { error: "Already completed today's session", session: todaySession };
+  if (lastSession && lastSession.is_completed) {
+    const createdAtTime = new Date(lastSession.created_at).getTime();
+    const now = Date.now();
+    const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+    
+    if (now - createdAtTime < twentyFourHoursMs) {
+      return { 
+        error: "24_hour_cooldown", 
+        message: "You must wait 24 hours between challenges.",
+        session: lastSession 
+      };
+    }
   }
+
+  const today = new Date().toISOString().split('T')[0];
 
   // 2. Fetch active games and ensure today's question pool is generated
   const { data: activeGames } = await supabase.from("game_types").select("*").eq("is_active", true);
@@ -77,27 +91,46 @@ export async function startDailySession() {
   }
 
   // Check if we have generated questions for today
-  // TEMP FIX: We had an issue with difficulty missing in older questions. 
-  // Let's only pull questions generated in the last 2 hours to bypass the broken pool from earlier today.
+  // We only pull questions generated in the last 2 hours to bypass stale pools.
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
   
-  let { data: todaysQuestions, error: qError } = await supabase
-    .from("questions")
-    .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active)")
-    .gte("created_at", twoHoursAgo)
-    .in("game_type_id", activeGameIds);
+  let todaysQuestions: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  
+  while (true) {
+    const { data, error: qError } = await supabase
+      .from("questions")
+      .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active)")
+      .gte("created_at", twoHoursAgo)
+      .in("game_type_id", activeGameIds)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
 
-  if (qError) {
-    console.error("Error fetching questions:", qError);
-    return { error: "Failed to fetch questions. Please try again." };
+    if (qError) {
+      console.error("Error fetching questions:", qError);
+      return { error: "Failed to fetch questions. Please try again." };
+    }
+
+    if (data) {
+      todaysQuestions.push(...data);
+    }
+    
+    if (!data || data.length < pageSize) {
+      break;
+    }
+    page++;
   }
 
-  // If no questions exist for today, GENERATE the dynamic daily pool!
-  if (!todaysQuestions || todaysQuestions.length === 0) {
-    console.log("Generating dynamic daily pool for", today);
+  // Find which active games do NOT have any questions generated today
+  const existingGameIds = new Set(todaysQuestions?.map(q => q.game_type_id) || []);
+  const missingGames = activeGames?.filter(g => !existingGameIds.has(g.id)) || [];
+
+  // If any active games are missing questions, GENERATE them!
+  if (missingGames.length > 0) {
+    console.log(`Generating dynamic daily pool for ${missingGames.length} missing games for`, today);
     const newQuestions = [];
     
-    // Fetch master banks and system settings for today's pool
+    // Fetch master banks and system settings
     const [{ data: masterTrivia }, { data: masterWords }, { data: masterTyping }, { data: masterOdd }, { data: settings }] = await Promise.all([
       supabase.from('master_trivia_bank').select('*'),
       supabase.from('master_word_bank').select('*'),
@@ -113,7 +146,7 @@ export async function startDailySession() {
     // Offset calculation: (Season Number - 1) * 30 days + Days into current season
     const dayOffset = Math.max(0, ((currentSeason - 1) * 30) + daysSinceSeasonStart);
 
-    for (const game of activeGames || []) {
+    for (const game of missingGames) {
       const difficulties: ('easy' | 'medium' | 'hard')[] = ['easy', 'medium', 'hard'];
       let generatedBatch: any[] = [];
       
@@ -122,18 +155,22 @@ export async function startDailySession() {
         // Offset the dayOffset by diffIndex so easy/medium/hard don't pull the exact same slice if they fall back to the same master bank
         const sliceIndex = dayOffset * 3 + diffIndex; 
 
-        if (game.slug === "mental-math" || game.slug === "mental_math" || game.slug === "math") {
-          diffBatch = generateMentalMath(25, diff);
-        } else if (game.slug === "word-unscramble" || game.slug === "unscramble") {
+        if (game.slug === "mental-math" || game.slug === "math" || game.slug === "mental_math") {
+          diffBatch = generateMentalMath(10, diff);
+        } else if (game.slug === "word-unscramble" || game.slug === "unscramble" || game.slug === "word_unscramble") {
           const shuffledWords = [...(masterWords || [])].sort(() => 0.5 - Math.random());
           diffBatch = generateWordUnscramble(shuffledWords, 25, diff, sliceIndex);
-        } else if (game.slug === "typing-challenge" || game.slug === "typing") {
+        } else if (game.slug === "typing-challenge" || game.slug === "typing" || game.slug === "typing_challenge") {
           const shuffledTyping = [...(masterTyping || [])].sort(() => 0.5 - Math.random());
           diffBatch = generateTypingChallenge(shuffledTyping, 25, diff, sliceIndex);
         } else if (game.slug === "memory") {
           diffBatch = generateMemory(25, diff);
-        } else if (game.slug === "sudoku-lite" || game.slug === "sudoku_lite") {
-          diffBatch = generateSudokuLite(25, diff);
+        } else if (game.slug === "sudoku_lite" || game.slug === "sudoku-lite") {
+          diffBatch = generateSudokuLite(10, diff);
+        } else if (game.slug === "target-number") {
+          diffBatch = generateTargetNumber(10, diff);
+        } else if (game.slug === "word") {
+          diffBatch = generateMissingLetters(masterWords || [], 10, diff, sliceIndex);
         } else if (game.slug === "odd-object" || game.slug === "odd_object") {
           const shuffledOdd = [...(masterOdd || [])].sort(() => 0.5 - Math.random());
           diffBatch = generateOddObject(shuffledOdd, 25, diff, sliceIndex);
@@ -145,9 +182,13 @@ export async function startDailySession() {
             content: {},
             options: []
           }));
+        } else if (game.slug === "coding") {
+          const codingTrivia = (masterTrivia || []).filter(t => ['IT', 'Engineering', 'Product'].includes(t.department));
+          const shuffledCoding = [...codingTrivia].sort(() => 0.5 - Math.random());
+          diffBatch = generateTrivia(shuffledCoding, 25, diff, sliceIndex);
         } else {
           const shuffledTrivia = [...(masterTrivia || [])].sort(() => 0.5 - Math.random());
-          diffBatch = generateTrivia(shuffledTrivia, 150, diff, sliceIndex);
+          diffBatch = generateTrivia(shuffledTrivia, 50, diff, sliceIndex);
         }
 
         for (const gen of diffBatch) {
@@ -169,35 +210,6 @@ export async function startDailySession() {
     }
 
     if (newQuestions.length > 0) {
-      // INJECT CUSTOM COMPANY TRIVIA HERE
-      try {
-        const { data: customTrivia } = await supabase
-          .from("company_trivia")
-          .select("*")
-          .eq("target_date", today)
-          .eq("is_active", true);
-
-        if (customTrivia && customTrivia.length > 0) {
-          const fallbackGameId = (activeGames || [])[0]?.id; // Just use any active game ID to satisfy the FK
-          if (fallbackGameId) {
-            for (const trivia of customTrivia) {
-              newQuestions.push({
-                game_type_id: fallbackGameId,
-                difficulty: "medium",
-                content: { question: trivia.question },
-                options: trivia.options,
-                correct_answer: trivia.correct_answer,
-                base_xp: 200, // Bonus XP for company trivia!
-                is_active: true
-              });
-            }
-            console.log(`Injected ${customTrivia.length} custom company trivia questions!`);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to inject custom trivia", e);
-      }
-
       // Use admin client to bypass RLS for inserting questions (since regular users can't create questions)
       const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
       const adminClient = createSupabaseClient(
@@ -214,8 +226,96 @@ export async function startDailySession() {
         console.error("Failed inserting new questions:", insertError);
         throw new Error("Failed generating today's questions due to database error.");
       }
-      todaysQuestions = insertedQuestions || [];
+      
+      // Append the newly generated questions to our pool for the session
+      if (insertedQuestions) {
+        todaysQuestions = [...(todaysQuestions || []), ...insertedQuestions];
+      }
     }
+  }
+
+  // ==========================================
+  // INJECT CUSTOM COMPANY TRIVIA HERE
+  // We do this every time to catch any trivia added AFTER the daily generation
+  // ==========================================
+  try {
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+    const adminClient = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    
+    const { data: triviaGameType } = await supabase.from("game_types").select("*").eq("slug", "trivia").single();
+    
+    const { data: profile } = await supabase.from("profiles").select("department").eq("id", user.id).single();
+    const userDept = profile?.department || "General";
+    
+    const existingCompanyTriviaIds = new Set(
+      todaysQuestions
+        .filter(q => q.content?.isCompanyTrivia && q.content?.companyTriviaId)
+        .map(q => q.content.companyTriviaId)
+    );
+
+    const { data: todayTrivia } = await adminClient
+      .from("company_trivia")
+      .select("*")
+      .eq("target_date", today)
+      .in("department", ["General", userDept])
+      .eq("is_active", true);
+
+    const { data: anytimeTrivia } = await adminClient
+      .from("company_trivia")
+      .select("*")
+      .is("target_date", null)
+      .in("department", ["General", userDept])
+      .eq("is_active", true);
+
+    let customTrivia = [...(todayTrivia || [])];
+    
+    if (anytimeTrivia && anytimeTrivia.length > 0) {
+      const randomAnytime = anytimeTrivia[Math.floor(Math.random() * anytimeTrivia.length)];
+      customTrivia.push(randomAnytime);
+    }
+
+    const missingCustomTrivia = customTrivia.filter(t => !existingCompanyTriviaIds.has(t.id));
+
+    if (missingCustomTrivia.length > 0) {
+      const newCompanyQs = [];
+      const fallbackGameId = (activeGames || [])[0]?.id;
+      if (fallbackGameId) {
+        for (const trivia of missingCustomTrivia) {
+          newCompanyQs.push({
+            game_type_id: fallbackGameId,
+            difficulty: "medium",
+            content: {
+              question: trivia.question,
+              isCompanyTrivia: true,
+              companyTriviaId: trivia.id
+            },
+            options: trivia.options.sort(() => 0.5 - Math.random()),
+            correct_answer: trivia.correct_answer,
+            base_xp: 200,
+            is_active: true
+          });
+        }
+        
+        // adminClient is already created above
+
+        const { data: insertedQs, error: insertError } = await adminClient
+          .from("questions")
+          .insert(newCompanyQs)
+          .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active)");
+          
+        if (!insertError && insertedQs) {
+          console.log(`Injected ${insertedQs.length} new custom company trivia questions!`);
+          todaysQuestions = [...(todaysQuestions || []), ...insertedQs];
+        } else if (insertError) {
+          console.error("Supabase insert error for company trivia:", insertError);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Failed to inject custom trivia", e);
   }
 
   const allQuestions = todaysQuestions;
@@ -230,7 +330,7 @@ export async function startDailySession() {
     .insert({
       user_id: user.id,
       date: today,
-      allowed_duration_seconds: 600, // 10 mins
+      allowed_duration_seconds: 900, // 15 mins
       is_completed: false
     })
     .select()
@@ -247,56 +347,77 @@ export async function startDailySession() {
       const gameTypes = q.game_types as any;
       const qSlug = Array.isArray(gameTypes) ? gameTypes[0]?.slug : gameTypes?.slug;
 
-      // Department Filtering for Trivia
+      // Department filtering is disabled to prevent repeating questions
       if (qSlug === 'trivia') {
-        const qDept = q.content?.department;
-        // If the question has a department, it MUST be either General or match the user's department
-        if (qDept && qDept !== "General" && qDept !== userDept) {
-          continue;
-        }
+        // We now allow all trivia questions into the global pool
       }
 
       if (!questionsByGame[q.game_type_id]) {
         questionsByGame[q.game_type_id] = [];
       }
-      
-      // Limit concentration match to strictly 1 question per session total
-      if (qSlug === 'card-match' || qSlug === 'card_match') {
-        if (cardMatchAdded) continue;
-        cardMatchAdded = true;
-      }
+      // Remove Card Match restriction!
       
       questionsByGame[q.game_type_id].push(q);
     }
 
     // Sort and select exactly 3 rounds per game (Easy -> Medium -> Hard)
-    for (const gameId in questionsByGame) {
+for (const gameId in questionsByGame) {
       const easyQs = questionsByGame[gameId].filter(q => q.difficulty === 'easy').sort(() => 0.5 - Math.random());
       const medQs = questionsByGame[gameId].filter(q => q.difficulty === 'medium').sort(() => 0.5 - Math.random());
       const hardQs = questionsByGame[gameId].filter(q => q.difficulty === 'hard').sort(() => 0.5 - Math.random());
-      
+      const sampleQ = easyQs[0] || medQs[0] || hardQs[0];
+      const gameTypes = sampleQ?.game_types as any;
+      const gameSlug = Array.isArray(gameTypes) ? gameTypes[0]?.slug : gameTypes?.slug;
+
       const getRandomQ = (qs: any[]) => qs.length > 0 ? qs[Math.floor(Math.random() * qs.length)] : null;
-      
-      // Select 3 random questions (1 easy, 1 medium, 1 hard) from today's pool
-      questionsByGame[gameId] = [
-        getRandomQ(easyQs),
-        getRandomQ(medQs),
-        getRandomQ(hardQs)
-      ].filter(Boolean);
+
+      if (gameSlug === 'trivia') {
+        // Select 5 questions for Trivia (1 Easy, 2 Medium, 2 Hard)
+        questionsByGame[gameId] = [
+          ...easyQs.slice(0, 1),
+          ...medQs.slice(0, 2),
+          ...hardQs.slice(0, 2)
+        ].filter(Boolean);
+      } else {
+        // Select 3 random questions (1 easy, 1 medium, 1 hard) from today's pool for other games
+        questionsByGame[gameId] = [
+          getRandomQ(easyQs),
+          getRandomQ(medQs),
+          getRandomQ(hardQs)
+        ].filter(Boolean);
+      }
     }
 
     const selectedQuestions: any[] = [];
+    const companyTriviaQuestions: any[] = [];
     
     // Shuffle the order of the games completely randomly for every single session!
     let gameIds = Object.keys(questionsByGame).sort(() => 0.5 - Math.random());
     
-    // Limit to 10 games per daily session (30 questions total)
-    gameIds = gameIds.slice(0, 10);
+    // Play all active games instead of limiting to 10
+    // gameIds = gameIds.slice(0, 10);
     
     // Group them so the user plays Game A (Easy, Med, Hard), then Game B (Easy, Med, Hard)
     for (const gameId of gameIds) {
-      selectedQuestions.push(...questionsByGame[gameId]);
+      for (const q of questionsByGame[gameId]) {
+        // If it's a company trivia question, separate it so it doesn't get limited out
+        if (q.content?.isCompanyTrivia) {
+          companyTriviaQuestions.push(q);
+        } else {
+          selectedQuestions.push(q);
+        }
+      }
     }
+
+    // Now scan through ALL questions to find any company trivia that was missed because its gameId was sliced out
+    for (const q of allQuestions) {
+      if (q.content?.isCompanyTrivia && !companyTriviaQuestions.some(ct => ct.id === q.id)) {
+        companyTriviaQuestions.push(q);
+      }
+    }
+
+    // Prepend the company trivia questions at the beginning so players don't miss them if they run out of time
+    selectedQuestions.unshift(...companyTriviaQuestions);
 
     const sessionQuestionsData = selectedQuestions.map((q, index) => ({
       session_id: session.id,
@@ -467,7 +588,7 @@ export async function submitAnswer(
     }
     
     // No Hint: +20 XP (only for games that actually support hints)
-    const noHintSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'card_match', 'card-match', 'sequence'];
+    const noHintSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'sequence'];
     if (!options?.wasHintUsed && !noHintSlugs.includes(gameSlug)) {
       breakdown.noHint = 20;
     }
@@ -571,7 +692,27 @@ export async function resetDailySession() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
   
-  // Delete the completed session for today
+  // Fetch the session before we delete it to see if we need to roll back stats
+  const { data: sessionToReset } = await adminClient
+    .from("daily_sessions")
+    .select("is_completed, total_xp_earned")
+    .eq("user_id", user.id)
+    .eq("date", today)
+    .maybeSingle();
+
+  if (sessionToReset && sessionToReset.is_completed) {
+    const { data: profile } = await adminClient.from("profiles").select("*").eq("id", user.id).single();
+    if (profile) {
+      const xpToDeduct = sessionToReset.total_xp_earned || 0;
+      await adminClient.from("profiles").update({
+        total_xp: Math.max(0, (profile.total_xp || 0) - xpToDeduct),
+        games_played: Math.max(0, (profile.games_played || 0) - 1),
+        current_streak: Math.max(0, (profile.current_streak || 0) - 1)
+      }).eq("id", user.id);
+    }
+  }
+
+  // Delete the session for today
   await adminClient
     .from("daily_sessions")
     .delete()

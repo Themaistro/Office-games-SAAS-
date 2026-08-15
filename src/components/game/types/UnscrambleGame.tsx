@@ -53,11 +53,11 @@ export default function UnscrambleGame({ question, onAnswer, isSubmitting, showH
       <p className="text-muted-foreground mb-8 text-sm">Select the word that matches the scrambled letters below.</p>
 
       {/* Scrambled Word Display */}
-      <div className="flex gap-2 mb-10 flex-wrap justify-center">
+      <div className="flex gap-1.5 sm:gap-2 mb-10 flex-wrap justify-center max-w-full px-2">
         {scrambledWord.split('').map((letter, index) => (
           <div 
             key={index} 
-            className="w-14 h-14 flex items-center justify-center bg-gradient-to-br from-background to-secondary/50 border border-border shadow-sm text-foreground font-black text-3xl rounded-xl transform hover:scale-110 transition-transform"
+            className="w-10 h-12 sm:w-14 sm:h-16 flex items-center justify-center bg-gradient-to-b from-card to-secondary/80 border-2 border-primary/20 shadow-[0_4px_0_0_rgba(0,0,0,0.1)] text-foreground font-black text-2xl sm:text-3xl rounded-lg transform hover:-translate-y-1 hover:shadow-[0_6px_0_0_rgba(0,0,0,0.15)] transition-all cursor-default"
           >
             {letter}
           </div>
@@ -71,10 +71,11 @@ export default function UnscrambleGame({ question, onAnswer, isSubmitting, showH
       )}
 
       {/* Options Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full">
         {options.map((option, index) => {
           const isEliminated = eliminatedOptions.includes(option);
           const isShaking = shakingOption === option;
+          const displayOption = option.charAt(0).toUpperCase() + option.slice(1).toLowerCase();
 
           return (
             <button
@@ -82,14 +83,14 @@ export default function UnscrambleGame({ question, onAnswer, isSubmitting, showH
               onClick={() => handleOptionClick(option)}
               disabled={isSubmitting || isEliminated}
               className={`
-                relative w-full py-4 px-6 rounded-2xl font-bold text-lg transition-all duration-300
+                relative w-full py-4 px-6 rounded-xl font-bold text-lg sm:text-xl transition-all duration-200 shadow-[0_4px_0_0_rgba(0,0,0,0.05)] active:shadow-none active:translate-y-1
                 ${isEliminated 
-                  ? 'opacity-30 scale-95 bg-secondary/50 text-muted-foreground cursor-not-allowed border-transparent' 
-                  : 'bg-card hover:bg-primary/5 border-2 border-border hover:border-primary/50 text-foreground hover:shadow-md hover:-translate-y-1 active:scale-95'}
-                ${isShaking ? 'animate-[shake_0.5s_ease-in-out] bg-destructive/10 border-destructive text-destructive' : ''}
+                  ? 'opacity-30 scale-95 bg-secondary/50 text-muted-foreground cursor-not-allowed border-transparent shadow-none translate-y-1' 
+                  : 'bg-primary/10 hover:bg-primary/20 border-2 border-primary/30 text-primary hover:border-primary hover:shadow-[0_4px_0_0_rgba(0,0,0,0.1)]'}
+                ${isShaking ? 'animate-[shake_0.5s_ease-in-out] bg-destructive/10 border-destructive text-destructive shadow-[0_4px_0_0_rgba(255,0,0,0.1)]' : ''}
               `}
             >
-              {option}
+              {displayOption}
             </button>
           );
         })}

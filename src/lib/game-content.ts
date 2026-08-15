@@ -9,6 +9,7 @@ type Difficulty = 'easy' | 'medium' | 'hard';
 
 const getSlice = (bank: any[], count: number, dayOfYear: number) => {
   if (!bank || bank.length === 0) return [];
+  if (count >= bank.length) return [...bank]; // Prevent repeating the same questions to fill count
   const items = [];
   for(let i=0; i<count; i++) {
     items.push(bank[(dayOfYear * count + i) % bank.length]);
@@ -23,12 +24,166 @@ export const generateTypingChallenge = (masterBank: any[], count: number = 5, di
   const bank = masterBank.filter(b => b.difficulty === difficulty);
   const sliced = getSlice(bank.length > 0 ? bank : masterBank, count, dayOfYear);
   
-  return sliced.map((t) => ({
+  return sliced.map((c) => ({
     correctAnswer: "type-exactly",
-    content: { text: t.prompt_text },
+    content: { text: c.prompt_text, language: c.language || 'en' },
     options: []
   }));
 };
+
+export function generateCardMatch(count: number, difficulty: string): any[] {
+  // Generate random pairs of emojis for memory matching
+  const themes = [
+    ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮'],
+    ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑'],
+    ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚'],
+    ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓']
+  ];
+  
+  const results = [];
+  for (let i = 0; i < count; i++) {
+    // Number of pairs based on difficulty
+    let numPairs = 4; // easy = 8 cards
+    if (difficulty === 'medium') numPairs = 6; // 12 cards
+    if (difficulty === 'hard') numPairs = 8; // 16 cards
+    
+    const theme = themes[Math.floor(Math.random() * themes.length)];
+    const shuffledTheme = [...theme].sort(() => 0.5 - Math.random());
+    const selectedEmojis = shuffledTheme.slice(0, numPairs);
+    
+    // Duplicate and shuffle
+    const cards = [...selectedEmojis, ...selectedEmojis]
+      .sort(() => 0.5 - Math.random())
+      .map((emoji, index) => ({ id: index.toString(), emoji }));
+      
+    results.push({
+      content: { cards },
+      options: [],
+      correctAnswer: "completed",
+      explanation: "Find all matching pairs to win."
+    });
+  }
+  return results;
+}
+
+// BugHunt removed
+
+export function generateTargetNumber(count: number, difficulty: string): any[] {
+  const results = [];
+  for (let i = 0; i < count; i++) {
+    // Scale target based on difficulty
+    let target = Math.floor(Math.random() * 50) + 20; // 20 to 69 (easy)
+    if (difficulty === 'medium') {
+      target = Math.floor(Math.random() * 100) + 50; // 50 to 149
+    } else if (difficulty === 'hard') {
+      target = Math.floor(Math.random() * 300) + 100; // 100 to 399
+    }
+    
+    const createEquation = (t: number) => {
+      const ops = ['+', '-', '×'];
+      // Limit operators on easy
+      if (difficulty === 'easy' && ops.length === 3) ops.pop(); 
+
+      const op = ops[Math.floor(Math.random() * ops.length)];
+      if (op === '+') {
+        const a = Math.floor(Math.random() * (t - 1)) + 1;
+        return `${a} + ${t - a}`;
+      } else if (op === '-') {
+        const a = Math.floor(Math.random() * (difficulty === 'hard' ? 200 : 50)) + t;
+        return `${a} - ${a - t}`;
+      } else {
+        const factors = [];
+        for (let f = 2; f <= Math.sqrt(t); f++) {
+          if (t % f === 0) {
+            factors.push(f);
+            factors.push(t / f);
+          }
+        }
+        if (factors.length > 0) {
+          const a = factors[Math.floor(Math.random() * factors.length)];
+          return `${a} × ${t / a}`;
+        }
+        // Fallback if prime
+        return `${t - 2} + 2`;
+      }
+    };
+    
+    const correctEq = createEquation(target);
+    const wrongEqs = new Set<string>();
+    while(wrongEqs.size < 3) {
+      // Harder difficulties have closer wrong options
+      const variance = difficulty === 'hard' ? 4 : 12;
+      let wrongTarget = target + (Math.floor(Math.random() * (variance * 2)) - variance);
+      if (wrongTarget === target) wrongTarget += 1;
+      
+      if (wrongTarget > 0) {
+        wrongEqs.add(createEquation(wrongTarget));
+      }
+    }
+    
+    const options = [correctEq, ...Array.from(wrongEqs)].sort(() => 0.5 - Math.random());
+    results.push({
+      content: { target },
+      options: options,
+      correctAnswer: correctEq,
+      explanation: `${correctEq} = ${target}`
+    });
+  }
+  return results;
+}
+
+export function generateMissingLetters(masterBank: any[], count: number, difficulty: string, offset: number = 0): any[] {
+  const slice = getSlice(masterBank, count, offset);
+  
+  return slice.map((item: any) => {
+    const word = item.word.toUpperCase();
+    
+    // Harder difficulty = more missing letters
+    const blanksCount = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3;
+    const actualBlanks = Math.min(blanksCount, word.length - 1); // Ensure at least 1 letter remains
+    
+    let indices = [];
+    while(indices.length < actualBlanks) {
+      let r = Math.floor(Math.random() * word.length);
+      if(indices.indexOf(r) === -1) indices.push(r);
+    }
+    indices.sort((a,b) => a - b);
+    
+    let wordWithBlanks = word;
+    let missingLetters = [];
+    
+    for(let i=0; i<indices.length; i++) {
+      let idx = indices[i];
+      missingLetters.push(word[idx]);
+      wordWithBlanks = wordWithBlanks.substring(0, idx) + '_' + wordWithBlanks.substring(idx + 1);
+    }
+    
+    const correctOpt = missingLetters.join(', ');
+    const wrongOptions = new Set<string>();
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    
+    while(wrongOptions.size < 3) {
+      let optLetters = [];
+      for(let i=0; i<actualBlanks; i++) {
+        optLetters.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
+      }
+      const opt = optLetters.join(', ');
+      
+      if (opt !== correctOpt) {
+        wrongOptions.add(opt);
+      }
+    }
+    
+    const options = [correctOpt, ...Array.from(wrongOptions)].sort(() => 0.5 - Math.random());
+    
+    return {
+      content: { wordWithBlanks },
+      options: options,
+      correctAnswer: correctOpt,
+      explanation: `The full word is ${word}`
+    };
+  });
+}
 
 // ------------------------------------------
 // 2. WORD UNSCRAMBLE
@@ -271,19 +426,20 @@ export const generateSequence = (count: number = 5, difficulty: Difficulty = 'me
 export const generateOddObject = (masterBank: any[], count: number = 5, difficulty: Difficulty = 'medium', dayOfYear: number = 1) => {
   const bank = masterBank.filter(b => b.difficulty === difficulty);
   const validBank = bank.length > 0 ? bank : masterBank;
-  const sliced = getSlice(validBank, count * 2, dayOfYear); // need 2 themes per question
+  const sliced = getSlice(validBank, count, dayOfYear);
   
-  return Array.from({ length: count }).map((_, i) => {
-    const mainCat = sliced[i * 2];
-    const oddCat = sliced[i * 2 + 1] || sliced[0];
-
-    const mainItems = shuffle(mainCat.items || []).slice(0, 3);
-    const oddItem = shuffle(oddCat.items || [])[0];
+  return sliced.map((slice) => {
+    const pair = slice.items;
+    
+    // Randomly assign one to be base and one to be odd
+    const isReversed = Math.random() > 0.5;
+    const even = isReversed ? pair[1] : pair[0];
+    const odd = isReversed ? pair[0] : pair[1];
     
     return {
-      correctAnswer: oddItem,
-      content: { text: "Find the odd one out." },
-      options: shuffle([...mainItems, oddItem])
+      correctAnswer: odd,
+      content: { odd, even },
+      options: []
     };
   });
 };

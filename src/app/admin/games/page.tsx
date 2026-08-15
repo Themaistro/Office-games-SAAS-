@@ -1,62 +1,60 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 import { toggleGameStatus } from "../actions";
-import { Shield, Settings2, Power } from "lucide-react";
+import { Shield } from "lucide-react";
+import GamesClient from "./GamesClient";
 
-export default function AdminGamesPage() {
-  const [games, setGames] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+const GAME_CATEGORIES: Record<string, string[]> = {
+  "Logic & Problem Solving": ["logic", "sudoku_lite", "odd_object", "sudoku-lite", "odd-object"],
+  "Memory & Reflexes": ["memory", "sequence", "card_match", "card-match", "reaction", "stroop"],
+  "Knowledge & Language": ["trivia", "company_trivia", "unscramble", "word-unscramble", "typing", "typing-challenge", "word", "coding"],
+  "Mathematics": ["mental_math", "mental-math", "math"]
+};
 
-  useEffect(() => {
-    fetchGames();
-  }, []);
+const getCategory = (slug: string) => {
+  for (const [category, slugs] of Object.entries(GAME_CATEGORIES)) {
+    if (slugs.includes(slug)) return category;
+  }
+  return "Other Games";
+};
 
-  const fetchGames = async () => {
-    const { data } = await supabase.from("game_types").select("*").order("name");
-    if (data) setGames(data);
-    setLoading(false);
-  };
+export default async function AdminGamesPage() {
+  const supabase = await createClient();
 
-  const handleToggle = async (gameId: string, currentStatus: boolean) => {
-    try {
-      // Optimistic UI update
-      setGames(prev => prev.map(g => g.id === gameId ? { ...g, is_active: !currentStatus } : g));
-      await toggleGameStatus(gameId, currentStatus);
-    } catch (err) {
-      console.error(err);
-      // Revert on failure
-      fetchGames();
+  // 1. Fetch all games
+  const { data: games } = await supabase.from("game_types").select("*").order("name");
+  
+  // 2. Fetch question counts
+  const { data: questionCounts } = await supabase
+    .from("questions")
+    .select("game_type_id");
+
+  // Calculate counts per game
+  const countsMap: Record<string, number> = {};
+  if (questionCounts) {
+    for (const q of questionCounts) {
+      countsMap[q.game_type_id] = (countsMap[q.game_type_id] || 0) + 1;
     }
-  };
+  }
 
-  const GAME_CATEGORIES: Record<string, string[]> = {
-    "Logic & Problem Solving": ["logic", "sudoku_lite", "odd_object"],
-    "Memory & Reflexes": ["memory", "sequence", "card_match", "reaction", "stroop"],
-    "Knowledge & Language": ["trivia", "unscramble", "typing", "word", "coding"],
-    "Mathematics": ["mental_math", "math"]
-  };
-
-  const getCategory = (slug: string) => {
-    for (const [category, slugs] of Object.entries(GAME_CATEGORIES)) {
-      if (slugs.includes(slug)) return category;
-    }
-    return "Other Games";
-  };
-
-  // Group games
-  const groupedGames = games.reduce((acc, game) => {
+  // 3. Group games
+  const groupedGames = (games || []).reduce((acc, game) => {
     const cat = getCategory(game.slug);
     if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(game);
+    
+    // Attach question count
+    acc[cat].push({
+      ...game,
+      questionCount: countsMap[game.id] || 0
+    });
+    
     return acc;
   }, {} as Record<string, any[]>);
 
-  if (loading) {
-    return <div className="p-8 text-center animate-pulse">Loading games...</div>;
-  }
+  // Wrapper for server action
+  const handleToggle = async (gameId: string, currentStatus: boolean) => {
+    "use server";
+    await toggleGameStatus(gameId, currentStatus);
+  };
 
   return (
     <div className="space-y-8">
@@ -70,39 +68,10 @@ export default function AdminGamesPage() {
         <Shield className="text-primary w-12 h-12 opacity-50" />
       </div>
 
-      {Object.entries(groupedGames).map(([category, catGames]) => (
-        <div key={category} className="space-y-4">
-          <h2 className="text-xl font-bold border-b border-border pb-2">{category}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(catGames as any[]).map((game: any) => (
-              <div key={game.id} className="bg-card border border-border p-6 rounded-2xl shadow-sm flex flex-col justify-between h-full">
-                <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="font-bold text-lg">{game.name}</h3>
-                    <span className="bg-muted px-2 py-1 rounded text-xs font-mono">{game.slug}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-6">{game.description}</p>
-                </div>
-                
-                <div className="flex items-center justify-between pt-4 border-t border-border mt-auto">
-                  <span className={`text-sm font-bold flex items-center gap-2 ${game.is_active ? 'text-green-500' : 'text-muted-foreground'}`}>
-                    <span className={`w-2 h-2 rounded-full ${game.is_active ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`}></span>
-                    {game.is_active ? 'ACTIVE' : 'DISABLED'}
-                  </span>
-                  
-                  <button 
-                    onClick={() => handleToggle(game.id, game.is_active)}
-                    className={`p-2 rounded-lg transition-colors ${game.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-                    title={game.is_active ? "Disable Game" : "Enable Game"}
-                  >
-                    <Power size={20} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+      <GamesClient 
+        initialGroupedGames={groupedGames} 
+        toggleAction={handleToggle} 
+      />
     </div>
   );
 }

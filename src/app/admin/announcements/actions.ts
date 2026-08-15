@@ -13,6 +13,10 @@ export async function addAnnouncement(formData: FormData) {
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   const message = formData.get("message") as string;
+  const type = formData.get("type") as string || "info";
+  const cta_text = formData.get("cta_text") as string | null;
+  const cta_link = formData.get("cta_link") as string | null;
+
   if (!message || message.trim() === "") {
     throw new Error("Message is required.");
   }
@@ -22,6 +26,9 @@ export async function addAnnouncement(formData: FormData) {
     .from("announcements")
     .insert({
       message: message.trim(),
+      type: type,
+      cta_text: cta_text?.trim() || null,
+      cta_link: cta_link?.trim() || null,
       is_active: true
     });
 

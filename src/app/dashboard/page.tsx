@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Play, Flame, Shield, Trophy } from "lucide-react";
 import Link from "next/link";
 import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
+import CooldownTimer from "@/components/dashboard/CooldownTimer";
 
 export const dynamic = "force-dynamic";
 
@@ -27,16 +28,13 @@ export default async function DashboardPage() {
     redirect("/admin/games");
   }
 
-  // Check if they have an active or completed session today
-  // For MVP, we'll just determine timezone dynamically if needed, 
-  // but let's query via UTC date boundaries for now or let PG do it based on timezone.
-  const today = new Date().toISOString().split('T')[0];
-  
-  const { data: todaySession } = await supabase
+  // Fetch the most recent session for this user
+  const { data: latestSession } = await supabase
     .from("daily_sessions")
     .select("*")
     .eq("user_id", user.id)
-    .eq("date", today)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   const { data: activeGames } = await supabase
@@ -61,14 +59,23 @@ export default async function DashboardPage() {
   }
 
   // Force dynamic rendering to ensure fresh data
-  const isCompleted = todaySession?.is_completed || todaySession?.status === "completed" || todaySession?.status === "expired";
-  const isInProgress = todaySession && !isCompleted;
+  const isCompleted = latestSession?.is_completed || latestSession?.status === "completed" || latestSession?.status === "expired";
+  const isInProgress = latestSession && !isCompleted;
+  
+  let isInCooldown = false;
+  if (isCompleted && latestSession) {
+    const createdAtTime = new Date(latestSession.created_at).getTime();
+    const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+    if (Date.now() - createdAtTime < twentyFourHoursMs) {
+      isInCooldown = true;
+    }
+  }
   
   // Format Time
   let formattedTime = "--:--";
-  if (todaySession?.started_at && todaySession?.ended_at) {
-    const start = new Date(todaySession.started_at);
-    const end = new Date(todaySession.ended_at);
+  if (latestSession?.started_at && latestSession?.ended_at) {
+    const start = new Date(latestSession.started_at);
+    const end = new Date(latestSession.ended_at);
     const diffSecs = Math.max(0, Math.floor((end.getTime() - start.getTime()) / 1000));
     const m = Math.floor(diffSecs / 60);
     const s = diffSecs % 60;
@@ -126,11 +133,11 @@ export default async function DashboardPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full bg-background/50 rounded-xl p-4 border border-border/50">
                 <div className="flex flex-col items-center p-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Score</span>
-                  <span className="text-xl font-bold">{todaySession.total_score || 0}</span>
+                  <span className="text-xl font-bold">{latestSession.total_score || 0}</span>
                 </div>
                 <div className="flex flex-col items-center p-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase mb-1">XP Earned</span>
-                  <span className="text-xl font-bold text-accent">+{todaySession.total_xp_earned ?? todaySession.total_score ?? 0}</span>
+                  <span className="text-xl font-bold text-accent">+{latestSession.total_xp_earned ?? latestSession.total_score ?? 0}</span>
                 </div>
                 <div className="flex flex-col items-center p-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Status</span>
@@ -141,20 +148,20 @@ export default async function DashboardPage() {
                   <span className="text-xl font-bold">{formattedTime}</span>
                 </div>
               </div>
-              <form action={async () => {
-                "use server";
-                const { resetDailySession } = await import('@/app/play/actions');
-                const { redirect } = await import('next/navigation');
-                const result = await resetDailySession();
-                if (result.success) {
-                  redirect('/play/start');
-                }
-              }} className="w-full">
-                <button type="submit" className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
-                  <Play fill="currentColor" size={20} />
-                  PLAY ANOTHER ROUND
-                </button>
-              </form>
+              
+              {isInCooldown ? (
+                <CooldownTimer createdAt={latestSession.created_at} />
+              ) : (
+                <div className="flex flex-col items-center gap-4 mt-6">
+                  <Link
+                    href="/play/start"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                  >
+                    <Play fill="currentColor" size={20} />
+                    START NEXT CHALLENGE
+                  </Link>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -166,21 +173,7 @@ export default async function DashboardPage() {
                 {isInProgress ? "RESUME CHALLENGE" : "START CHALLENGE"}
               </Link>
               
-              {isInProgress && (
-                <form action={async () => {
-                  "use server";
-                  const { resetDailySession } = await import('@/app/play/actions');
-                  const { redirect } = await import('next/navigation');
-                  const result = await resetDailySession();
-                  if (result.success) {
-                    redirect('/play/start');
-                  }
-                }}>
-                  <button type="submit" className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-secondary px-8 py-3 text-sm font-bold text-secondary-foreground hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2 transition-all shadow-sm">
-                    RESTART MISSION (WIPE PROGRESS)
-                  </button>
-                </form>
-              )}
+
             </div>
           )}
 
