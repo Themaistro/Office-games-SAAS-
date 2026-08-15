@@ -80,24 +80,8 @@ export default async function LoginPage({
             >
               Sign In
             </button>
-            
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-card px-2 text-muted-foreground">Or</span>
-              </div>
-            </div>
-            
-            <button
-              type="button"
-              className="group relative flex w-full justify-center rounded-md bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 transition-colors shadow-sm"
-            >
-              Sign in with Google
-            </button>
           </div>
-          
+
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
             <Link href="/register" className="font-medium text-primary hover:text-primary/80 transition-colors">
