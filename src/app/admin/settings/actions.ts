@@ -106,7 +106,8 @@ export async function updateSystemSettings(formData: FormData) {
   if (profile?.role !== "admin") throw new Error("Unauthorized: Admins only");
 
   const cooldown_hours = Number(formData.get("cooldown_hours")) || 0;
-  const game_duration_seconds = Number(formData.get("game_duration_seconds")) || 900;
+  const game_duration_minutes = Number(formData.get("game_duration_minutes")) || 15;
+  const game_duration_seconds = game_duration_minutes * 60;
 
   const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
   const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);

@@ -122,15 +122,15 @@ export default function SettingsPage() {
           </div>
           
           <div className="space-y-2 pt-2">
-            <label className="text-sm font-semibold">Game Timer (Seconds)</label>
+            <label className="text-sm font-semibold">Game Timer (Minutes)</label>
             <input 
               type="number" 
-              name="game_duration_seconds" 
-              defaultValue={settings?.game_duration_seconds ?? 900}
-              min="60"
+              name="game_duration_minutes" 
+              defaultValue={settings?.game_duration_seconds ? Math.floor(settings.game_duration_seconds / 60) : 15}
+              min="1"
               className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            <p className="text-xs text-muted-foreground">The time limit players have to complete a daily challenge sprint. Default is 900 (15 minutes).</p>
+            <p className="text-xs text-muted-foreground">The time limit players have to complete a daily challenge sprint. Default is 15 minutes.</p>
           </div>
           
           <div className="pt-4">
