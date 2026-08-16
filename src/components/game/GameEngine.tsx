@@ -166,6 +166,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
 
   const handleNextChallenge = () => {
     setFeedback(null);
+    setWasHintUsed(false); // Synchronously reset hint state before next render
     if (currentIndex < sessionQuestions.length - 1) {
       setCurrentIndex(prev => prev + 1);
     } else {
