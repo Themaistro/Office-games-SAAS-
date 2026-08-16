@@ -23,9 +23,8 @@ export default async function DashboardPage() {
     .single();
 
   // If the user is an admin, they should not see the employee dashboard.
-  // Redirect them directly to the admin panel.
   if (profile?.role === "admin") {
-    redirect("/admin/games");
+    redirect("/admin");
   }
 
   // Fetch the most recent session for this user
