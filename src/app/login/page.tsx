@@ -17,7 +17,8 @@ export default async function LoginPage({
   const supabase = await createClient();
   const { count } = await supabase
     .from("profiles")
-    .select("*", { count: "exact", head: true });
+    .select("*", { count: "exact", head: true })
+    .neq("role", "admin");
     
   const playersCount = count || 0;
   

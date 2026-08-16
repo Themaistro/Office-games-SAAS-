@@ -54,6 +54,7 @@ export default async function DashboardPage() {
     const { count: higherRankCount } = await supabase
       .from("profiles")
       .select("id", { count: "exact", head: true })
+      .neq("role", "admin")
       .gt("total_xp", profile.total_xp || 0);
     userRank = ((higherRankCount || 0) + 1).toString();
   }
@@ -62,6 +63,7 @@ export default async function DashboardPage() {
   const { data: topProfiles } = await supabase
     .from("profiles")
     .select("full_name, total_xp, current_level, email")
+    .neq("role", "admin")
     .order("total_xp", { ascending: false })
     .limit(5);
 
