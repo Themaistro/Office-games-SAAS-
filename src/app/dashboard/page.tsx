@@ -100,20 +100,58 @@ export default async function DashboardPage() {
     formattedTime = `${m}:${s.toString().padStart(2, '0')}`;
   }
 
+  // Calculate Level Progress
+  const currentLevel = profile?.current_level || 1;
+  const totalXp = profile?.total_xp || 0;
+  
+  // XP formula: Next level requires (currentLevel * 1000) total XP
+  const xpForCurrentLevel = (currentLevel - 1) * 1000;
+  const xpForNextLevel = currentLevel * 1000;
+  
+  const xpIntoCurrentLevel = Math.max(0, totalXp - xpForCurrentLevel);
+  const xpNeededForNextLevel = xpForNextLevel - xpForCurrentLevel;
+  
+  // Ensure progress is bounded between 0 and 100
+  const progressPercent = Math.min(100, Math.max(0, (xpIntoCurrentLevel / xpNeededForNextLevel) * 100));
+
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-6xl">
       {/* Announcements Banner */}
       <AnnouncementBanner announcements={announcements || []} />
 
       {/* Welcome Banner */}
-      <div className="mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight text-foreground">
+      <div className="mb-10 flex flex-col md:flex-row items-start md:items-end justify-between gap-6">
+        <div className="flex-1 w-full max-w-2xl">
+          <h1 className="text-4xl font-black tracking-tight text-foreground mb-6">
             Welcome back, <span className="text-primary">{profile?.full_name?.split(' ')[0] || profile?.email?.split('@')[0]}!</span>
           </h1>
-          <p className="text-lg text-muted-foreground mt-1 font-medium">
-            Level {profile?.current_level || 1} • {profile?.total_xp || 0} XP
-          </p>
+          
+          {/* XP Progress Bar */}
+          <div className="w-full">
+            <div className="flex justify-between items-end mb-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-foreground">Lv.{currentLevel}</span>
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">{totalXp.toLocaleString()} XP</span>
+              </div>
+              <div className="text-sm font-bold text-primary">
+                {Math.round(progressPercent)}% to Lv.{currentLevel + 1}
+              </div>
+            </div>
+            
+            <div className="relative h-4 w-full bg-secondary/50 rounded-full overflow-hidden border border-border/50 shadow-inner">
+              <div 
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-accent transition-all duration-1000 ease-out"
+                style={{ width: `${progressPercent}%` }}
+              />
+              {/* Glossy overlay */}
+              <div className="absolute inset-0 bg-gradient-to-b from-white/25 to-transparent mix-blend-overlay" />
+            </div>
+            
+            <div className="flex justify-between mt-1.5 text-xs font-semibold text-muted-foreground/70">
+              <span>{xpForCurrentLevel.toLocaleString()}</span>
+              <span>{xpForNextLevel.toLocaleString()} XP</span>
+            </div>
+          </div>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
           <div className="flex-1 md:flex-none flex items-center gap-3 bg-card/50 backdrop-blur-sm border border-border/60 px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
