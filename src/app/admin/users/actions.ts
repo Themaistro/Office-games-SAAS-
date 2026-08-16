@@ -99,3 +99,70 @@ export async function getPlayerDetails(userId: string) {
   ]);
   return { profile, sessions };
 }
+
+export async function wipePlayerSession(userId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") throw new Error("Unauthorized");
+
+  // Get the most recent session
+  const { data: latestSession } = await supabase
+    .from("daily_sessions")
+    .select("id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (latestSession) {
+    // We use service role to bypass RLS if necessary, but since we are admin, standard delete might be blocked by RLS
+    // Let's use service role client just to be safe for deletions
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+    const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    
+    const { error } = await adminClient.from("daily_sessions").delete().eq("id", latestSession.id);
+    if (error) {
+      console.error("Error wiping session:", error);
+      throw new Error(error.message);
+    }
+  }
+
+  revalidatePath("/admin/users");
+  return { success: true };
+}
+
+export async function grantExtraTime(userId: string, extraSeconds: number = 300) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") throw new Error("Unauthorized");
+
+  // Get the most recent session
+  const { data: latestSession } = await supabase
+    .from("daily_sessions")
+    .select("id, allowed_duration_seconds")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (latestSession) {
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+    const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+    
+    const newDuration = (latestSession.allowed_duration_seconds || 900) + extraSeconds;
+    const { error } = await adminClient.from("daily_sessions").update({ allowed_duration_seconds: newDuration }).eq("id", latestSession.id);
+    if (error) {
+      console.error("Error granting time:", error);
+      throw new Error(error.message);
+    }
+  }
+
+  revalidatePath("/admin/users");
+  return { success: true };
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { resetSeason, getSystemSettings, factoryResetPlatform } from "./actions";
+import { resetSeason, getSystemSettings, factoryResetPlatform, updateSystemSettings } from "./actions";
 import { AlertTriangle, RefreshCw, CalendarDays, Hash, Flame } from "lucide-react";
 
 export default function SettingsPage() {
@@ -93,6 +93,52 @@ export default function SettingsPage() {
             Days since season started
           </span>
         </div>
+      </div>
+
+      <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
+        <h3 className="text-lg font-bold mb-4">Time & Session Controls</h3>
+        <p className="text-sm text-muted-foreground mb-6">Manage global cooldowns and time limits for player sessions.</p>
+        
+        <form action={async (formData) => {
+          try {
+            await updateSystemSettings(formData);
+            setMessage("Time settings updated successfully!");
+            await loadSettings();
+          } catch (e: any) {
+            setMessage(`Error: ${e.message}`);
+          }
+        }} className="space-y-4 max-w-md">
+          
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Daily Cooldown (Hours)</label>
+            <input 
+              type="number" 
+              name="cooldown_hours" 
+              defaultValue={settings?.cooldown_hours ?? 24}
+              min="0"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <p className="text-xs text-muted-foreground">Set to 0 to completely disable the cooldown and allow unlimited play.</p>
+          </div>
+          
+          <div className="space-y-2 pt-2">
+            <label className="text-sm font-semibold">Game Timer (Seconds)</label>
+            <input 
+              type="number" 
+              name="game_duration_seconds" 
+              defaultValue={settings?.game_duration_seconds ?? 900}
+              min="60"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <p className="text-xs text-muted-foreground">The time limit players have to complete a daily challenge sprint. Default is 900 (15 minutes).</p>
+          </div>
+          
+          <div className="pt-4">
+            <button type="submit" className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold hover:bg-primary/90 transition-colors">
+              Save Time Settings
+            </button>
+          </div>
+        </form>
       </div>
 
       <div className="bg-card border border-destructive/30 rounded-xl shadow-sm overflow-hidden">

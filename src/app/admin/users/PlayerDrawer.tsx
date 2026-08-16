@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { X, Trophy, Brain, Flame, Target, Percent, Calendar, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getPlayerDetails } from "./actions";
+import { getPlayerDetails, wipePlayerSession, grantExtraTime } from "./actions";
 
 // Helper to format YYYY-MM-DD to a nice string
 function formatSessionDate(dateStr: string) {
@@ -93,6 +93,45 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string, onCl
             <span className="text-xs text-muted-foreground font-medium flex items-center gap-1"><Target size={14}/> Correct</span>
             <span className="text-xl font-bold text-green-500">{profile.total_correct_answers?.toLocaleString()}</span>
           </div>
+        </div>
+      </div>
+
+      {/* Admin Actions */}
+      <div className="p-6 border-b border-border bg-card">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-destructive"><Flame size={18}/> Admin Actions</h3>
+        <div className="space-y-3">
+          <button 
+            onClick={async () => {
+              if (confirm("Are you sure you want to wipe today's session? This will delete their score for today and let them play again.")) {
+                try {
+                  await wipePlayerSession(userId);
+                  alert("Session wiped! They can now play again today.");
+                  onClose();
+                } catch (e: any) {
+                  alert(e.message);
+                }
+              }
+            }}
+            className="w-full bg-destructive/10 text-destructive hover:bg-destructive/20 py-2.5 rounded-lg font-bold transition-colors border border-destructive/20 flex items-center justify-center gap-2"
+          >
+            <X size={16} />
+            Reset Daily Lock (Wipe Today's Attempt)
+          </button>
+          
+          <button 
+            onClick={async () => {
+              try {
+                await grantExtraTime(userId, 300);
+                alert("Granted 5 extra minutes to their current session!");
+              } catch (e: any) {
+                alert(e.message);
+              }
+            }}
+            className="w-full bg-primary/10 text-primary hover:bg-primary/20 py-2.5 rounded-lg font-bold transition-colors border border-primary/20 flex items-center justify-center gap-2"
+          >
+            <Target size={16} />
+            Grant +5 Minutes Extra Time
+          </button>
         </div>
       </div>
 

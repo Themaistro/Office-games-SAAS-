@@ -88,7 +88,50 @@ export async function resetSeason() {
 export async function getSystemSettings() {
   const supabase = await createClient();
   const { data: settings } = await supabase.from("system_settings").select("*").single();
-  return settings || { current_season: 1, season_start_date: new Date().toISOString() };
+  return settings || { 
+    current_season: 1, 
+    season_start_date: new Date().toISOString(),
+    cooldown_hours: 24,
+    game_duration_seconds: 900
+  };
+}
+
+export async function updateSystemSettings(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") throw new Error("Unauthorized: Admins only");
+
+  const cooldown_hours = Number(formData.get("cooldown_hours")) || 0;
+  const game_duration_seconds = Number(formData.get("game_duration_seconds")) || 900;
+
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+  // Check if id 1 exists
+  const { data: existing } = await adminClient.from("system_settings").select("id").eq("id", 1).maybeSingle();
+  
+  if (existing) {
+    await adminClient.from("system_settings").update({
+      cooldown_hours,
+      game_duration_seconds
+    }).eq("id", 1);
+  } else {
+    await adminClient.from("system_settings").insert({
+      id: 1,
+      current_season: 1,
+      season_start_date: new Date().toISOString(),
+      cooldown_hours,
+      game_duration_seconds
+    });
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/settings");
+  revalidatePath("/dashboard");
 }
 
 export async function factoryResetPlatform() {

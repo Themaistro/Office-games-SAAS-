@@ -50,12 +50,24 @@ export default async function DashboardPage() {
   // Calculate Rank
   let userRank = "--";
   if (profile) {
-    const { count: higherRankCount } = await supabase
+    const { count: higherXpCount } = await supabase
       .from("profiles")
       .select("id", { count: "exact", head: true })
       .neq("role", "admin")
       .gt("total_xp", profile.total_xp || 0);
-    userRank = ((higherRankCount || 0) + 1).toString();
+      
+    let tieBreakerCount = 0;
+    if (profile.full_name) {
+      const { count } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .neq("role", "admin")
+        .eq("total_xp", profile.total_xp || 0)
+        .lt("full_name", profile.full_name);
+      tieBreakerCount = count || 0;
+    }
+
+    userRank = ((higherXpCount || 0) + tieBreakerCount + 1).toString();
   }
 
   // Fetch top 5 leaderboard
@@ -64,6 +76,7 @@ export default async function DashboardPage() {
     .select("full_name, total_xp, current_level, email")
     .neq("role", "admin")
     .order("total_xp", { ascending: false })
+    .order("full_name", { ascending: true, nullsFirst: false })
     .limit(5);
 
   // Fetch user's recent activity
@@ -79,11 +92,15 @@ export default async function DashboardPage() {
   const isCompleted = latestSession?.is_completed || latestSession?.status === "completed" || latestSession?.status === "expired";
   const isInProgress = latestSession && !isCompleted;
   
+  // Fetch system settings for cooldown
+  const { data: settings } = await supabase.from("system_settings").select("cooldown_hours").maybeSingle();
+  const cooldownHours = settings?.cooldown_hours ?? 24;
+
   let isInCooldown = false;
   if (isCompleted && latestSession) {
     const createdAtTime = new Date(latestSession.created_at).getTime();
-    const twentyFourHoursMs = 24 * 60 * 60 * 1000;
-    if (Date.now() - createdAtTime < twentyFourHoursMs) {
+    const cooldownMs = cooldownHours * 60 * 60 * 1000;
+    if (cooldownMs > 0 && Date.now() - createdAtTime < cooldownMs) {
       isInCooldown = true;
     }
   }
@@ -260,27 +277,31 @@ export default async function DashboardPage() {
           
           <div className="space-y-4">
             {topProfiles && topProfiles.length > 0 ? (
-              topProfiles.map((p, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/40 hover:bg-background/80 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white
-                      ${idx === 0 ? 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : 
-                        idx === 1 ? 'bg-gray-400' : 
-                        idx === 2 ? 'bg-amber-700' : 'bg-primary/50'}
-                    `}>
-                      {idx + 1}
+              topProfiles.map((p, idx) => {
+                const rank = idx + 1;
+                
+                return (
+                  <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/40 hover:bg-background/80 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white
+                        ${rank === 1 ? 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : 
+                          rank === 2 ? 'bg-gray-400' : 
+                          rank === 3 ? 'bg-amber-700' : 'bg-primary/50'}
+                      `}>
+                        {rank}
+                      </div>
+                      <div>
+                        <p className="font-bold">{p.full_name || p.email?.split('@')[0]}</p>
+                        <p className="text-xs text-muted-foreground font-medium">Level {p.current_level || 1}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold">{p.full_name || p.email?.split('@')[0]}</p>
-                      <p className="text-xs text-muted-foreground font-medium">Level {p.current_level}</p>
+                    <div className="text-right">
+                      <p className="font-black text-primary">{p.total_xp || 0}</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">XP</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-black text-primary">{p.total_xp}</p>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">XP</p>
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="text-center py-12 bg-background/50 rounded-2xl border border-dashed border-border">
                 <Trophy className="mx-auto text-muted-foreground/30 mb-3" size={32} />

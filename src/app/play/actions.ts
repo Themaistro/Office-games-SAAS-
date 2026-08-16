@@ -66,15 +66,19 @@ export async function startDailySession() {
     .limit(1)
     .maybeSingle();
 
+  const { data: settings } = await supabase.from("system_settings").select("*").maybeSingle();
+
   if (lastSession && lastSession.is_completed) {
+    const cooldownHours = settings?.cooldown_hours ?? 24;
+
     const createdAtTime = new Date(lastSession.created_at).getTime();
     const now = Date.now();
-    const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+    const cooldownMs = cooldownHours * 60 * 60 * 1000;
     
-    if (now - createdAtTime < twentyFourHoursMs) {
+    if (cooldownMs > 0 && now - createdAtTime < cooldownMs) {
       return { 
         error: "24_hour_cooldown", 
-        message: "You must wait 24 hours between challenges.",
+        message: `You must wait ${cooldownHours} hours between challenges.`,
         session: lastSession 
       };
     }
@@ -330,7 +334,7 @@ export async function startDailySession() {
     .insert({
       user_id: user.id,
       date: today,
-      allowed_duration_seconds: 900, // 15 mins
+      allowed_duration_seconds: settings?.game_duration_seconds ?? 900,
       is_completed: false
     })
     .select()
