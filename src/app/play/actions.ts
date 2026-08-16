@@ -155,7 +155,7 @@ export async function startDailySession() {
         // Offset the dayOffset by diffIndex so easy/medium/hard don't pull the exact same slice if they fall back to the same master bank
         const sliceIndex = dayOffset * 3 + diffIndex; 
 
-        if (game.slug === "mental-math" || game.slug === "math" || game.slug === "mental_math") {
+        if (game.slug === "mental-math" || game.slug === "mental_math") {
           diffBatch = generateMentalMath(10, diff);
         } else if (game.slug === "word-unscramble" || game.slug === "unscramble" || game.slug === "word_unscramble") {
           const shuffledWords = [...(masterWords || [])].sort(() => 0.5 - Math.random());
@@ -167,7 +167,7 @@ export async function startDailySession() {
           diffBatch = generateMemory(25, diff);
         } else if (game.slug === "sudoku_lite" || game.slug === "sudoku-lite") {
           diffBatch = generateSudokuLite(10, diff);
-        } else if (game.slug === "target-number") {
+        } else if (game.slug === "target-number" || game.slug === "math") {
           diffBatch = generateTargetNumber(10, diff);
         } else if (game.slug === "word") {
           diffBatch = generateMissingLetters(masterWords || [], 10, diff, sliceIndex);
