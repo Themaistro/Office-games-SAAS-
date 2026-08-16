@@ -49,6 +49,14 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
       }
     }
     setGrid(newGrid);
+    
+    setGameState('memorize');
+    setTimeLeft(5);
+    setPlayTimeLeft(15);
+    setCurrentStep(1);
+    setFailed(false);
+    setHintUsed(false);
+    setIsPeeking(false);
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
@@ -63,7 +71,7 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [question, GRID_SIZE, SEQUENCE_LENGTH]);
 
   const useHint = useCallback(() => {
     if (hintUsed || isSubmitting || failed || gameState === 'memorize') return;

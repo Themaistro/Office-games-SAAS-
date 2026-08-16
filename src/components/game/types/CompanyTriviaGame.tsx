@@ -15,6 +15,15 @@ export default function CompanyTriviaGame({ question, onAnswer, isSubmitting, sh
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [lifelineUsed, setLifelineUsed] = useState(false);
 
+  useEffect(() => {
+    setSelectedOption(null);
+    setRevealed(false);
+    setTimeLeft(15);
+    setEliminatedOptions([]);
+    setLifelineUsed(false);
+    setShowIntro(true); // Reset intro for next question just in case
+  }, [question]);
+
   // Intro Sequence
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -37,8 +46,8 @@ export default function CompanyTriviaGame({ question, onAnswer, isSubmitting, sh
     if (showIntro || lifelineUsed || selectedOption || isSubmitting) return;
     setLifelineUsed(true);
     
-    // Find incorrect options
-    const incorrect = question.options.filter(o => o !== question.correct_answer);
+    const uniqueOptions = Array.from(new Set(question.options));
+    const incorrect = uniqueOptions.filter(o => o !== question.correct_answer);
     const shuffled = [...incorrect].sort(() => 0.5 - Math.random());
     
     const numToEliminate = Math.max(1, incorrect.length - 1);

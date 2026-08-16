@@ -12,6 +12,16 @@ export default function MemoryGame({ question, onAnswer, isSubmitting, showHint 
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [hasShownHint, setHasShownHint] = useState(false);
+
+  useEffect(() => {
+    setStartTime(null);
+    setPhase('memorize');
+    setTimeLeft(5);
+    setInput("");
+    setHasShownHint(false);
+  }, [question]);
+
   // Memorization timer
   useEffect(() => {
     if (phase !== 'memorize') return;
@@ -30,7 +40,6 @@ export default function MemoryGame({ question, onAnswer, isSubmitting, showHint 
     return () => clearInterval(timer);
   }, [phase]);
 
-  const [hasShownHint, setHasShownHint] = useState(false);
 
   // Hint effect
   useEffect(() => {

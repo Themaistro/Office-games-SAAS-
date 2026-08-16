@@ -118,6 +118,12 @@ export default function SudokuLiteGame({ onAnswer, isSubmitting, showHint }: Gam
     setInitialBoard(puzzle.map(row => [...row]));
     setBoard(puzzle.map(row => [...row]));
     setStartTime(Date.now());
+    
+    setSelectedCell(null);
+    setMistakes(0);
+    setErrorCell(null);
+    setHintUsed(false);
+    setIsCompleted(false);
   }, []);
 
   const handleUseHint = useCallback(() => {

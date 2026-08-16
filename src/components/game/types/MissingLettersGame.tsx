@@ -5,7 +5,7 @@ import { GameComponentProps } from '@/types/game';
 
 export default function MissingLettersGame({ question, onAnswer, isSubmitting, showHint }: GameComponentProps) {
   const wordWithBlanks = (question?.content?.wordWithBlanks || "") as string;
-  const options = useMemo(() => question?.options || [], [question]);
+  const options = useMemo(() => Array.from(new Set((question?.options || []) as string[])), [question]);
   const correctAnswer = question?.correct_answer as string;
 
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
@@ -13,6 +13,14 @@ export default function MissingLettersGame({ question, onAnswer, isSubmitting, s
   const [revealedAnswer, setRevealedAnswer] = useState(false);
   
   const [timeLeft, setTimeLeft] = useState(30);
+
+  // Reset state when a new question arrives
+  useEffect(() => {
+    setEliminatedOptions([]);
+    setShakingOption(null);
+    setRevealedAnswer(false);
+    setTimeLeft(30);
+  }, [question]);
 
   // Timer Logic
   useEffect(() => {

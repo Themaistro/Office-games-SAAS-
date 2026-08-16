@@ -5,7 +5,7 @@ import { GameComponentProps } from '@/types/game';
 
 export default function TargetNumberGame({ question, onAnswer, isSubmitting, showHint }: GameComponentProps) {
   const targetNumber = question?.content?.target || 0;
-  const options = useMemo(() => question?.options || [], [question]);
+  const options = useMemo(() => Array.from(new Set((question?.options || []) as string[])), [question]);
   const correctAnswer = question?.correct_answer as string;
 
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
@@ -13,6 +13,13 @@ export default function TargetNumberGame({ question, onAnswer, isSubmitting, sho
   const [revealedAnswer, setRevealedAnswer] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState(30);
+
+  useEffect(() => {
+    setEliminatedOptions([]);
+    setShakingOption(null);
+    setRevealedAnswer(false);
+    setTimeLeft(30);
+  }, [question]);
 
   // Timer Logic
   useEffect(() => {

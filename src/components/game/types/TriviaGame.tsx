@@ -14,6 +14,14 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [lifelineUsed, setLifelineUsed] = useState(false);
 
+  useEffect(() => {
+    setSelectedOption(null);
+    setRevealed(false);
+    setTimeLeft(15);
+    setEliminatedOptions([]);
+    setLifelineUsed(false);
+  }, [question]);
+
   // Timer
   useEffect(() => {
     if (timeLeft > 0 && !selectedOption && !isSubmitting) {
@@ -29,7 +37,8 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
     setLifelineUsed(true);
     
     // Find incorrect options
-    const incorrect = question.options.filter(o => o !== question.correct_answer);
+    const uniqueOptions = Array.from(new Set(question.options));
+    const incorrect = uniqueOptions.filter(o => o !== question.correct_answer);
     const shuffled = [...incorrect].sort(() => 0.5 - Math.random());
     
     // A true 50/50 leaves exactly 1 incorrect option and the 1 correct option (2 options total)

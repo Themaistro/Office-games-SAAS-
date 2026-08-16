@@ -13,11 +13,20 @@ export default function LogicGame({ question, onAnswer, isSubmitting, showHint }
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [hintUsed, setHintUsed] = useState(false);
 
+  useEffect(() => {
+    setSelectedOption(null);
+    setRevealed(false);
+    setTimeLeft(30);
+    setEliminatedOptions([]);
+    setHintUsed(false);
+  }, [question]);
+
   const useHint = useCallback(() => {
     if (hintUsed || selectedOption || isSubmitting) return;
     setHintUsed(true);
     // Logic hint: Eliminate 1 incorrect option
-    const incorrect = question.options.filter(o => o !== question.correct_answer);
+    const uniqueOptions = Array.from(new Set(question.options));
+    const incorrect = uniqueOptions.filter(o => o !== question.correct_answer);
     if (incorrect.length > 0) {
       const shuffled = [...incorrect].sort(() => 0.5 - Math.random());
       setEliminatedOptions([shuffled[0]]);

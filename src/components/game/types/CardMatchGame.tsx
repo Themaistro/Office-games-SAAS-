@@ -85,6 +85,13 @@ export default function CardMatchGame({ question, onAnswer, isSubmitting, showHi
       setCards(deck as Card[]);
     }
     
+    setFlippedIdxs([]);
+    setMatchedIdxs([]);
+    setErrors(0);
+    setTimeLeft(initialTime);
+    setIsHintActive(false);
+    setIsPreviewing(previewDuration > 0);
+    
     // Handle Preview Phase
     if (previewDuration > 0) {
       const allIdxs = Array.from({ length: totalCards }).map((_, i) => i);
@@ -95,7 +102,7 @@ export default function CardMatchGame({ question, onAnswer, isSubmitting, showHi
         setIsPreviewing(false);
       }, previewDuration);
     }
-  }, [previewDuration]);
+  }, [question, previewDuration, totalCards, initialTime]);
 
   useEffect(() => {
     if (matchedIdxs.length === totalCards && !isSubmitting) {

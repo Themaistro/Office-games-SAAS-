@@ -5,12 +5,18 @@ import { GameComponentProps } from '@/types/game';
 
 export default function UnscrambleGame({ question, onAnswer, isSubmitting, showHint }: GameComponentProps) {
   const scrambledWord = (question?.content?.scrambled || "") as string;
-  const options = useMemo(() => question?.options || [], [question]);
+  const options = useMemo(() => Array.from(new Set((question?.options || []) as string[])), [question]);
   const correctAnswer = question?.correct_answer as string;
 
   const [mistakes, setMistakes] = useState(0);
   const [shakingOption, setShakingOption] = useState<string | null>(null);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    setMistakes(0);
+    setShakingOption(null);
+    setEliminatedOptions([]);
+  }, [question]);
 
   // 50/50 Hint Logic
   useEffect(() => {

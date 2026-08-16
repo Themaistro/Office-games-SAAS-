@@ -17,33 +17,166 @@ const getSlice = (bank: any[], count: number, dayOfYear: number) => {
   return items;
 };
 
-// ------------------------------------------
-// 1. TYPING CHALLENGE CONTENT
-// ------------------------------------------
+const TYPING_QUOTES = {
+  easy: [
+    "Knowledge is power.",
+    "Time is money.",
+    "Keep it simple.",
+    "Less is more.",
+    "Stay foolish.",
+    "Make it happen.",
+    "Dream big today.",
+    "Focus on now.",
+    "Actions speak louder.",
+    "Practice makes perfect.",
+    "Think before you act.",
+    "Never give up.",
+    "Stay hungry and humble.",
+    "Work hard in silence.",
+    "Be the change.",
+    "Trust the process.",
+    "Learn from mistakes.",
+    "Keep moving forward.",
+    "Live and learn.",
+    "Aim for the stars.",
+    "Fortune favors the bold.",
+    "Quality over quantity.",
+    "Patience is a virtue.",
+    "Stay calm and focus.",
+    "Believe in yourself.",
+    "One step at a time.",
+    "Create your own luck.",
+    "Think outside the box.",
+    "Rise and grind daily.",
+    "Start where you are.",
+    "Do what matters most.",
+    "Find joy in work.",
+    "Embrace every challenge.",
+    "Dare to be great.",
+    "Fail fast learn faster.",
+    "Choose progress daily.",
+    "Seek first to understand.",
+    "Better late than never.",
+    "Short and sweet wins.",
+    "Small steps big results.",
+    "Every moment matters now.",
+    "Ideas change the world.",
+    "Teamwork makes the dream.",
+    "Respect earns respect.",
+    "Courage starts within you.",
+    "Kindness costs nothing.",
+    "Silence speaks volumes.",
+    "Adapt and overcome.",
+    "Lead by example always.",
+    "Growth requires discomfort."
+  ],
+  medium: [
+    "The only way to do great work is to love what you do.",
+    "In the middle of difficulty lies opportunity.",
+    "Simplicity is the ultimate sophistication.",
+    "Life is what happens when you are busy making other plans.",
+    "A journey of a thousand miles begins with a single step.",
+    "That which does not kill us makes us stronger.",
+    "The best time to plant a tree was twenty years ago.",
+    "An investment in knowledge pays the best interest.",
+    "The mind is everything. What you think you become.",
+    "Strive not to be a success but rather to be of value.",
+    "It does not matter how slowly you go as long as you do not stop.",
+    "You miss one hundred percent of the shots you never take.",
+    "Whether you think you can or you think you cannot you are right.",
+    "The only impossible journey is the one you never begin.",
+    "Creativity is intelligence having fun with the world around it.",
+    "If you want to lift yourself up lift up someone else first.",
+    "A person who never made a mistake never tried anything new.",
+    "The greatest glory in living lies not in never falling but in rising.",
+    "Tell me and I forget. Teach me and I remember. Involve me and I learn.",
+    "Do not judge each day by the harvest you reap but by the seeds you plant.",
+    "The future belongs to those who believe in the beauty of their dreams.",
+    "It is during our darkest moments that we must focus to see the light.",
+    "Whoever is happy will make others happy too. It is a chain reaction.",
+    "You only live once but if you do it right once is all you need.",
+    "In three words I can sum up everything I learned about life. It goes on.",
+    "Life is really simple but we insist on making it too complicated.",
+    "The purpose of our lives is to be happy and to help others find joy.",
+    "Get busy living or get busy dying. The choice is always yours to make.",
+    "Many of life's failures are people who did not realize how close they were.",
+    "If you look at what you have in life you will always have even more.",
+    "If you set your goals ridiculously high and it is a failure you will fail above everyone.",
+    "Life is never fair and perhaps it is a good thing for most of us that it is not.",
+    "The only person you are destined to become is the person you decide to be.",
+    "Go confidently in the direction of your dreams and live the life you imagined.",
+    "When you reach the end of your rope tie a knot in it and hang on tight.",
+    "Always remember that you are absolutely unique just like everyone else here.",
+    "The secret of getting ahead is simply getting started on the right path today.",
+    "It is not the years in your life that count but the life in your years.",
+    "Everything you have ever wanted is on the other side of fear and doubt.",
+    "We cannot solve our problems with the same thinking we used to create them.",
+    "Innovation distinguishes between a leader and a follower in every field.",
+    "Stay close to anything that makes you glad you are alive and breathing.",
+    "The only limit to our realization of tomorrow will be our doubts of today.",
+    "What lies behind us and what lies before us are tiny matters compared to what lies within.",
+    "Education is the most powerful weapon which you can use to change the entire world.",
+    "Happiness is not something ready made. It comes from your own daily actions.",
+    "You will face many defeats in life but never let yourself be truly defeated.",
+    "The way to get started is to quit talking and begin doing something meaningful.",
+    "Not everything that is faced can be changed but nothing can be changed until it is faced.",
+    "The greatest weapon against stress is our ability to choose one thought over another."
+  ],
+  hard: [
+    "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    "The pessimist sees difficulty in every opportunity. The optimist sees opportunity in every difficulty.",
+    "Do not go where the path may lead, go instead where there is no path and leave a trail.",
+    "I have learned that people will forget what you said, people will forget what you did, but people will never forget how you made them feel.",
+    "Twenty years from now you will be more disappointed by the things that you did not do than by the ones you did do. So throw off the bowlines and sail away from the safe harbor.",
+    "It is not the critic who counts, not the man who points out how the strong man stumbles or where the doer of deeds could have done them better. The credit belongs to the man who is actually in the arena.",
+    "If you want to build a ship do not drum up the men to gather wood divide the work and give orders. Instead teach them to yearn for the vast and endless sea.",
+    "We are what we repeatedly do. Excellence then is not an act but a habit that we cultivate through consistent practice and dedication every single day.",
+    "The only thing we have to fear is fear itself. Nameless unreasoning unjustified terror which paralyzes needed efforts to convert retreat into advance.",
+    "In the long run men hit only what they aim at. Therefore though they should fail immediately they had better aim at something high and worthy of their time.",
+    "The question is not whether we will be extremists but what kind of extremists we will be. Will we be extremists for hate or for love? Will we be extremists for the preservation of injustice or for the extension of justice?",
+    "Darkness cannot drive out darkness; only light can do that. Hate cannot drive out hate; only love can do that. This is the ultimate truth of human existence.",
+    "Our deepest fear is not that we are inadequate. Our deepest fear is that we are powerful beyond measure. It is our light not our darkness that most frightens us.",
+    "Two roads diverged in a wood and I took the one less traveled by and that has made all the difference in my journey through this incredible life.",
+    "The world as we have created it is a process of our thinking. It cannot be changed without changing our thinking first and then taking bold decisive action.",
+    "We must be willing to let go of the life we planned so as to have the life that is waiting for us beyond the boundaries of our comfortable daily routine.",
+    "A human being is a part of the whole called by us the universe, a part limited in time and space. We experience ourselves our thoughts and feelings as something separate from the rest.",
+    "The measure of intelligence is the ability to change. Those who cannot change their minds cannot change anything in the world around them no matter how hard they try.",
+    "People often say that motivation does not last. Well neither does bathing. That is why we recommend it daily as a practice for maintaining momentum and drive.",
+    "You can never cross the ocean until you have the courage to lose sight of the shore. Every great achievement started with the decision to try something completely new.",
+    "The difference between a successful person and others is not a lack of strength not a lack of knowledge but rather a lack of will and the persistence to keep going.",
+    "I am not a product of my circumstances. I am a product of my decisions and the actions I take every single day to move closer to the person I want to become.",
+    "Your time is limited so do not waste it living someone else's life. Do not be trapped by dogma which is living with the results of other people's thinking.",
+    "The greatest discovery of all time is that a person can change their future by merely changing their attitude toward life and the challenges it presents.",
+    "If you genuinely want something do not wait for it. Teach yourself to be impatient. The world is not going to give you what you want simply because you deserve it.",
+    "We delight in the beauty of the butterfly but rarely admit the changes it has gone through to achieve that beauty. Growth requires transformation and patience.",
+    "The best and most beautiful things in the world cannot be seen or even touched. They must be felt with the heart and experienced through genuine human connection.",
+    "If you are working on something that you really care about you do not have to be pushed. The vision pulls you forward with an unstoppable force and energy.",
+    "It had long since come to my attention that people of accomplishment rarely sat back and let things happen to them. They went out and happened to things instead.",
+    "Life is ten percent what happens to you and ninety percent how you react to it. Your attitude determines your altitude in every area of your personal and professional journey.",
+    "You cannot swim for new horizons until you have the courage to lose sight of the shore behind you. Adventure begins at the edge of your comfort zone and pushes you further.",
+    "The most common way people give up their power is by thinking they do not have any. Every person has the ability to create meaningful change in their life and community.",
+    "Everything negative including pressure and challenges is all an opportunity for me to rise. I see adversity as a stepping stone rather than a stumbling block on my path.",
+    "Start by doing what is necessary then do what is possible and suddenly you are doing the impossible. Great achievements are built one intentional step at a time.",
+    "I can accept failure because everyone fails at something. But I cannot accept not trying because that means I have already given up before the game even started.",
+    "Logic will get you from point A to point B. Imagination will take you everywhere else in this vast universe of infinite possibilities waiting to be explored.",
+    "Challenges are what make life interesting and overcoming them is what makes life meaningful. Every obstacle you face is an opportunity to grow stronger and wiser.",
+    "The best revenge is massive success. Living well and achieving your dreams is the most powerful response to anyone who ever doubted your ability to make it.",
+    "I attribute my success to this: I never gave and never took any excuse. I held myself accountable for my actions and results every single day without exception.",
+    "What you get by achieving your goals is not as important as what you become by achieving your goals. The journey transforms you more than the destination ever could."
+  ]
+};
+
 export const generateTypingChallenge = (masterBank: any[], count: number = 5, difficulty: Difficulty = 'medium', dayOfYear: number = 1) => {
-  // Extract all available words across all prompts
-  const allWords = masterBank
-    .map(b => b.prompt_text)
-    .join(" ")
-    .split(/\s+/)
-    .filter(w => w.length > 0);
-  
-  // Scale complexity based on difficulty
-  const wordCount = difficulty === 'easy' ? 5 : difficulty === 'medium' ? 10 : 20;
-  
+  const quotes = shuffle([...(TYPING_QUOTES[difficulty] || TYPING_QUOTES.medium)]);
   const challenges = [];
+  
   for (let i = 0; i < count; i++) {
-    // Generate a random sequence of words
-    const randomWords = shuffle(allWords).slice(0, wordCount);
-    // Capitalize first word and add a period
-    if (randomWords.length > 0) {
-      randomWords[0] = randomWords[0].charAt(0).toUpperCase() + randomWords[0].slice(1);
-    }
-    const sentence = randomWords.join(" ") + ".";
+    // Cycle through the shuffled quotes, wrapping around if count > quotes.length
+    const quote = quotes[i % quotes.length];
     
     challenges.push({
       correctAnswer: "type-exactly",
-      content: { text: sentence, language: 'en' },
+      content: { text: quote, language: 'en' },
       options: []
     });
   }

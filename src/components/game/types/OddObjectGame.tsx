@@ -34,7 +34,10 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
     
     setGrid(newGrid);
     setStartTime(Date.now());
-  }, []);
+    setTimeLeft(15);
+    setFailed(false);
+    setHintUsed(false);
+  }, [question, gridSize]);
 
   const useHint = useCallback(() => {
     if (hintUsed || isSubmitting || failed || grid.length === 0) return;
