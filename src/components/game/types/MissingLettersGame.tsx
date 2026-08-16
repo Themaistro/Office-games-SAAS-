@@ -67,19 +67,24 @@ export default function MissingLettersGame({ question, onAnswer, isSubmitting, s
 
       {/* Word with Blanks Display */}
       <div className="flex gap-1.5 sm:gap-2 mb-10 flex-wrap justify-center max-w-full px-2">
-        {wordWithBlanks.split('').map((letter, index) => (
-          <div 
-            key={index} 
-            className={`
-              w-10 h-12 sm:w-14 sm:h-16 flex items-center justify-center text-2xl sm:text-3xl rounded-lg font-black
-              ${letter === '_' 
-                ? 'bg-secondary/50 border-b-4 border-primary/40 text-transparent shadow-inner' 
-                : 'bg-gradient-to-b from-card to-secondary/80 border-2 border-primary/20 shadow-[0_4px_0_0_rgba(0,0,0,0.1)] text-foreground cursor-default'}
-            `}
-          >
-            {letter}
-          </div>
-        ))}
+        {wordWithBlanks.split('').map((letter, index) => {
+          if (letter === ' ') {
+            return <div key={index} className="w-4 sm:w-6 h-12 sm:h-16" />;
+          }
+          return (
+            <div 
+              key={index} 
+              className={`
+                w-10 h-12 sm:w-14 sm:h-16 flex items-center justify-center text-2xl sm:text-3xl rounded-lg font-black
+                ${letter === '_' 
+                  ? 'bg-secondary/50 border-b-4 border-primary/40 text-transparent shadow-inner' 
+                  : 'bg-gradient-to-b from-card to-secondary/80 border-2 border-primary/20 shadow-[0_4px_0_0_rgba(0,0,0,0.1)] text-foreground cursor-default'}
+              `}
+            >
+              {letter}
+            </div>
+          );
+        })}
       </div>
 
       {showHint && eliminatedOptions.length > 0 && (

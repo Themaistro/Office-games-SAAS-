@@ -66,7 +66,7 @@ export default async function LeaderboardPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-6xl">
+      <main className="flex-1 container mx-auto px-4 py-8 pt-28 max-w-6xl">
         {/* Prize Pool Showcase */}
         {prizes && prizes.length > 0 && (
           <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-500/20 rounded-3xl p-8 text-center relative overflow-hidden mb-12">

@@ -21,14 +21,34 @@ const getSlice = (bank: any[], count: number, dayOfYear: number) => {
 // 1. TYPING CHALLENGE CONTENT
 // ------------------------------------------
 export const generateTypingChallenge = (masterBank: any[], count: number = 5, difficulty: Difficulty = 'medium', dayOfYear: number = 1) => {
-  const bank = masterBank.filter(b => b.difficulty === difficulty);
-  const sliced = getSlice(bank.length > 0 ? bank : masterBank, count, dayOfYear);
+  // Extract all available words across all prompts
+  const allWords = masterBank
+    .map(b => b.prompt_text)
+    .join(" ")
+    .split(/\s+/)
+    .filter(w => w.length > 0);
   
-  return sliced.map((c) => ({
-    correctAnswer: "type-exactly",
-    content: { text: c.prompt_text, language: c.language || 'en' },
-    options: []
-  }));
+  // Scale complexity based on difficulty
+  const wordCount = difficulty === 'easy' ? 5 : difficulty === 'medium' ? 10 : 20;
+  
+  const challenges = [];
+  for (let i = 0; i < count; i++) {
+    // Generate a random sequence of words
+    const randomWords = shuffle(allWords).slice(0, wordCount);
+    // Capitalize first word and add a period
+    if (randomWords.length > 0) {
+      randomWords[0] = randomWords[0].charAt(0).toUpperCase() + randomWords[0].slice(1);
+    }
+    const sentence = randomWords.join(" ") + ".";
+    
+    challenges.push({
+      correctAnswer: "type-exactly",
+      content: { text: sentence, language: 'en' },
+      options: []
+    });
+  }
+  
+  return challenges;
 };
 
 export function generateCardMatch(count: number, difficulty: string): any[] {
@@ -136,18 +156,25 @@ export function generateMissingLetters(masterBank: any[], count: number, difficu
   const slice = getSlice(masterBank, count, offset);
   
   return slice.map((item: any) => {
-    const word = item.word.toUpperCase();
+    let word = item.word.toUpperCase();
     
-    // Harder difficulty = more missing letters
-    const blanksCount = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : 3;
-    const actualBlanks = Math.min(blanksCount, word.length - 1); // Ensure at least 1 letter remains
-    
-    let indices = [];
-    while(indices.length < actualBlanks) {
-      let r = Math.floor(Math.random() * word.length);
-      if(indices.indexOf(r) === -1) indices.push(r);
+    // For medium and hard, combine two words
+    if (difficulty === 'medium' || difficulty === 'hard') {
+      const secondWord = masterBank[Math.floor(Math.random() * masterBank.length)].word.toUpperCase();
+      word = `${word} ${secondWord}`;
     }
-    indices.sort((a,b) => a - b);
+    
+    // Harder difficulty = more missing letters across the two words
+    const blanksCount = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 3 : 5;
+    
+    // Ensure we don't blank out the space character
+    let validIndices: number[] = [];
+    for (let i = 0; i < word.length; i++) {
+      if (word[i] !== ' ') validIndices.push(i);
+    }
+    
+    const actualBlanks = Math.min(blanksCount, validIndices.length - 1);
+    const indices = shuffle(validIndices).slice(0, actualBlanks).sort((a,b) => a - b);
     
     let wordWithBlanks = word;
     let missingLetters = [];
@@ -180,7 +207,7 @@ export function generateMissingLetters(masterBank: any[], count: number, difficu
       content: { wordWithBlanks },
       options: options,
       correctAnswer: correctOpt,
-      explanation: `The full word is ${word}`
+      explanation: `The full sequence is ${word}`
     };
   });
 }
