@@ -26,7 +26,7 @@ interface Bouncer {
 export default function BouncingBackground() {
   const [bouncers, setBouncers] = useState<Bouncer[]>([]);
   const [activeBatch, setActiveBatch] = useState(0);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number>(0);
   const hoveredIdRef = useRef<string | null>(null);
   
   // Size of the new elegant pill container
