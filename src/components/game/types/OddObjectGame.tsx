@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameProps } from '@/types/game';
 import { Target, Clock, Sparkles } from 'lucide-react';

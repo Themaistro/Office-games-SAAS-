@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameComponentProps } from '@/types/game';
 import { Activity, Clock } from 'lucide-react';

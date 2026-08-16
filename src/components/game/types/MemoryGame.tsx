@@ -1,3 +1,5 @@
+"use client";
+
 import { GameProps } from "@/types/game";
 import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
