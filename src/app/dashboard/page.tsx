@@ -58,6 +58,22 @@ export default async function DashboardPage() {
     userRank = ((higherRankCount || 0) + 1).toString();
   }
 
+  // Fetch top 5 leaderboard
+  const { data: topProfiles } = await supabase
+    .from("profiles")
+    .select("full_name, total_xp, current_level, email")
+    .order("total_xp", { ascending: false })
+    .limit(5);
+
+  // Fetch user's recent activity
+  const { data: recentActivity } = await supabase
+    .from("daily_sessions")
+    .select("created_at, total_score, total_xp_earned")
+    .eq("user_id", user.id)
+    .eq("is_completed", true)
+    .order("created_at", { ascending: false })
+    .limit(3);
+
   // Force dynamic rendering to ensure fresh data
   const isCompleted = latestSession?.is_completed || latestSession?.status === "completed" || latestSession?.status === "expired";
   const isInProgress = latestSession && !isCompleted;
@@ -83,82 +99,94 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-5xl">
+    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-6xl">
       {/* Announcements Banner */}
       <AnnouncementBanner announcements={announcements || []} />
 
       {/* Welcome Banner */}
-      <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="mb-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Welcome back, {profile?.full_name || profile?.email?.split('@')[0]}!
+          <h1 className="text-4xl font-black tracking-tight text-foreground">
+            Welcome back, <span className="text-primary">{profile?.full_name?.split(' ')[0] || profile?.email?.split('@')[0]}!</span>
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-lg text-muted-foreground mt-1 font-medium">
             Level {profile?.current_level || 1} • {profile?.total_xp || 0} XP
           </p>
         </div>
-        <div className="flex gap-4">
-          <div className="flex items-center gap-2 bg-card border border-border px-4 py-2 rounded-lg shadow-sm">
-            <Flame className="text-orange-500" size={20} />
+        <div className="flex gap-4 w-full md:w-auto">
+          <div className="flex-1 md:flex-none flex items-center gap-3 bg-card/50 backdrop-blur-sm border border-border/60 px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-orange-500/20 p-2 rounded-xl">
+              <Flame className="text-orange-500" size={24} />
+            </div>
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground uppercase">Streak</span>
-              <span className="font-bold leading-none">{profile?.current_streak || 0} Days</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Streak</span>
+              <span className="text-lg font-black leading-none">{profile?.current_streak || 0} Days</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-card border border-border px-4 py-2 rounded-lg shadow-sm">
-            <Trophy className="text-yellow-500" size={20} />
+          <div className="flex-1 md:flex-none flex items-center gap-3 bg-card/50 backdrop-blur-sm border border-border/60 px-5 py-3 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-yellow-500/20 p-2 rounded-xl">
+              <Trophy className="text-yellow-500" size={24} />
+            </div>
             <div className="flex flex-col">
-              <span className="text-xs font-medium text-muted-foreground uppercase">Rank</span>
-              <span className="font-bold leading-none">#{userRank}</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Rank</span>
+              <span className="text-lg font-black leading-none">#{userRank}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Mission Card */}
-      <div className="rounded-2xl bg-card border border-border shadow-sm overflow-hidden mb-8">
-        <div className="bg-primary/10 px-6 py-8 sm:p-10 text-center flex flex-col items-center">
-          <Shield className="text-primary mb-4" size={48} />
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
-            {isCompleted ? "Mission Complete!" : "Today's Mission"}
+      <div className="relative rounded-3xl bg-card border border-border/60 shadow-xl overflow-hidden mb-10 group">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-50" />
+        
+        <div className="relative px-6 py-12 sm:p-16 text-center flex flex-col items-center">
+          <div className="mb-6 relative">
+            <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse" />
+            <div className="relative bg-background border border-primary/20 w-20 h-20 rounded-full flex items-center justify-center shadow-lg">
+              <Shield className="text-primary" size={40} />
+            </div>
+          </div>
+          
+          <h2 className="text-3xl sm:text-5xl font-black tracking-tight mb-4">
+            {isCompleted ? "Mission Accomplished!" : "Today's Mission"}
           </h2>
-          <p className="text-muted-foreground max-w-md mx-auto mb-8">
+          <p className="text-lg text-muted-foreground max-w-lg mx-auto mb-10 font-medium">
             {isCompleted 
-              ? "Great job! Your XP has been permanently saved to your profile. Ready for another round?"
-              : "Play at your own pace! Complete as many brain challenges as you can. Ready?"}
+              ? "Exceptional work. Your XP has been permanently secured. Rest up, your next challenge awaits tomorrow."
+              : "Engage your mind. Complete the random assortment of mini-games as fast and accurately as possible."}
           </p>
           
           {isCompleted ? (
-            <div className="flex flex-col items-center gap-6 w-full max-w-2xl">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full bg-background/50 rounded-xl p-4 border border-border/50">
-                <div className="flex flex-col items-center p-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Score</span>
-                  <span className="text-xl font-bold">{latestSession.total_score || 0}</span>
-                </div>
-                <div className="flex flex-col items-center p-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase mb-1">XP Earned</span>
-                  <span className="text-xl font-bold text-accent">+{latestSession.total_xp_earned ?? latestSession.total_score ?? 0}</span>
-                </div>
-                <div className="flex flex-col items-center p-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Status</span>
-                  <span className="text-xl font-bold text-green-500">Done</span>
-                </div>
-                <div className="flex flex-col items-center p-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase mb-1">Time</span>
-                  <span className="text-xl font-bold">{formattedTime}</span>
-                </div>
+            <div className="flex flex-col items-center gap-8 w-full max-w-3xl">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
+                {[
+                  { label: "Score", value: latestSession.total_score || 0 },
+                  { label: "XP Earned", value: `+${latestSession.total_xp_earned ?? latestSession.total_score ?? 0}`, color: "text-accent" },
+                  { label: "Status", value: "Done", color: "text-emerald-500" },
+                  { label: "Time", value: formattedTime }
+                ].map((stat, i) => (
+                  <div key={i} className="flex flex-col items-center p-4 bg-background/60 backdrop-blur-md rounded-2xl border border-border/50 shadow-sm">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{stat.label}</span>
+                    <span className={`text-2xl font-black ${stat.color || "text-foreground"}`}>{stat.value}</span>
+                  </div>
+                ))}
               </div>
               
               {isInCooldown ? (
-                <CooldownTimer createdAt={latestSession.created_at} />
+                <div className="mt-4">
+                  <CooldownTimer createdAt={latestSession.created_at} />
+                </div>
               ) : (
-                <div className="flex flex-col items-center gap-4 mt-6">
+                <div className="flex flex-col items-center gap-4 mt-4">
                   <Link
                     href="/play/start"
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                    className="group/btn relative inline-flex items-center justify-center gap-3 rounded-2xl bg-primary px-10 py-5 text-xl font-black text-primary-foreground overflow-hidden transition-all shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95"
                   >
-                    <Play fill="currentColor" size={20} />
-                    START NEXT CHALLENGE
+                    <span className="relative z-10 flex items-center gap-2">
+                      <Play fill="currentColor" size={24} />
+                      START NEXT CHALLENGE
+                    </span>
+                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
                   </Link>
                 </div>
               )}
@@ -167,31 +195,87 @@ export default async function DashboardPage() {
             <div className="flex flex-col gap-4">
               <Link
                 href={isInProgress ? "/play" : "/play/start"}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                className="group/btn relative inline-flex items-center justify-center gap-3 rounded-2xl bg-primary px-12 py-5 text-xl font-black text-primary-foreground overflow-hidden transition-all shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95"
               >
-                <Play fill="currentColor" size={20} />
-                {isInProgress ? "RESUME CHALLENGE" : "START CHALLENGE"}
+                <span className="relative z-10 flex items-center gap-2">
+                  <Play fill="currentColor" size={24} />
+                  {isInProgress ? "RESUME CHALLENGE" : "START CHALLENGE"}
+                </span>
+                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
               </Link>
-              
-
             </div>
           )}
-
         </div>
       </div>
 
       {/* Secondary Content */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h3 className="text-lg font-bold mb-4">Recent Activity</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Leaderboard */}
+        <div className="rounded-3xl border border-border/60 bg-card p-8 shadow-sm">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-2xl font-black tracking-tight">Top Players</h3>
+            <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase">
+              Global
+            </div>
+          </div>
+          
           <div className="space-y-4">
-            <p className="text-muted-foreground text-sm">No recent activity yet.</p>
+            {topProfiles && topProfiles.length > 0 ? (
+              topProfiles.map((p, idx) => (
+                <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/40 hover:bg-background/80 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white
+                      ${idx === 0 ? 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : 
+                        idx === 1 ? 'bg-gray-400' : 
+                        idx === 2 ? 'bg-amber-700' : 'bg-primary/50'}
+                    `}>
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <p className="font-bold">{p.full_name || p.email?.split('@')[0]}</p>
+                      <p className="text-xs text-muted-foreground font-medium">Level {p.current_level}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-black text-primary">{p.total_xp}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">XP</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-12 bg-background/50 rounded-2xl border border-dashed border-border">
+                <Trophy className="mx-auto text-muted-foreground/30 mb-3" size={32} />
+                <p className="text-muted-foreground font-medium">Leaderboard is currently empty.</p>
+              </div>
+            )}
           </div>
         </div>
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h3 className="text-lg font-bold mb-4">Current Leaderboard</h3>
-          <div className="space-y-4">
-            <p className="text-muted-foreground text-sm">Play a game to appear on the leaderboard!</p>
+
+        {/* Recent Activity */}
+        <div className="rounded-3xl border border-border/60 bg-card p-8 shadow-sm flex flex-col">
+          <h3 className="text-2xl font-black tracking-tight mb-8">Your Recent Activity</h3>
+          <div className="space-y-4 flex-1">
+            {recentActivity && recentActivity.length > 0 ? (
+              recentActivity.map((activity, idx) => (
+                <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/40">
+                  <div>
+                    <p className="font-bold">Daily Mission</p>
+                    <p className="text-xs text-muted-foreground font-medium">
+                      {new Date(activity.created_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-black text-accent">+{activity.total_xp_earned ?? activity.total_score}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">XP</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-12 bg-background/50 rounded-2xl border border-dashed border-border h-full flex flex-col items-center justify-center">
+                <Play className="mx-auto text-muted-foreground/30 mb-3" size={32} />
+                <p className="text-muted-foreground font-medium">No recent activity yet.<br/>Complete a mission to see it here.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

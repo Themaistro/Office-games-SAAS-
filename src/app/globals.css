@@ -98,6 +98,19 @@ body {
   animation: marquee 20s linear infinite;
 }
 
+@keyframes float {
+  0% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-60px) rotate(15deg); }
+  66% { transform: translateY(40px) rotate(-15deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+.animate-float-delay-1 { animation-delay: -2s; }
+.animate-float-delay-2 { animation-delay: -4s; }
+.animate-float-delay-3 { animation-delay: -6s; }
 .pause-on-hover:hover .animate-marquee {
   animation-play-state: paused;
 }
