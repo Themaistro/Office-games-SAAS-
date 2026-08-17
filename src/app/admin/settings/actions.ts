@@ -180,7 +180,7 @@ export async function factoryResetPlatform() {
 }
 
 export async function bulkUpdateTimeLimits(dailyLimit: number, sessionLimit: number) {
-  const adminClient = await createAdminClient();
+  const adminClient = await createClient();
   
   const { error } = await adminClient
     .from("profiles")

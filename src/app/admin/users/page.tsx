@@ -9,7 +9,7 @@ export default async function UsersManagementPage(props: { searchParams: Promise
 
   let query = supabase
     .from("profiles")
-    .select("*")
+    .select("*", { count: "exact" })
     .eq("role", "employee");
 
   if (searchParams.sort) {
@@ -34,7 +34,7 @@ export default async function UsersManagementPage(props: { searchParams: Promise
   const to = from + PAGE_SIZE - 1;
 
   // Add exact count and range
-  query = query.select("*", { count: "exact" }).range(from, to);
+  query = query.range(from, to);
 
   const { data: users, error, count } = await query;
   const totalUsers = count || 0;

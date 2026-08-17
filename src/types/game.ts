@@ -38,7 +38,9 @@ export interface GameProps {
       customIsCorrect?: boolean; 
       customTimeSpent?: number; 
       isPerfect?: boolean;
-      customScoreModifiers?: { mistakes?: number; customSpeedBonus?: number };
+      isSkipped?: boolean;
+      dynamicCorrectAnswer?: string;
+      customScoreModifiers?: { mistakes?: number; customSpeedBonus?: number; accuracy?: number };
     }, 
     timeTakenSeconds?: number
   ) => void;

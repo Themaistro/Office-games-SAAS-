@@ -101,9 +101,9 @@ export default async function AdminDashboardPage() {
   let trendDirection = "neutral";
   let trendValue = 0;
   if (sessionsYesterday > 0) {
-    trendValue = Math.round(((sessionsToday - sessionsYesterday) / sessionsYesterday) * 100);
+    trendValue = Math.round((((sessionsToday ?? 0) - sessionsYesterday) / sessionsYesterday) * 100);
     trendDirection = trendValue > 0 ? "up" : trendValue < 0 ? "down" : "neutral";
-  } else if (sessionsToday > 0) {
+  } else if ((sessionsToday ?? 0) > 0) {
     trendDirection = "up";
     trendValue = 100;
   }

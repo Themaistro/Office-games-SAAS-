@@ -11,7 +11,7 @@ interface SessionData {
 
 export default function ActivityHeatmap({ history }: { history: SessionData[] }) {
   // Generate the last 35 days (5 weeks x 7 days)
-  const days = [];
+  const days: string[] = [];
   const today = new Date();
   
   for (let i = 34; i >= 0; i--) {
