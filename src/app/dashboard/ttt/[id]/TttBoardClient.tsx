@@ -3,14 +3,15 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Circle, X as XIcon, Trophy, User } from "lucide-react";
-import { makeTttMove, cancelTttGame } from "../actions";
+import { ArrowLeft, Loader2, Circle, X as XIcon, Trophy, User, Flag } from "lucide-react";
+import { makeTttMove, cancelTttGame, resignTttGame } from "../actions";
 import { clsx } from "clsx";
 import Link from "next/link";
 
 export default function TttBoardClient({ initialGame, currentUserId }: { initialGame: any; currentUserId: string }) {
   const [game, setGame] = useState<any>(initialGame);
   const [loadingAction, setLoadingAction] = useState(false);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
   const supabase = createClient();
   const router = useRouter();
   const channelRef = React.useRef<any>(null);
@@ -183,6 +184,15 @@ export default function TttBoardClient({ initialGame, currentUserId }: { initial
               <XIcon size={14} /> Cancel
             </button>
           )}
+
+          {game.status === "in_progress" && !isSpectator && (
+            <button 
+              onClick={() => setShowResignConfirm(true)}
+              className="px-4 py-2 rounded-full font-bold text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-sm flex items-center gap-2"
+            >
+              <Flag size={14} /> Resign
+            </button>
+          )}
         </div>
       </div>
 
@@ -235,6 +245,31 @@ export default function TttBoardClient({ initialGame, currentUserId }: { initial
           </div>
         )}
       </div>
+      {showResignConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-card p-6 rounded-3xl border shadow-xl max-w-sm w-full mx-4 animate-in zoom-in-95">
+            <h3 className="text-xl font-black mb-2">Resign Match?</h3>
+            <p className="text-muted-foreground text-sm mb-6">Are you sure you want to resign? You will lose Elo points.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowResignConfirm(false)} className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-lg font-bold text-sm transition-colors">Cancel</button>
+              <button 
+                onClick={async () => {
+                  try {
+                    await resignTttGame(game.id);
+                    setShowResignConfirm(false);
+                  } catch (e: any) {
+                    if (e.message === "NEXT_REDIRECT") throw e;
+                    alert("Failed to resign: " + e.message);
+                  }
+                }}
+                className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 rounded-lg font-bold text-sm transition-colors"
+              >
+                Resign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

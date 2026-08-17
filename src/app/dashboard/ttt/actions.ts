@@ -99,7 +99,6 @@ export async function challengeUserToTtt(targetUserId: string) {
   }
 
   revalidatePath("/dashboard");
-  revalidatePath("/dashboard");
   revalidatePath(`/profile/${targetUserId}`);
   // Send challenger to the board to wait
   redirect(`/dashboard/ttt/${data.id}`);
@@ -113,13 +112,15 @@ export async function acceptTttChallenge(gameId: string) {
   const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
   const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  const { error } = await adminClient
+  const { error, data } = await adminClient
     .from("ttt_games")
     .update({ status: "in_progress" })
     .eq("id", gameId)
-    .eq("o_player_id", user.id);
+    .eq("o_player_id", user.id)
+    .not("x_player_id", "is", null)
+    .select();
 
-  if (error) throw new Error("Failed to accept challenge");
+  if (error || !data || data.length === 0) throw new Error("Failed to accept challenge or not a valid challenge");
 
   revalidatePath("/dashboard");
   redirect(`/dashboard/ttt/${gameId}`);
@@ -149,8 +150,11 @@ export async function joinTttGame(gameId: string) {
     throw new Error("Game is full");
   }
 
-  const { error } = await adminClient.from("ttt_games").update(updates).eq("id", gameId);
-  if (error) throw new Error("Failed to join game");
+  const { error, data } = await adminClient.from("ttt_games").update(updates)
+    .eq("id", gameId)
+    .is(!game.x_player_id ? "x_player_id" : "o_player_id", null)
+    .select();
+  if (error || !data || data.length === 0) throw new Error("Failed to join game or seat already taken");
 
   revalidatePath("/dashboard");
   redirect(`/dashboard/ttt/${gameId}`);
@@ -172,7 +176,6 @@ export async function cancelTttGame(gameId: string) {
 
   await adminClient.from("ttt_games").delete().eq("id", gameId);
   revalidatePath("/dashboard");
-  redirect("/dashboard");
 }
 
 function checkTttWin(board: string): string | null {
@@ -237,68 +240,105 @@ export async function makeTttMove(gameId: string, index: number) {
 
   // If game is finished, calculate ELO and post to activity feed
   if (newStatus !== "in_progress") {
-    // Determine winner/loser ids
-    let winnerId: string | null = null;
-    let loserId: string | null = null;
-    if (newStatus === "x_won") {
-      winnerId = game.x_player_id;
-      loserId = game.o_player_id;
-    } else if (newStatus === "o_won") {
-      winnerId = game.o_player_id;
-      loserId = game.x_player_id;
-    }
-
-    // Fetch ELOs
-    const { data: players } = await adminClient.from("profiles")
-      .select("id, ttt_elo, full_name")
-      .in("id", [game.x_player_id, game.o_player_id]);
-    
-    if (players && players.length === 2) {
-      const p1 = players[0];
-      const p2 = players[1];
-
-      let rating1 = p1.ttt_elo || 1200;
-      let rating2 = p2.ttt_elo || 1200;
-
-      // Simple ELO calc
-      const K = 32;
-      const expected1 = 1 / (1 + Math.pow(10, (rating2 - rating1) / 400));
-      const expected2 = 1 / (1 + Math.pow(10, (rating1 - rating2) / 400));
-
-      let score1 = 0.5;
-      let score2 = 0.5;
-
-      if (winnerId === p1.id) { score1 = 1; score2 = 0; }
-      else if (winnerId === p2.id) { score1 = 0; score2 = 1; }
-
-      const newRating1 = Math.round(rating1 + K * (score1 - expected1));
-      const newRating2 = Math.round(rating2 + K * (score2 - expected2));
-
-      await adminClient.from("profiles").update({ ttt_elo: newRating1 }).eq("id", p1.id);
-      await adminClient.from("profiles").update({ ttt_elo: newRating2 }).eq("id", p2.id);
-    }
-
-    // Find loser name
-    let loserName = "Unknown";
-    if (loserId && players) {
-      const loserProfile = players.find(p => p.id === loserId);
-      if (loserProfile && loserProfile.full_name) {
-        loserName = loserProfile.full_name;
-      }
-    }
-
-    // Post to Activity Feed
-    const feedUserId = winnerId || game.x_player_id; // For draw, just pick X
-    
-    await adminClient.from("activity_feed").insert({
-      user_id: feedUserId,
-      type: "ttt",
-      description: newStatus === "draw" 
-        ? "drew a Tic Tac Toe match." 
-        : `won a Tic Tac Toe match against ${loserName}!`,
-      metadata: { game_id: gameId, status: newStatus }
-    });
+    await processTttGameEnd(adminClient, game, newStatus, gameId);
   }
 
+  revalidatePath("/dashboard");
+}
+
+export async function processTttGameEnd(adminClient: any, game: any, newStatus: string, gameId: string) {
+  // Determine winner/loser ids
+  let winnerId: string | null = null;
+  let loserId: string | null = null;
+  if (newStatus === "x_won") {
+    winnerId = game.x_player_id;
+    loserId = game.o_player_id;
+  } else if (newStatus === "o_won") {
+    winnerId = game.o_player_id;
+    loserId = game.x_player_id;
+  }
+
+  // Fetch ELOs
+  const { data: players } = await adminClient.from("profiles")
+    .select("id, ttt_elo, full_name")
+    .in("id", [game.x_player_id, game.o_player_id]);
+  
+  if (players && players.length === 2) {
+    const p1 = players[0];
+    const p2 = players[1];
+
+    let rating1 = p1.ttt_elo || 1200;
+    let rating2 = p2.ttt_elo || 1200;
+
+    // Simple ELO calc
+    const K = 32;
+    const expected1 = 1 / (1 + Math.pow(10, (rating2 - rating1) / 400));
+    const expected2 = 1 / (1 + Math.pow(10, (rating1 - rating2) / 400));
+
+    let score1 = 0.5;
+    let score2 = 0.5;
+
+    if (winnerId === p1.id) { score1 = 1; score2 = 0; }
+    else if (winnerId === p2.id) { score1 = 0; score2 = 1; }
+
+    const newRating1 = Math.round(rating1 + K * (score1 - expected1));
+    const newRating2 = Math.round(rating2 + K * (score2 - expected2));
+
+    await adminClient.from("profiles").update({ ttt_elo: newRating1 }).eq("id", p1.id);
+    await adminClient.from("profiles").update({ ttt_elo: newRating2 }).eq("id", p2.id);
+  }
+
+  // Find loser name
+  let loserName = "Unknown";
+  if (loserId && players) {
+    const loserProfile = players.find((p: any) => p.id === loserId);
+    if (loserProfile && loserProfile.full_name) {
+      loserName = loserProfile.full_name;
+    }
+  }
+
+  // Post to Activity Feed
+  const feedUserId = winnerId || game.x_player_id; // For draw, just pick X
+  
+  await adminClient.from("activity_feed").insert({
+    user_id: feedUserId,
+    type: "ttt",
+    description: newStatus === "draw" 
+      ? "drew a Tic Tac Toe match." 
+      : `won a Tic Tac Toe match against ${loserName}!`,
+    metadata: { game_id: gameId, status: newStatus }
+  });
+}
+
+export async function resignTttGame(gameId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+  const { data: game } = await adminClient.from("ttt_games").select("*").eq("id", gameId).single();
+  if (!game || game.status !== "in_progress") throw new Error("Game not active");
+
+  const isX = game.x_player_id === user.id;
+  const isO = game.o_player_id === user.id;
+  if (!isX && !isO) throw new Error("Not a player in this game");
+
+  // If one player is missing (bugged lobby), just delete it
+  if (!game.x_player_id || !game.o_player_id) {
+    await adminClient.from("ttt_games").delete().eq("id", gameId);
+    revalidatePath("/dashboard");
+    return;
+  }
+
+  const newStatus = isX ? "o_won" : "x_won";
+
+  await adminClient.from("ttt_games").update({
+    status: newStatus,
+    updated_at: new Date().toISOString()
+  }).eq("id", gameId);
+
+  await processTttGameEnd(adminClient, game, newStatus, gameId);
   revalidatePath("/dashboard");
 }

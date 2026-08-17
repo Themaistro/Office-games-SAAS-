@@ -144,13 +144,15 @@ export async function acceptChallenge(gameId: string) {
   const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
   const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  const { error } = await adminClient
+  const { error, data } = await adminClient
     .from("chess_games")
     .update({ status: "in_progress", last_move_timestamp: new Date().toISOString() })
     .eq("id", gameId)
-    .eq("black_player_id", user.id);
+    .eq("black_player_id", user.id)
+    .not("white_player_id", "is", null)
+    .select();
 
-  if (error) throw new Error("Failed to accept challenge");
+  if (error || !data || data.length === 0) throw new Error("Failed to accept challenge or not a valid challenge");
 
   revalidatePath("/dashboard");
   redirect(`/dashboard/chess/${gameId}`);
@@ -285,14 +287,16 @@ export async function joinChessGame(gameId: string) {
   const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
   const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  const { error: updateError } = await adminClient
+  const { error: updateError, data } = await adminClient
     .from("chess_games")
     .update(updateData)
-    .eq("id", gameId);
+    .eq("id", gameId)
+    .is(!game.white_player_id ? "white_player_id" : "black_player_id", null)
+    .select();
 
-  if (updateError) {
-    console.error("Failed to join game:", updateError);
-    throw new Error("Failed to join game: " + updateError.message);
+  if (updateError || !data || data.length === 0) {
+    console.error("Failed to join game:", updateError || "Seat already taken");
+    throw new Error("Failed to join game: " + (updateError?.message || "Seat already taken"));
   }
 
   revalidatePath("/dashboard");

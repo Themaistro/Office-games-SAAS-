@@ -26,6 +26,7 @@ export default function NotificationBellClient({ userId }: NotificationBellProps
       .from("chess_games")
       .select("id, created_at, white:profiles!chess_games_white_player_id_fkey(full_name)")
       .eq("black_player_id", userId)
+      .not("white_player_id", "is", null)
       .eq("status", "waiting");
 
     // Fetch TTT challenges
@@ -33,6 +34,7 @@ export default function NotificationBellClient({ userId }: NotificationBellProps
       .from("ttt_games")
       .select("id, created_at, x_player:profiles!ttt_games_x_player_id_fkey(full_name)")
       .eq("o_player_id", userId)
+      .not("x_player_id", "is", null)
       .eq("status", "waiting");
 
     const mappedChess = (chessData || []).map((g: any) => ({

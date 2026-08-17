@@ -571,6 +571,11 @@ export default function ChessBoardClient({
                   getMoveOptions(square as Square);
                 }
               },
+              onSquareMouseDown: ({ square }) => {
+                if (square) {
+                  getMoveOptions(square as Square);
+                }
+              },
               onSquareClick: ({ square }) => onSquareClick({ square }),
               squareStyles: computedSquareStyles,
               pieces: customPieces
