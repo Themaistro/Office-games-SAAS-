@@ -300,11 +300,19 @@ export async function processTttGameEnd(adminClient: any, game: any, newStatus: 
   // Post to Activity Feed
   const feedUserId = winnerId || game.x_player_id; // For draw, just pick X
   
+  let drawOpponentName = "Unknown";
+  if (newStatus === "draw" && players) {
+    const oppProfile = players.find((p: any) => p.id === game.o_player_id);
+    if (oppProfile && oppProfile.full_name) {
+      drawOpponentName = oppProfile.full_name;
+    }
+  }
+
   await adminClient.from("activity_feed").insert({
     user_id: feedUserId,
     type: "ttt",
     description: newStatus === "draw" 
-      ? "drew a Tic Tac Toe match." 
+      ? `drew a Tic Tac Toe match against ${drawOpponentName}.` 
       : `won a Tic Tac Toe match against ${loserName}!`,
     metadata: { game_id: gameId, status: newStatus }
   });

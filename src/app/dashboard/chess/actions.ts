@@ -485,9 +485,8 @@ export async function processChessGameEnd(gameId: string, result: 'white_won' | 
   await adminClient.from("profiles").update({ chess_elo: newR1 }).eq("id", game.white_player_id);
   await adminClient.from("profiles").update({ chess_elo: newR2 }).eq("id", game.black_player_id);
   
-  // Log Activity Feed Event
   let winnerId = null;
-  let description = "played a chess match that ended in a draw.";
+  let description = "";
   if (result === 'white_won') {
     winnerId = game.white_player_id;
     const loserName = blackProfile?.full_name || "Unknown";
@@ -496,6 +495,10 @@ export async function processChessGameEnd(gameId: string, result: 'white_won' | 
     winnerId = game.black_player_id;
     const loserName = whiteProfile?.full_name || "Unknown";
     description = `won a chess match against ${loserName}!`;
+  } else {
+    // Draw
+    const opponentName = blackProfile?.full_name || "Unknown";
+    description = `drew a chess match against ${opponentName}.`;
   }
   
   // Create two events so both profiles show activity, or just one global one. 
