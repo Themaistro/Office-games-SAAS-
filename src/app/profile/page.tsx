@@ -292,7 +292,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
           <div className={`absolute inset-0 bg-gradient-to-br ${themeColor} opacity-50`} />
           
           <div id="tour-profile-edit">
-            <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url}>
+            <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url} currentDepartment={profile.department}>
               <div className={`relative w-32 h-32 rounded-full flex items-center justify-center shrink-0 border-4 border-background shadow-2xl overflow-hidden transition-all duration-300 group/avatar ${
               profile.current_level >= 10 ? 'ring-4 ring-yellow-500/50 shadow-yellow-500/50' : 
               profile.current_level >= 5 ? 'ring-4 ring-slate-400/50 shadow-slate-400/50' : ''

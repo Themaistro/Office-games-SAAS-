@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function updateProfile(fullName: string, avatarUrl: string) {
+export async function updateProfile(fullName: string, avatarUrl: string, department?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -11,12 +11,18 @@ export async function updateProfile(fullName: string, avatarUrl: string) {
     return { error: "Unauthorized" };
   }
 
+  const payload: any = { 
+    full_name: fullName,
+    avatar_url: avatarUrl 
+  };
+  
+  if (department !== undefined) {
+    payload.department = department;
+  }
+
   const { error } = await supabase
     .from("profiles")
-    .update({ 
-      full_name: fullName,
-      avatar_url: avatarUrl 
-    })
+    .update(payload)
     .eq("id", user.id);
 
   if (error) {

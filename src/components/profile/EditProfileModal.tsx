@@ -91,13 +91,15 @@ const AVATARS = [
 interface EditProfileModalProps {
   currentName: string;
   currentAvatar: string | null;
+  currentDepartment?: string;
   children?: React.ReactNode;
 }
 
-export default function EditProfileModal({ currentName, currentAvatar, children }: EditProfileModalProps) {
+export default function EditProfileModal({ currentName, currentAvatar, currentDepartment, children }: EditProfileModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState(currentName);
   const [avatar, setAvatar] = useState(currentAvatar || AVATARS[0]);
+  const [department, setDepartment] = useState(currentDepartment || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -110,7 +112,7 @@ export default function EditProfileModal({ currentName, currentAvatar, children 
     if (!name.trim()) return;
     
     setIsSubmitting(true);
-    await updateProfile(name, avatar);
+    await updateProfile(name, avatar, department);
     setIsSubmitting(false);
     setIsOpen(false);
   };
@@ -188,6 +190,26 @@ export default function EditProfileModal({ currentName, currentAvatar, children 
                   className="w-full px-4 py-3 bg-secondary/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary font-medium text-foreground transition-all"
                   required
                 />
+              </div>
+
+              <div id="tour-profile-department" className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Department</label>
+                <select 
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full px-4 py-3 bg-secondary/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary font-medium text-foreground transition-all appearance-none"
+                >
+                  <option value="">Select your department...</option>
+                  <option value="Engineering">Engineering</option>
+                  <option value="Design">Design</option>
+                  <option value="Product">Product</option>
+                  <option value="Marketing">Marketing</option>
+                  <option value="Sales">Sales</option>
+                  <option value="HR">HR</option>
+                  <option value="Finance">Finance</option>
+                  <option value="Operations">Operations</option>
+                  <option value="Legal">Legal</option>
+                </select>
               </div>
 
               <div className="pt-2">

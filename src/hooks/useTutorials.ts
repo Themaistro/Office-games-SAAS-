@@ -196,8 +196,8 @@ export function useProfileTutorial() {
             {
               element: "#tour-profile-edit",
               popover: {
-                title: "Customize Your Avatar",
-                description: "Click here to pick a custom avatar to show off on the leaderboard and in game lobbies!",
+                title: "Customize Your Avatar & Division",
+                description: "Click here to pick a custom avatar and assign yourself to a Division (like Engineering or Sales) to show off on the Leaderboard!",
                 side: "bottom",
                 align: "center"
               }
