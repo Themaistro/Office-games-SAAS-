@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 export function useDashboardTutorial() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (localStorage.getItem("has_seen_dashboard_tutorial")) return;
+    if (localStorage.getItem("has_seen_dashboard_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
       const supabase = createClient();
@@ -78,7 +78,7 @@ export function useDashboardTutorial() {
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            localStorage.setItem("has_seen_dashboard_tutorial", "true");
+            localStorage.setItem("has_seen_dashboard_tutorial_v2", "true");
           }
         });
         driverObj.drive();
@@ -91,7 +91,7 @@ export function useDashboardTutorial() {
 export function useGameTutorial() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (localStorage.getItem("has_seen_game_tutorial")) return;
+    if (localStorage.getItem("has_seen_game_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
       const supabase = createClient();
@@ -157,7 +157,7 @@ export function useGameTutorial() {
         steps,
         onDestroyStarted: () => {
           driverObj.destroy();
-          localStorage.setItem("has_seen_game_tutorial", "true");
+          localStorage.setItem("has_seen_game_tutorial_v2", "true");
         }
       });
       
@@ -171,7 +171,7 @@ export function useGameTutorial() {
 export function useProfileTutorial() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (localStorage.getItem("has_seen_profile_tutorial")) return;
+    if (localStorage.getItem("has_seen_profile_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
       const supabase = createClient();
@@ -221,7 +221,7 @@ export function useProfileTutorial() {
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            localStorage.setItem("has_seen_profile_tutorial", "true");
+            localStorage.setItem("has_seen_profile_tutorial_v2", "true");
           }
         });
         
@@ -235,7 +235,7 @@ export function useProfileTutorial() {
 export function useLeaderboardTutorial() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (localStorage.getItem("has_seen_leaderboard_tutorial")) return;
+    if (localStorage.getItem("has_seen_leaderboard_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
       const supabase = createClient();
@@ -276,7 +276,7 @@ export function useLeaderboardTutorial() {
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            localStorage.setItem("has_seen_leaderboard_tutorial", "true");
+            localStorage.setItem("has_seen_leaderboard_tutorial_v2", "true");
           }
         });
         
@@ -290,7 +290,7 @@ export function useLeaderboardTutorial() {
 export function useChallengeTutorial() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (localStorage.getItem("has_seen_challenge_tutorial")) return;
+    if (localStorage.getItem("has_seen_challenge_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
       const supabase = createClient();
@@ -324,7 +324,7 @@ export function useChallengeTutorial() {
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            localStorage.setItem("has_seen_challenge_tutorial", "true");
+            localStorage.setItem("has_seen_challenge_tutorial_v2", "true");
           }
         });
         

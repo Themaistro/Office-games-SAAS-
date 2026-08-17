@@ -133,7 +133,7 @@ export default async function DashboardPage() {
       {/* Announcements Banner */}
       <AnnouncementBanner announcements={announcements || []} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+      <div id="tour-dashboard" className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
         
         {/* ==================== LEFT COLUMN (MAIN CONTENT) ==================== */}
         <div className="lg:col-span-8 flex flex-col gap-10">

@@ -39,7 +39,7 @@ export default function UnifiedOfficeLounge({ currentUserId }: { currentUserId: 
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div id="tour-office-lounge" className="flex flex-col gap-6">
       <div className="flex items-center gap-3 border-b border-border/60 pb-4">
         <div className="bg-primary/20 p-2 rounded-xl">
           <User className="text-primary" size={24} />
