@@ -96,7 +96,7 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
 
         {/* User Dropdown */}
         {user && (
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative" ref={dropdownRef} id="tour-profile-menu">
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex items-center gap-2 pl-2 pr-4 py-1.5 rounded-full hover:bg-secondary/80 transition-colors border border-transparent hover:border-border/50 group"

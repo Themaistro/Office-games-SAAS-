@@ -8,6 +8,7 @@ import ActivityHeatmap from "@/components/profile/ActivityHeatmap";
 import CognitiveRadarChart from "@/components/profile/CognitiveRadarChart";
 import ChessStatsCard from "@/components/profile/ChessStatsCard";
 import TttStatsCard from "@/components/profile/TttStatsCard";
+import ProfileTutorialTrigger from "@/components/tutorial/ProfileTutorialTrigger";
 
 export const dynamic = "force-dynamic";
 
@@ -285,13 +286,14 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
       <main className="flex-1 container mx-auto px-4 pt-28 pb-8 max-w-5xl">
-        
+        <ProfileTutorialTrigger />
         {/* Profile Header (Glassmorphic) */}
         <div className={`relative overflow-hidden bg-card/60 backdrop-blur-xl border ${borderColor} rounded-3xl p-8 sm:p-10 mb-8 flex flex-col md:flex-row gap-8 items-center md:items-start shadow-xl group transition-all duration-500 ${glowEffect}`}>
           <div className={`absolute inset-0 bg-gradient-to-br ${themeColor} opacity-50`} />
           
-          <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url}>
-            <div className={`relative w-32 h-32 rounded-full flex items-center justify-center shrink-0 border-4 border-background shadow-2xl overflow-hidden transition-all duration-300 group/avatar ${
+          <div id="tour-profile-edit">
+            <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url}>
+              <div className={`relative w-32 h-32 rounded-full flex items-center justify-center shrink-0 border-4 border-background shadow-2xl overflow-hidden transition-all duration-300 group/avatar ${
               profile.current_level >= 10 ? 'ring-4 ring-yellow-500/50 shadow-yellow-500/50' : 
               profile.current_level >= 5 ? 'ring-4 ring-slate-400/50 shadow-slate-400/50' : ''
             }`}>
@@ -311,6 +313,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
               </div>
             </div>
           </EditProfileModal>
+          </div>
           
           <div className="relative flex-1 text-center md:text-left w-full z-10">
             <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
@@ -392,7 +395,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
         {activeTab === "overview" && (
           <div className="flex flex-col gap-8">
             {/* Lifetime Statistics */}
-            <section>
+            <section id="tour-profile-stats">
               <h2 className="text-2xl font-black tracking-tight mb-4 flex items-center gap-2">
                 <Activity className="text-primary" /> Lifetime Stats
               </h2>

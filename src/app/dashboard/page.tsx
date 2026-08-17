@@ -173,7 +173,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Main Mission Card */}
-          <div className="relative rounded-3xl bg-card border border-border/60 shadow-xl overflow-hidden group">
+          <div id="tour-daily-mission" className="relative rounded-3xl bg-card border border-border/60 shadow-xl overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-50" />
             
             <div className="relative px-6 py-12 sm:p-16 text-center flex flex-col items-center">
@@ -258,7 +258,9 @@ export default async function DashboardPage() {
           </div>
 
           {/* The Office Lounge (Unified) */}
-          <UnifiedOfficeLounge currentUserId={user.id} />
+          <div id="tour-office-lounge">
+            <UnifiedOfficeLounge currentUserId={user.id} />
+          </div>
 
           {/* Unified Activity Feed (Live Feed + Matches) */}
           <LiveActivityFeed />
