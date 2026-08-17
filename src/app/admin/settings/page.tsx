@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { resetSeason, getSystemSettings, factoryResetPlatform, updateSystemSettings, bulkUpdateTimeLimits } from "./actions";
-import { AlertTriangle, RefreshCw, CalendarDays, Hash, Flame, Clock } from "lucide-react";
+import { resetSeason, getSystemSettings, factoryResetPlatform, updateSystemSettings } from "./actions";
+import { AlertTriangle, RefreshCw, CalendarDays, Hash, Flame } from "lucide-react";
 
 export default function SettingsPage() {
   const [isResetting, setIsResetting] = useState(false);
@@ -64,6 +64,14 @@ export default function SettingsPage() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Platform Settings</h1>
         <p className="text-muted-foreground mt-1">Manage global configuration and competition cycles.</p>
       </div>
+
+      {/* Global feedback banner */}
+      {message && (
+        <div className={`p-4 rounded-xl border text-sm font-medium whitespace-pre-wrap ${message.startsWith("❌") ? "bg-destructive/10 border-destructive/30 text-destructive" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-600"}`}>
+          {message}
+          <button onClick={() => setMessage("")} className="ml-4 underline opacity-70 hover:opacity-100 text-xs">Dismiss</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col relative">
@@ -137,52 +145,7 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden mb-8">
-        <div className="bg-muted/30 px-6 py-4 border-b border-border flex items-center gap-3">
-          <Clock className="text-primary" size={24} />
-          <h2 className="text-lg font-bold">Player Time Limits (Bulk Update)</h2>
-        </div>
-        <form action={async (formData) => {
-          const dlVal = parseInt(formData.get("dailyLimit") as string);
-          const slVal = parseInt(formData.get("sessionLimit") as string);
-          const dl = isNaN(dlVal) ? 0 : dlVal;
-          const sl = isNaN(slVal) ? 0 : slVal;
-          await bulkUpdateTimeLimits(dl, sl);
-          setMessage("Time limits updated successfully across all employees!");
-        }} className="p-6 space-y-4">
-          <p className="text-sm text-muted-foreground mb-4">
-            Use these controls to bulk update the time limits for every employee currently registered on the platform. 
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Daily Time Limit (Minutes)</label>
-              <input 
-                type="number" 
-                name="dailyLimit" 
-                defaultValue={15}
-                min="0"
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-              <p className="text-xs text-muted-foreground">Set to 0 to clear personal limits and use global defaults.</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Session Time Limit (Minutes)</label>
-              <input 
-                type="number" 
-                name="sessionLimit" 
-                defaultValue={5}
-                min="0"
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-            </div>
-          </div>
-          <div className="pt-4">
-            <button type="submit" className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold hover:bg-primary/90 transition-colors">
-              Apply to All Employees
-            </button>
-          </div>
-        </form>
-      </div>
+
 
       <div className="bg-card border border-destructive/30 rounded-xl shadow-sm overflow-hidden">
         <div className="bg-destructive/5 px-6 py-4 border-b border-destructive/20 flex items-center gap-3">

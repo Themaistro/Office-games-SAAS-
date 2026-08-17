@@ -6,7 +6,7 @@ import { clsx } from 'clsx';
 import { Lightbulb, Trash2 } from 'lucide-react';
 
 // --- 6x6 Sudoku Generator ---
-function generateSudoku() {
+function generateSudoku(difficulty: 'easy' | 'medium' | 'hard' = 'medium') {
   // Base valid 6x6 board
   // 6x6 Sudoku has 2x3 rectangular subgrids
   let board = [
@@ -50,7 +50,6 @@ function generateSudoku() {
   if (Math.random() > 0.5) swapRows(4, 5);
 
   // 3. Shuffle bands (swap band 0 and 1, etc.)
-  // Band 0: rows 0,1. Band 1: rows 2,3. Band 2: rows 4,5
   const bands = [0, 1, 2];
   shuffle(bands);
   const newBoardRows = [];
@@ -63,7 +62,6 @@ function generateSudoku() {
   const shuffleStack = (startCol: number) => {
     const cols = [startCol, startCol + 1, startCol + 2];
     shuffle(cols);
-    // Extract them and reassign
     const newCols = cols.map(c => board.map(row => row[c]));
     for (let r = 0; r < 6; r++) {
       board[r][startCol] = newCols[0][r];
@@ -84,24 +82,75 @@ function generateSudoku() {
   // Save full solution
   const solution = board.map(row => [...row]);
 
-  // Punch holes (remove 18-22 numbers for a solid medium challenge out of 36)
-  const cellsToRemove = Math.floor(Math.random() * 5) + 18; 
+  // Solver for uniqueness check
+  const isValid = (b: (number | null)[][], r: number, c: number, num: number) => {
+    for (let i = 0; i < 6; i++) {
+      if (b[r][i] === num) return false;
+      if (b[i][c] === num) return false;
+    }
+    const br = Math.floor(r / 2) * 2;
+    const bc = Math.floor(c / 3) * 3;
+    for (let i = 0; i < 2; i++) {
+      for (let j = 0; j < 3; j++) {
+        if (b[br + i][bc + j] === num) return false;
+      }
+    }
+    return true;
+  };
+
+  const countSolutions = (b: (number | null)[][]) => {
+    let solutions = 0;
+    const solve = () => {
+      if (solutions > 1) return;
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          if (b[r][c] === null) {
+            for (let num = 1; num <= 6; num++) {
+              if (isValid(b, r, c, num)) {
+                b[r][c] = num;
+                solve();
+                b[r][c] = null;
+              }
+            }
+            return;
+          }
+        }
+      }
+      solutions++;
+    };
+    solve();
+    return solutions;
+  };
+
+  // Determine difficulty
+  let cellsToRemove = 18;
+  if (difficulty === 'easy') cellsToRemove = Math.floor(Math.random() * 3) + 12; // 12-14
+  else if (difficulty === 'medium') cellsToRemove = Math.floor(Math.random() * 3) + 16; // 16-18
+  else if (difficulty === 'hard') cellsToRemove = Math.floor(Math.random() * 3) + 20; // 20-22
+
   let removed = 0;
   const puzzle = board.map(row => [...row]) as (number | null)[][];
   
-  while (removed < cellsToRemove) {
+  let attempts = 0;
+  while (removed < cellsToRemove && attempts < 100) {
     const r = Math.floor(Math.random() * 6);
     const c = Math.floor(Math.random() * 6);
     if (puzzle[r][c] !== null) {
+      const backup = puzzle[r][c];
       puzzle[r][c] = null;
-      removed++;
+      if (countSolutions(puzzle) === 1) {
+        removed++;
+      } else {
+        puzzle[r][c] = backup; // Put it back if it ruins uniqueness
+      }
     }
+    attempts++;
   }
 
   return { solution, puzzle };
 }
 
-export default function SudokuLiteGame({ onAnswer, isSubmitting, showHint }: GameComponentProps) {
+export default function SudokuLiteGame({ question, onAnswer, isSubmitting, showHint }: GameComponentProps) {
   const [solution, setSolution] = useState<number[][]>([]);
   const [initialBoard, setInitialBoard] = useState<(number | null)[][]>([]);
   const [board, setBoard] = useState<(number | null)[][]>([]);
@@ -113,7 +162,7 @@ export default function SudokuLiteGame({ onAnswer, isSubmitting, showHint }: Gam
   const [startTime, setStartTime] = useState(Date.now());
 
   useEffect(() => {
-    const { solution, puzzle } = generateSudoku();
+    const { solution, puzzle } = generateSudoku(question?.difficulty || 'medium');
     setSolution(solution);
     setInitialBoard(puzzle.map(row => [...row]));
     setBoard(puzzle.map(row => [...row]));
@@ -124,7 +173,7 @@ export default function SudokuLiteGame({ onAnswer, isSubmitting, showHint }: Gam
     setErrorCell(null);
     setHintUsed(false);
     setIsCompleted(false);
-  }, []);
+  }, [question?.difficulty]);
 
   const handleUseHint = useCallback(() => {
     if (hintUsed || isSubmitting || isCompleted || board.length === 0) return;
@@ -168,7 +217,7 @@ export default function SudokuLiteGame({ onAnswer, isSubmitting, showHint }: Gam
     }
   }, [showHint, hintUsed, handleUseHint]);
 
-  const checkCompletion = (currentBoard: (number | null)[][]) => {
+  const checkCompletion = useCallback((currentBoard: (number | null)[][]) => {
     let isFull = true;
     let isCorrect = true;
     
@@ -193,9 +242,9 @@ export default function SudokuLiteGame({ onAnswer, isSubmitting, showHint }: Gam
         setTimeout(() => setErrorCell(null), 500);
       }
     }
-  };
+  }, [mistakes, onAnswer, selectedCell, solution, startTime]);
 
-  const handleNumpadPress = (num: number | null) => {
+  const handleNumpadPress = useCallback((num: number | null) => {
     if (isSubmitting || isCompleted || !selectedCell) return;
     const [r, c] = selectedCell;
 
@@ -225,7 +274,32 @@ export default function SudokuLiteGame({ onAnswer, isSubmitting, showHint }: Gam
       setSelectedCell(null);
       checkCompletion(newBoard);
     }
-  };
+  }, [board, checkCompletion, initialBoard, isCompleted, isSubmitting, selectedCell, solution]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isSubmitting || isCompleted || !selectedCell) return;
+      
+      if (e.key >= '1' && e.key <= '6') {
+        handleNumpadPress(parseInt(e.key));
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        handleNumpadPress(null);
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const [r, c] = selectedCell;
+        let newR = r;
+        let newC = c;
+        if (e.key === 'ArrowUp' && r > 0) newR--;
+        if (e.key === 'ArrowDown' && r < 5) newR++;
+        if (e.key === 'ArrowLeft' && c > 0) newC--;
+        if (e.key === 'ArrowRight' && c < 5) newC++;
+        setSelectedCell([newR, newC]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleNumpadPress, isSubmitting, isCompleted, selectedCell]);
 
   if (board.length === 0) return null;
 

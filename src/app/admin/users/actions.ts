@@ -108,29 +108,29 @@ export async function wipePlayerSession(userId: string) {
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  // Get the most recent session
-  const { data: latestSession } = await supabase
-    .from("daily_sessions")
-    .select("id")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  if (latestSession) {
-    // We use service role to bypass RLS if necessary, but since we are admin, standard delete might be blocked by RLS
-    // Let's use service role client just to be safe for deletions
-    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
-    const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    
-    const { error } = await adminClient.from("daily_sessions").delete().eq("id", latestSession.id);
-    if (error) {
-      console.error("Error wiping session:", error);
-      throw new Error(error.message);
-    }
+  // Delete ALL of today's sessions for this user (both completed and incomplete).
+  // This is the only way to fully reset the cooldown — if we only delete the
+  // most recent session, an older completed session from earlier today would
+  // still trigger the cooldown on the dashboard.
+  const today = new Date().toISOString().split('T')[0];
+  const { error } = await adminClient
+    .from("daily_sessions")
+    .delete()
+    .eq("user_id", userId)
+    .gte("created_at", `${today}T00:00:00Z`);
+
+  if (error) {
+    console.error("Error wiping session:", error);
+    throw new Error(error.message);
   }
 
+  // Revalidate both admin and the player's dashboard so GlobalRealtimeSync
+  // picks up the change and refreshes their browser automatically.
   revalidatePath("/admin/users");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -161,6 +161,48 @@ export async function grantExtraTime(userId: string, extraSeconds: number = 300)
       console.error("Error granting time:", error);
       throw new Error(error.message);
     }
+  }
+
+  revalidatePath("/admin/users");
+  return { success: true };
+}
+
+export async function setPlayerTimeLimits(
+  userId: string,
+  dailyLimitMinutes: number | null,
+  sessionLimitMinutes: number | null
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: adminProfile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (adminProfile?.role !== "admin") throw new Error("Unauthorized: Admins only");
+
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { error } = await adminClient
+    .from("profiles")
+    .update({
+      daily_time_limit_minutes: dailyLimitMinutes,
+      session_time_limit_minutes: sessionLimitMinutes,
+    })
+    .eq("id", userId);
+
+  if (error) {
+    console.error("Failed to set player time limits:", error);
+    if (error.message?.includes("daily_time_limit_minutes") || error.message?.includes("session_time_limit_minutes")) {
+      throw new Error(
+        "DB columns missing. Run in Supabase SQL editor:\n" +
+        "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS daily_time_limit_minutes integer;\n" +
+        "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS session_time_limit_minutes integer;"
+      );
+    }
+    throw new Error(`Failed to update: ${error.message}`);
   }
 
   revalidatePath("/admin/users");

@@ -20,6 +20,9 @@ export default function PlayPage() {
       try {
         const result = await startDailySession();
         if (result.error) {
+          if (result.message) {
+            alert(result.message);
+          }
           router.push("/dashboard");
           return;
         }

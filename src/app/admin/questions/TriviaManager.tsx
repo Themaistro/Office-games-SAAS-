@@ -40,28 +40,20 @@ export default function TriviaManager({
           Add New Question
         </h2>
         <form action={addAction} className="space-y-4">
-          <div className="mb-2">
+          <div>
             <label className="block text-sm font-medium mb-2">Select Game Type</label>
-            <input type="hidden" name="gameSlug" value={selectedGameSlug} />
-            <div className="grid grid-cols-2 gap-3">
-              {filteredGameTypes.map(gt => {
-                const isSelected = selectedGameSlug === gt.slug;
-                return (
-                  <button
-                    key={gt.slug}
-                    type="button"
-                    onClick={() => setSelectedGameSlug(gt.slug)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 text-sm transition-all ${
-                      isSelected 
-                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm scale-[1.02]" 
-                        : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:bg-muted"
-                    }`}
-                  >
-                    {gt.name}
-                  </button>
-                );
-              })}
-            </div>
+            <select
+              name="gameSlug"
+              value={selectedGameSlug}
+              onChange={(e) => setSelectedGameSlug(e.target.value)}
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            >
+              {(filteredGameTypes || []).map(gt => (
+                <option key={gt.slug} value={gt.slug}>
+                  {gt.name}
+                </option>
+              ))}
+            </select>
           </div>
           
           <div>

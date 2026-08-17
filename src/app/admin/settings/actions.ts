@@ -180,6 +180,14 @@ export async function factoryResetPlatform() {
 }
 
 export async function bulkUpdateTimeLimits(dailyLimit: number, sessionLimit: number) {
+  "use server";
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") throw new Error("Unauthorized: Admins only");
+
   const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
   const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   
@@ -193,7 +201,15 @@ export async function bulkUpdateTimeLimits(dailyLimit: number, sessionLimit: num
 
   if (error) {
     console.error("Failed to bulk update time limits:", error);
-    throw new Error("Failed to update time limits.");
+    // Give a clear message if this is a missing-column error (PGRST204 / column not found)
+    if (error.message?.includes("daily_time_limit_minutes") || error.message?.includes("session_time_limit_minutes") || error.code === "PGRST204") {
+      throw new Error(
+        "Database columns missing! Run this SQL in Supabase:\n\n" +
+        "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS daily_time_limit_minutes integer;\n" +
+        "ALTER TABLE profiles ADD COLUMN IF NOT EXISTS session_time_limit_minutes integer;"
+      );
+    }
+    throw new Error(`Failed to update time limits: ${error.message}`);
   }
 
   revalidatePath("/admin/settings");

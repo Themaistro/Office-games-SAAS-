@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Navbar from "@/components/layout/Navbar";
-import { User, Flame, Trophy, Target, CalendarDays, Award, Star, Lock, Activity, ChevronRight, Edit3 } from "lucide-react";
+import { User, Flame, Trophy, Target, CalendarDays, Award, Star, Lock, Activity, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { clsx } from "clsx";
 import EditProfileModal from "@/components/profile/EditProfileModal";
@@ -8,11 +8,14 @@ import ActivityHeatmap from "@/components/profile/ActivityHeatmap";
 import CognitiveRadarChart from "@/components/profile/CognitiveRadarChart";
 import ChessStatsCard from "@/components/profile/ChessStatsCard";
 import TttStatsCard from "@/components/profile/TttStatsCard";
+import ChallengeMenu from "@/components/profile/ChallengeMenu";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage(props: { searchParams?: Promise<{ tab?: string }> }) {
+export default async function PublicProfilePage(props: { params: Promise<{ id: string }>, searchParams?: Promise<{ tab?: string }> }) {
   const searchParams = await props.searchParams;
+  const params = await props.params;
+  const profileId = params.id;
   const activeTab = searchParams?.tab || "overview";
 
   const supabase = await createClient();
@@ -29,7 +32,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     );
   }
 
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  const { data: profile } = await supabase.from("profiles").select("*").eq("id", profileId).single();
 
   if (!profile) {
     return (
@@ -50,14 +53,14 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
       white:profiles!chess_games_white_player_id_fkey ( id, full_name, avatar_url, chess_elo ),
       black:profiles!chess_games_black_player_id_fkey ( id, full_name, avatar_url, chess_elo )
     `)
-    .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`)
+    .or(`white_player_id.eq.${profileId},black_player_id.eq.${profileId}`)
     .in('status', ['white_won', 'black_won', 'draw'])
     .order('updated_at', { ascending: false });
 
   const { data: tttGames } = await supabase
     .from('ttt_games')
     .select(`*, x_player:profiles!ttt_games_x_player_id_fkey(id, full_name, avatar_url), o_player:profiles!ttt_games_o_player_id_fkey(id, full_name, avatar_url)`)
-    .or(`x_player_id.eq.${user.id},o_player_id.eq.${user.id}`)
+    .or(`x_player_id.eq.${profileId},o_player_id.eq.${profileId}`)
     .in('status', ['x_won', 'o_won', 'draw'])
     .order('updated_at', { ascending: false });
 
@@ -141,7 +144,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
   const { data: recentHistory } = await supabase
     .from("daily_sessions")
     .select("date, total_score, total_xp_earned, is_completed")
-    .eq("user_id", user.id)
+    .eq("user_id", profileId)
     .eq("is_completed", true)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -150,7 +153,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
   const { data: heatmapHistory } = await supabase
     .from("daily_sessions")
     .select("date, total_score, total_xp_earned, is_completed")
-    .eq("user_id", user.id)
+    .eq("user_id", profileId)
     .eq("is_completed", true)
     .order("created_at", { ascending: false })
     .limit(35);
@@ -159,7 +162,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
   const { data: userSessions } = await supabase
     .from("daily_sessions")
     .select("id")
-    .eq("user_id", user.id)
+    .eq("user_id", profileId)
     .eq("is_completed", true);
 
   const sessionIds = userSessions?.map(s => s.id) || [];
@@ -290,27 +293,22 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
         <div className={`relative overflow-hidden bg-card/60 backdrop-blur-xl border ${borderColor} rounded-3xl p-8 sm:p-10 mb-8 flex flex-col md:flex-row gap-8 items-center md:items-start shadow-xl group transition-all duration-500 ${glowEffect}`}>
           <div className={`absolute inset-0 bg-gradient-to-br ${themeColor} opacity-50`} />
           
-          <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url}>
-            <div className={`relative w-32 h-32 rounded-full flex items-center justify-center shrink-0 border-4 border-background shadow-2xl overflow-hidden transition-all duration-300 group/avatar ${
-              profile.current_level >= 10 ? 'ring-4 ring-yellow-500/50 shadow-yellow-500/50' : 
-              profile.current_level >= 5 ? 'ring-4 ring-slate-400/50 shadow-slate-400/50' : ''
-            }`}>
-              <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted" />
-              {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover relative z-10 transition-transform duration-300 group-hover/avatar:scale-105" />
-              ) : (
-                <User className="w-16 h-16 text-muted-foreground/50 relative z-10" />
-              )}
-              
-              {/* Edit Hover Overlay */}
-              <div className="absolute inset-0 bg-black/60 z-20 opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-white">
-                <div className="bg-background/20 rounded-full p-2 mb-1">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider">Edit</span>
-              </div>
-            </div>
-          </EditProfileModal>
+          {user.id === profile.id && (
+            <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url} />
+          )}
+
+          <div className={`relative w-32 h-32 rounded-full flex items-center justify-center shrink-0 border-4 border-background shadow-2xl overflow-hidden ${
+            profile.current_level >= 10 ? 'ring-4 ring-yellow-500/50 shadow-yellow-500/50' : 
+            profile.current_level >= 5 ? 'ring-4 ring-slate-400/50 shadow-slate-400/50' : ''
+          }`}>
+            <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted" />
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover relative z-10" />
+            ) : (
+              <User className="w-16 h-16 text-muted-foreground/50 relative z-10" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent z-20 pointer-events-none" />
+          </div>
           
           <div className="relative flex-1 text-center md:text-left w-full z-10">
             <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
@@ -323,12 +321,6 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
                   <span className="text-sm font-semibold text-muted-foreground">
                     {profile.department ? `${profile.department} Division` : 'No Department'}
                   </span>
-                  <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url}>
-                    <button className="flex items-center gap-1.5 px-3 py-1 bg-background/50 hover:bg-background border border-border/50 text-xs font-bold rounded-full transition-colors md:ml-2 shadow-sm group">
-                      <Edit3 size={12} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                      <span>Edit Profile</span>
-                    </button>
-                  </EditProfileModal>
                 </div>
               </div>
               <div className="hidden md:flex flex-col items-end gap-2">
@@ -337,6 +329,9 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
                   <span className="font-bold text-muted-foreground">Global Rank</span>
                   <span className="font-black text-xl text-foreground">#{userRank}</span>
                 </div>
+                {user.id !== profile.id && (
+                  <ChallengeMenu targetUserId={profile.id} />
+                )}
               </div>
             </div>
             
@@ -360,7 +355,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
         {/* Tabs Navigation */}
         <div className="flex gap-2 overflow-x-auto hide-scrollbar mb-8 border-b border-border/50 pb-px">
           <Link 
-            href="/profile?tab=overview" 
+            href={`/profile/${profileId}?tab=overview`} 
             className={clsx(
               "px-6 py-3 font-bold text-sm whitespace-nowrap border-b-2 transition-colors", 
               activeTab === "overview" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -369,7 +364,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
             Overview
           </Link>
           <Link 
-            href="/profile?tab=mastery" 
+            href={`/profile/${profileId}?tab=mastery`} 
             className={clsx(
               "px-6 py-3 font-bold text-sm whitespace-nowrap border-b-2 transition-colors", 
               activeTab === "mastery" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -378,7 +373,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
             Cognitive Mastery
           </Link>
           <Link 
-            href="/profile?tab=chess" 
+            href={`/profile/${profileId}?tab=chess`} 
             className={clsx(
               "px-6 py-3 font-bold text-sm whitespace-nowrap border-b-2 transition-colors", 
               activeTab === "chess" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -539,12 +534,12 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
             <ChessStatsCard 
               elo={profile.chess_elo || 1200} 
               games={chessGames || []} 
-              currentUserId={user.id} 
+              currentUserId={profileId} 
             />
             <TttStatsCard 
               elo={profile.ttt_elo || 1200} 
               games={tttGames || []} 
-              currentUserId={user.id} 
+              currentUserId={profileId} 
             />
           </div>
         )}

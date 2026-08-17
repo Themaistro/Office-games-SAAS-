@@ -51,6 +51,21 @@ export async function startDailySession() {
       };
   }
 
+  // 1.d Check if they have an active chess game
+  const { data: activeChess } = await supabase
+    .from('chess_games')
+    .select('id')
+    .in('status', ['waiting', 'in_progress'])
+    .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`)
+    .limit(1);
+
+  if (activeChess && activeChess.length > 0) {
+    return { 
+      error: "active_chess_game", 
+      message: "You have an active chess game. Please finish or abandon it before starting a Daily Mission." 
+    };
+  }
+
   // 1. Check if they have an active (incomplete) session (could be normal or a test session)
   const { data: activeSessions } = await supabase
     .from("daily_sessions")
@@ -720,6 +735,20 @@ export async function endSession(sessionId: string) {
         last_played_at: new Date().toISOString()
       })
       .eq("id", user.id);
+      
+    // Log Activity Feed Event
+    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+    const adminClient = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    
+    await adminClient.from("activity_feed").insert({
+      user_id: user.id,
+      type: "mission",
+      description: `completed a Daily Mission and earned ${finalTotalXp} XP!`,
+      metadata: { score: baseTotalXp, xp: finalTotalXp, streak: newStreak }
+    });
   }
 
   revalidatePath("/dashboard");

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Trophy, Medal, User, Flame } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
+import Link from "next/link";
 
 // We'll mock the data if the DB isn't populated yet, but here's the real query structure.
 export default async function LeaderboardPage() {
@@ -114,8 +115,8 @@ export default async function LeaderboardPage() {
               
               <div className="divide-y divide-border">
                 {dataToUse.map((player, idx) => (
-                  <div key={player.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/20 transition-colors">
-                    <div className="col-span-2 sm:col-span-1 text-center font-bold text-lg">
+                  <Link href={`/profile/${player.id}`} key={player.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/50 transition-colors cursor-pointer group">
+                    <div className="col-span-2 sm:col-span-1 text-center font-bold text-lg group-hover:scale-110 transition-transform">
                       {idx === 0 ? <Medal className="text-yellow-500 mx-auto" /> : 
                        idx === 1 ? <Medal className="text-gray-400 mx-auto" /> : 
                        idx === 2 ? <Medal className="text-amber-700 mx-auto" /> : 
@@ -131,7 +132,7 @@ export default async function LeaderboardPage() {
                         )}
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-semibold">{player.full_name || 'Anonymous'}</span>
+                        <span className="font-semibold group-hover:text-primary transition-colors">{player.full_name || 'Anonymous'}</span>
                         <span className="text-xs text-muted-foreground">{player.department || 'Employee'} • Lvl {player.current_level}</span>
                       </div>
                     </div>
@@ -141,10 +142,10 @@ export default async function LeaderboardPage() {
                       <span>{player.current_streak}</span>
                     </div>
 
-                    <div className="col-span-5 sm:col-span-3 text-right pr-4 font-bold text-primary">
+                    <div className="col-span-5 sm:col-span-3 text-right pr-4 font-bold text-primary group-hover:text-primary/80 transition-colors">
                       {player.total_xp.toLocaleString()} XP
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

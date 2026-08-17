@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Brain, LogOut, User, Trophy, Flame, LayoutDashboard, Settings, ChevronDown, Shield } from "lucide-react";
+import NotificationBellClient from "./NotificationBellClient";
 
 interface NavbarClientProps {
   user: any;
@@ -37,9 +38,9 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
   }
 
   return (
-    <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+    <div className="fixed top-6 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
       {/* Floating Glass Pill */}
-      <nav className="flex items-center gap-2 p-2 rounded-full bg-background/70 backdrop-blur-xl border border-border/60 shadow-2xl pointer-events-auto transition-all">
+      <nav className="flex items-center gap-2 p-2 rounded-full bg-background/70 backdrop-blur-xl border border-border/60 shadow-2xl pointer-events-auto transition-all max-w-[calc(100vw-2rem)]">
         
         {/* Brand Icon */}
         <Link 
@@ -75,6 +76,8 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
 
         <div className="w-px h-8 bg-border/60 mx-2" />
 
+        {user && <NotificationBellClient userId={user.id} />}
+
         {/* Stats Badge */}
         {user && profile && profile.role !== "admin" && (
           <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/40 mr-2 shadow-inner">
@@ -109,7 +112,7 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-card border border-border/60 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute right-0 top-full mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-2xl bg-card border border-border/60 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="px-4 py-3 border-b border-border/40 bg-muted/20">
                   <p className="text-sm font-bold text-foreground truncate">{profile?.full_name || "User"}</p>
                   <p className="text-xs text-muted-foreground truncate">{user.email}</p>

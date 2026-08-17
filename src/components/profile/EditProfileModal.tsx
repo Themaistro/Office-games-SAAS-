@@ -91,9 +91,10 @@ const AVATARS = [
 interface EditProfileModalProps {
   currentName: string;
   currentAvatar: string | null;
+  children?: React.ReactNode;
 }
 
-export default function EditProfileModal({ currentName, currentAvatar }: EditProfileModalProps) {
+export default function EditProfileModal({ currentName, currentAvatar, children }: EditProfileModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState(currentName);
   const [avatar, setAvatar] = useState(currentAvatar || AVATARS[0]);
@@ -116,17 +117,29 @@ export default function EditProfileModal({ currentName, currentAvatar }: EditPro
 
   return (
     <>
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="absolute top-4 right-4 p-2 bg-background/50 backdrop-blur border border-border/50 text-muted-foreground hover:text-foreground rounded-full transition-colors hover:bg-secondary z-10"
-        title="Edit Profile"
-      >
-        <Edit3 size={18} />
-      </button>
+      {children ? (
+        <div onClick={() => setIsOpen(true)} className="cursor-pointer inline-block group/edit">
+          {children}
+        </div>
+      ) : (
+        <button 
+          onClick={() => setIsOpen(true)}
+          className="absolute top-4 right-4 p-2 bg-background/50 backdrop-blur border border-border/50 text-muted-foreground hover:text-foreground rounded-full transition-colors hover:bg-secondary z-10"
+          title="Edit Profile"
+        >
+          <Edit3 size={18} />
+        </button>
+      )}
 
       {isOpen && mounted && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="bg-card border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
+          onClick={() => setIsOpen(false)}
+        >
+          <div 
+            className="bg-card border border-border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-border flex justify-between items-center shrink-0">
               <h2 className="text-xl font-bold">Edit Profile</h2>
               <button 
@@ -141,25 +154,27 @@ export default function EditProfileModal({ currentName, currentAvatar }: EditPro
               
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Choose Avatar</label>
-                <div className="grid grid-cols-4 gap-3 max-h-[40vh] overflow-y-auto pr-2 pb-2 custom-scrollbar">
-                  {AVATARS.map((a) => (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={() => setAvatar(a)}
-                      className={clsx(
-                        "relative w-full aspect-square rounded-2xl border-2 transition-all p-1 flex items-center justify-center overflow-hidden hover:scale-105",
-                        avatar === a ? "border-primary bg-primary/10 shadow-md" : "border-border bg-secondary hover:border-primary/50"
-                      )}
-                    >
-                      <img src={a} alt="Avatar option" className="w-full h-full object-contain" />
-                      {avatar === a && (
-                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5 shadow-sm">
-                          <Check size={12} strokeWidth={4} />
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                <div className="max-h-[40vh] overflow-y-auto pr-2 pb-2 custom-scrollbar">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                    {AVATARS.map((a) => (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => setAvatar(a)}
+                        className={clsx(
+                          "relative w-full aspect-square rounded-2xl border-2 transition-all p-1 flex items-center justify-center overflow-hidden hover:scale-105",
+                          avatar === a ? "border-primary bg-primary/10 shadow-md" : "border-border bg-secondary hover:border-primary/50"
+                        )}
+                      >
+                        <img src={a} alt="Avatar option" className="w-full h-full object-contain" />
+                        {avatar === a && (
+                          <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 shadow-sm">
+                            <Check size={14} strokeWidth={4} />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
