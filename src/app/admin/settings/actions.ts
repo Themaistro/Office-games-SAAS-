@@ -180,13 +180,14 @@ export async function factoryResetPlatform() {
 }
 
 export async function bulkUpdateTimeLimits(dailyLimit: number, sessionLimit: number) {
-  const adminClient = await createClient();
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   
   const { error } = await adminClient
     .from("profiles")
     .update({
-      daily_time_limit_minutes: dailyLimit,
-      session_time_limit_minutes: sessionLimit
+      daily_time_limit_minutes: dailyLimit === 0 ? null : dailyLimit,
+      session_time_limit_minutes: sessionLimit === 0 ? null : sessionLimit
     })
     .eq("role", "employee");
 

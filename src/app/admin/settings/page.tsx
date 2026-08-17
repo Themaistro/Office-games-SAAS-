@@ -160,9 +160,10 @@ export default function SettingsPage() {
                 type="number" 
                 name="dailyLimit" 
                 defaultValue={15}
-                min="1"
+                min="0"
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
+              <p className="text-xs text-muted-foreground">Set to 0 to clear personal limits and use global defaults.</p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold">Session Time Limit (Minutes)</label>
