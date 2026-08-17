@@ -12,6 +12,8 @@ import { useRouter } from "next/navigation";
 type OpenGame = {
   id: string;
   creator_id: string;
+  player1_id?: string;
+  player2_id?: string;
   game_type: "chess" | "ttt";
   created_at: string;
   status: string;
@@ -86,6 +88,8 @@ export default function UnifiedLobbiesWidget({ currentUserId }: { currentUserId:
         openGames.push({
           id: g.id,
           creator_id: creatorId,
+          player1_id: g.white_player_id,
+          player2_id: g.black_player_id,
           game_type: "chess",
           created_at: g.created_at,
           status: g.status,
@@ -101,6 +105,8 @@ export default function UnifiedLobbiesWidget({ currentUserId }: { currentUserId:
         openGames.push({
           id: g.id,
           creator_id: creatorId,
+          player1_id: g.x_player_id,
+          player2_id: g.o_player_id,
           game_type: "ttt",
           created_at: g.created_at,
           status: g.status,
@@ -175,7 +181,11 @@ export default function UnifiedLobbiesWidget({ currentUserId }: { currentUserId:
                     </div>
                     <div className="flex flex-col">
                       <span className="font-bold text-sm tracking-tight">
-                        {g.status === 'in_progress' ? 'Live Match' : (g.profiles?.full_name || "Unknown")}
+                        {g.status === 'in_progress'
+                          ? (g.player1_id === currentUserId || g.player2_id === currentUserId)
+                            ? '⚡ Your Game'
+                            : 'Live Match'
+                          : (g.profiles?.full_name || "Unknown")}
                       </span>
                       <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
                         {g.game_type === 'chess' ? 'Chess' : 'Tic Tac Toe'} • {formatDistanceToNow(new Date(g.created_at))} ago
@@ -193,12 +203,21 @@ export default function UnifiedLobbiesWidget({ currentUserId }: { currentUserId:
                   </div>
 
                   {g.status === 'in_progress' ? (
-                    <button
-                      onClick={() => router.push(`/dashboard/${g.game_type}/${g.id}`)}
-                      className="px-4 py-2 rounded-xl text-sm font-bold bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors shadow-sm"
-                    >
-                      Spectate
-                    </button>
+                    (g.player1_id === currentUserId || g.player2_id === currentUserId) ? (
+                      <button
+                        onClick={() => router.push(`/dashboard/${g.game_type}/${g.id}`)}
+                        className="px-4 py-2 rounded-xl text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                      >
+                        Return to Game
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => router.push(`/dashboard/${g.game_type}/${g.id}`)}
+                        className="px-4 py-2 rounded-xl text-sm font-bold bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors shadow-sm"
+                      >
+                        Spectate
+                      </button>
+                    )
                   ) : isCreator ? (
                     <button
                       onClick={() => handleCancel(g.id, g.game_type)}

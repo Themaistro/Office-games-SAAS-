@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { Bell, Swords, X as XIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { joinChessGame } from "@/app/dashboard/chess/actions";
-import { joinTttGame } from "@/app/dashboard/ttt/actions";
+import { acceptChallenge } from "@/app/dashboard/chess/actions";
+import { acceptTttChallenge } from "@/app/dashboard/ttt/actions";
 
 interface NotificationBellProps {
   userId: string;
@@ -56,29 +56,25 @@ export default function NotificationBellClient({ userId }: NotificationBellProps
   useEffect(() => {
     fetchChallenges();
 
+    const handleNewChallenge = () => {
+      fetchChallenges();
+      setIsOpen(true);
+      const audio = new Audio("/sounds/check.mp3");
+      audio.volume = 0.5;
+      audio.play().catch(e => console.log("Audio blocked by browser", e));
+    };
+
     // Listen for new challenges
     const chessSub = supabase.channel('chess_challenges')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chess_games', filter: `black_player_id=eq.${userId}` }, () => {
-        fetchChallenges();
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chess_games', filter: `black_player_id=eq.${userId}` }, () => {
-        fetchChallenges();
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chess_games', filter: `black_player_id=eq.${userId}` }, () => {
-        fetchChallenges();
-      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chess_games', filter: `black_player_id=eq.${userId}` }, handleNewChallenge)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chess_games', filter: `black_player_id=eq.${userId}` }, fetchChallenges)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chess_games', filter: `black_player_id=eq.${userId}` }, fetchChallenges)
       .subscribe();
 
     const tttSub = supabase.channel('ttt_challenges')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ttt_games', filter: `o_player_id=eq.${userId}` }, () => {
-        fetchChallenges();
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'ttt_games', filter: `o_player_id=eq.${userId}` }, () => {
-        fetchChallenges();
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ttt_games', filter: `o_player_id=eq.${userId}` }, () => {
-        fetchChallenges();
-      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ttt_games', filter: `o_player_id=eq.${userId}` }, handleNewChallenge)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'ttt_games', filter: `o_player_id=eq.${userId}` }, fetchChallenges)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ttt_games', filter: `o_player_id=eq.${userId}` }, fetchChallenges)
       .subscribe();
 
     return () => {
@@ -101,9 +97,9 @@ export default function NotificationBellClient({ userId }: NotificationBellProps
   const handleAccept = async (challenge: any) => {
     try {
       if (challenge.type === "chess") {
-        await joinChessGame(challenge.id);
+        await acceptChallenge(challenge.id);
       } else {
-        await joinTttGame(challenge.id);
+        await acceptTttChallenge(challenge.id);
       }
     } catch (err: any) {
       if (err.message === "NEXT_REDIRECT") throw err;

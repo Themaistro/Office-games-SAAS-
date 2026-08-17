@@ -41,8 +41,7 @@ export default function TttBoardClient({ initialGame, currentUserId }: { initial
         const newRecord = payload.new;
         setGame((prev: any) => {
           if (prev.status === 'waiting' && newRecord.status === 'in_progress') {
-            router.refresh();
-            return prev;
+            setTimeout(() => router.refresh(), 0);
           }
           return { ...prev, ...newRecord };
         });

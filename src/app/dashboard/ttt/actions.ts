@@ -99,9 +99,30 @@ export async function challengeUserToTtt(targetUserId: string) {
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard");
   revalidatePath(`/profile/${targetUserId}`);
-  // Send challenger to dashboard lobby to wait
-  redirect("/dashboard?challenged=1");
+  // Send challenger to the board to wait
+  redirect(`/dashboard/ttt/${data.id}`);
+}
+
+export async function acceptTttChallenge(gameId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+  const { error } = await adminClient
+    .from("ttt_games")
+    .update({ status: "in_progress" })
+    .eq("id", gameId)
+    .eq("o_player_id", user.id);
+
+  if (error) throw new Error("Failed to accept challenge");
+
+  revalidatePath("/dashboard");
+  redirect(`/dashboard/ttt/${gameId}`);
 }
 
 export async function joinTttGame(gameId: string) {

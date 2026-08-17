@@ -121,8 +121,8 @@ export async function challengeUserToChess(targetUserId: string, timeControlMs: 
 
   revalidatePath("/dashboard");
   revalidatePath(`/profile/${targetUserId}`);
-  // Send challenger to dashboard lobby to wait — NOT the board
-  redirect("/dashboard?challenged=1");
+  // Send challenger to the board to wait
+  redirect(`/dashboard/chess/${data.id}`);
 }
 
 export async function acceptChallenge(gameId: string) {
@@ -147,7 +147,8 @@ export async function acceptChallenge(gameId: string) {
   const { error } = await adminClient
     .from("chess_games")
     .update({ status: "in_progress", last_move_timestamp: new Date().toISOString() })
-    .eq("id", gameId);
+    .eq("id", gameId)
+    .eq("black_player_id", user.id);
 
   if (error) throw new Error("Failed to accept challenge");
 
