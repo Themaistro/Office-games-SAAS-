@@ -57,7 +57,11 @@ export async function resetSeason() {
   // 2. Wipe historical sessions
   await adminClient.from("daily_sessions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
-  // 3. Wipe cached questions (daily pool) to force a fresh pull for the new season
+  // 3. Wipe all chess and ttt games (clears the live feed)
+  await adminClient.from("chess_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await adminClient.from("ttt_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+  // 4. Wipe cached questions (daily pool) to force a fresh pull for the new season
   await adminClient.from("questions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
   // 4. Reset employee profiles
@@ -156,6 +160,10 @@ export async function factoryResetPlatform() {
 
   // 3. Wipe cached questions (daily pool)
   await adminClient.from("questions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+  // 3b. Wipe all chess and ttt games (clears the live feed)
+  await adminClient.from("chess_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await adminClient.from("ttt_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 
   // 4. Reset employee profiles
   const { error: profileError } = await adminClient
