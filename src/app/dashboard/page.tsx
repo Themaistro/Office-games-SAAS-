@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Play, Flame, Shield, Trophy } from "lucide-react";
+import { Play, Flame, Shield, Trophy, User } from "lucide-react";
 import Link from "next/link";
 import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
 import CooldownTimer from "@/components/dashboard/CooldownTimer";
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
   // Fetch top 5 leaderboard
   const { data: topProfiles } = await supabase
     .from("profiles")
-    .select("full_name, total_xp, current_level, email")
+    .select("full_name, total_xp, current_level, email, avatar_url")
     .neq("role", "admin")
     .order("total_xp", { ascending: false })
     .order("full_name", { ascending: true, nullsFirst: false })
@@ -283,12 +283,21 @@ export default async function DashboardPage() {
                 return (
                   <div key={idx} className="flex items-center justify-between p-4 rounded-2xl bg-background/50 border border-border/40 hover:bg-background/80 transition-colors">
                     <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white
-                        ${rank === 1 ? 'bg-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]' : 
-                          rank === 2 ? 'bg-gray-400' : 
-                          rank === 3 ? 'bg-amber-700' : 'bg-primary/50'}
-                      `}>
-                        {rank}
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-full border-2 border-background shadow-sm overflow-hidden bg-secondary flex items-center justify-center">
+                          {p.avatar_url ? (
+                            <img src={p.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-6 h-6 text-muted-foreground/50" />
+                          )}
+                        </div>
+                        <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-background
+                          ${rank === 1 ? 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]' : 
+                            rank === 2 ? 'bg-gray-400' : 
+                            rank === 3 ? 'bg-amber-700' : 'bg-primary'}
+                        `}>
+                          {rank}
+                        </div>
                       </div>
                       <div>
                         <p className="font-bold">{p.full_name || p.email?.split('@')[0]}</p>

@@ -13,8 +13,9 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
   const [hintUsed, setHintUsed] = useState(false);
   
   const difficulty = question?.difficulty || 'medium';
-  const cols = difficulty === 'easy' ? 4 : difficulty === 'medium' ? 5 : 6;
+  const cols = difficulty === 'easy' ? 5 : difficulty === 'medium' ? 7 : 9;
   const gridSize = cols * cols;
+  const emojiSize = cols >= 9 ? 'text-xl sm:text-3xl' : cols >= 7 ? 'text-2xl sm:text-4xl' : 'text-3xl sm:text-5xl';
 
   useEffect(() => {
     let baseEmoji = question?.content?.even || "🍎";
@@ -121,7 +122,8 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
             disabled={isSubmitting || failed || item.isEliminated}
             onClick={() => handleSelect(item.isOdd)}
             className={clsx(
-              "rounded-2xl flex items-center justify-center transition-all duration-200 text-3xl sm:text-5xl cursor-pointer select-none",
+              "rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer select-none",
+              emojiSize,
               !failed && !item.isEliminated && "hover:bg-black/5 dark:hover:bg-white/5 hover:scale-110 hover:shadow-lg active:scale-95",
               failed && item.isOdd && "bg-green-500/20 border-2 border-green-500 scale-110 shadow-green-500/20 shadow-xl z-20 animate-bounce",
               failed && !item.isOdd && "opacity-30 scale-90 grayscale",

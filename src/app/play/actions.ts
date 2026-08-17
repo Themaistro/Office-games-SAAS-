@@ -27,10 +27,29 @@ export async function startDailySession() {
   // Fetch the user's department for personalized content filtering
   const { data: profile } = await supabase
     .from("profiles")
-    .select("department")
+    .select("department, daily_time_limit_minutes, session_time_limit_minutes")
     .eq("id", user.id)
     .single();
   const userDept = profile?.department || "General";
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // 1.c Check if they reached their daily time limit
+  const { data: todaysSessions } = await supabase
+    .from("daily_sessions")
+    .select("time_spent_seconds")
+    .eq("user_id", user.id)
+    .gte("created_at", `${today}T00:00:00Z`);
+
+  const totalTimeSpentTodaySeconds = todaysSessions?.reduce((acc, curr) => acc + (curr.time_spent_seconds || 0), 0) || 0;
+  const totalTimeSpentTodayMinutes = Math.floor(totalTimeSpentTodaySeconds / 60);
+  
+  if (profile?.daily_time_limit_minutes && totalTimeSpentTodayMinutes >= profile.daily_time_limit_minutes) {
+      return { 
+        error: "daily_limit_reached", 
+        message: `You have reached your daily limit of ${profile.daily_time_limit_minutes} minutes. Come back tomorrow!`,
+      };
+  }
 
   // 1. Check if they have an active (incomplete) session (could be normal or a test session)
   const { data: activeSessions } = await supabase
@@ -83,8 +102,6 @@ export async function startDailySession() {
       };
     }
   }
-
-  const today = new Date().toISOString().split('T')[0];
 
   // 2. Fetch active games and ensure today's question pool is generated
   const { data: activeGames } = await supabase.from("game_types").select("*").eq("is_active", true);
@@ -285,22 +302,29 @@ export async function startDailySession() {
 
     if (missingCustomTrivia.length > 0) {
       const newCompanyQs = [];
-      const fallbackGameId = (activeGames || [])[0]?.id;
-      if (fallbackGameId) {
+      
+      if (activeGames && activeGames.length > 0) {
         for (const trivia of missingCustomTrivia) {
-          newCompanyQs.push({
-            game_type_id: fallbackGameId,
-            difficulty: "medium",
-            content: {
-              question: trivia.question,
-              isCompanyTrivia: true,
-              companyTriviaId: trivia.id
-            },
-            options: trivia.options.sort(() => 0.5 - Math.random()),
-            correct_answer: trivia.correct_answer,
-            base_xp: 200,
-            is_active: true
-          });
+          // Match by game_slug, fallback to trivia, then to the first active game
+          let targetGame = activeGames.find(g => g.slug === trivia.game_slug);
+          if (!targetGame) targetGame = activeGames.find(g => g.slug === 'trivia') || activeGames[0];
+
+          if (targetGame) {
+            newCompanyQs.push({
+              game_type_id: targetGame.id,
+              difficulty: "medium",
+              content: {
+                question: trivia.question,
+                text: trivia.question, // Support for math/logic games that expect .text
+                isCompanyTrivia: true,
+                companyTriviaId: trivia.id
+              },
+              options: trivia.options.sort(() => 0.5 - Math.random()),
+              correct_answer: trivia.correct_answer,
+              base_xp: 200,
+              is_active: true
+            });
+          }
         }
         
         // adminClient is already created above
@@ -329,12 +353,23 @@ export async function startDailySession() {
   }
 
   // 3. We have questions! Let's create the session.
+  
+  // If we reached here and there's already a session for today (which means cooldown is 0 for testing),
+  // we must delete it to prevent a PostgreSQL unique constraint violation (23505) on (user_id, date).
+  // We use adminClient because normal users do not have DELETE permissions via RLS on daily_sessions.
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+  await adminClient.from("daily_sessions").delete().eq("user_id", user.id).eq("date", today);
+
   const { data: session, error: sessionError } = await supabase
     .from("daily_sessions")
     .insert({
       user_id: user.id,
       date: today,
-      allowed_duration_seconds: settings?.game_duration_seconds ?? 900,
+      allowed_duration_seconds: profile?.session_time_limit_minutes ? (profile.session_time_limit_minutes * 60) : (settings?.game_duration_seconds ?? 900),
       is_completed: false
     })
     .select()
@@ -602,9 +637,9 @@ export async function submitAnswer(
       breakdown.perfect = 50;
     }
 
-    // Combo: +30 XP for stringing together correct answers
+    // Combo: Scale +15 XP for stringing together correct answers
     if (options?.currentCombo && options.currentCombo > 0) {
-      breakdown.combo = 30; // Alternatively, scale it: combo * 10
+      breakdown.combo = options.currentCombo * 15;
     }
 
     xpEarned = breakdown.base + breakdown.speed + breakdown.noHint + breakdown.perfect + breakdown.combo;
@@ -639,29 +674,38 @@ export async function endSession(sessionId: string) {
     .select("earned_xp, is_completed")
     .eq("session_id", sessionId);
 
-  const totalXp = questions?.reduce((sum, q) => sum + (q.earned_xp || 0), 0) || 0;
-
-  await supabase
-    .from("daily_sessions")
-    .update({
-      is_completed: true,
-      total_score: totalXp,
-      total_xp_earned: totalXp,
-      ended_at: new Date().toISOString()
-    })
-    .eq("id", sessionId);
-
   const { data: profile } = await supabase
     .from("profiles")
     .select("total_xp, current_streak, best_streak, games_played")
     .eq("id", user.id)
     .single();
 
+  const baseTotalXp = questions?.reduce((sum, q) => sum + (q.earned_xp || 0), 0) || 0;
+
+  let newStreak = 1;
+  let streakBonus = 0;
   if (profile) {
-    // If totalXp is negative, it's a penalty for skipping. Cap total_xp at 0.
-    const newXp = Math.max(0, (profile.total_xp || 0) + totalXp);
+    newStreak = (profile.current_streak || 0) + 1;
+    // Award 50 XP per day of the streak (e.g., 2-day streak = 100 XP, 3-day = 150 XP)
+    streakBonus = newStreak > 1 ? newStreak * 50 : 0;
+  }
+
+  const finalTotalXp = baseTotalXp + streakBonus;
+
+  await supabase
+    .from("daily_sessions")
+    .update({
+      is_completed: true,
+      total_score: baseTotalXp,
+      total_xp_earned: finalTotalXp,
+      ended_at: new Date().toISOString()
+    })
+    .eq("id", sessionId);
+
+  if (profile) {
+    // If finalTotalXp is negative, it's a penalty for skipping. Cap total_xp at 0.
+    const newXp = Math.max(0, (profile.total_xp || 0) + finalTotalXp);
     const newGamesPlayed = (profile.games_played || 0) + 1;
-    const newStreak = (profile.current_streak || 0) + 1;
     const newBestStreak = Math.max(profile.best_streak || 0, newStreak);
     const newLevel = Math.floor(newXp / 1200) + 1;
 
@@ -672,7 +716,8 @@ export async function endSession(sessionId: string) {
         games_played: newGamesPlayed,
         current_streak: newStreak,
         best_streak: newBestStreak,
-        current_level: newLevel
+        current_level: newLevel,
+        last_played_at: new Date().toISOString()
       })
       .eq("id", user.id);
   }

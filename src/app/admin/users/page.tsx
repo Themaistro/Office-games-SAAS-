@@ -3,7 +3,7 @@ import ClientExportButton from "./ClientExportButton";
 import UserFilters from "./UserFilters";
 import UserRosterTable from "./UserRosterTable";
 
-export default async function UsersManagementPage(props: { searchParams: Promise<{ q?: string; department?: string; sort?: string; dir?: string; userId?: string }> }) {
+export default async function UsersManagementPage(props: { searchParams: Promise<{ q?: string; department?: string; sort?: string; dir?: string; userId?: string; page?: string }> }) {
   const searchParams = await props.searchParams;
   const supabase = await createClient();
 
@@ -16,7 +16,7 @@ export default async function UsersManagementPage(props: { searchParams: Promise
     const isAsc = searchParams.dir === "asc";
     query = query.order(searchParams.sort, { ascending: isAsc });
   } else {
-    query = query.order("total_xp", { ascending: false });
+    query = query.order("total_xp", { ascending: false }).order("full_name", { ascending: true });
   }
 
   if (searchParams.q) {
@@ -27,7 +27,18 @@ export default async function UsersManagementPage(props: { searchParams: Promise
     query = query.eq("department", searchParams.department);
   }
 
-  const { data: users, error } = await query;
+  // Pagination logic
+  const PAGE_SIZE = 50;
+  const page = parseInt(searchParams.page || "1", 10);
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  // Add exact count and range
+  query = query.select("*", { count: "exact" }).range(from, to);
+
+  const { data: users, error, count } = await query;
+  const totalUsers = count || 0;
+  const totalPages = Math.ceil(totalUsers / PAGE_SIZE);
 
   const { data: departments } = await supabase
     .from("departments")
@@ -51,7 +62,13 @@ export default async function UsersManagementPage(props: { searchParams: Promise
 
       <UserFilters departments={departments || []} />
 
-      <UserRosterTable users={users || []} departments={departments || []} />
+      <UserRosterTable 
+        users={users || []} 
+        departments={departments || []} 
+        currentPage={page} 
+        totalPages={totalPages} 
+        totalUsers={totalUsers} 
+      />
     </div>
   );
 }

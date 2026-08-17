@@ -4,19 +4,32 @@ import { useState } from "react";
 import { HelpCircle, Trash2, Calendar, Edit2 } from "lucide-react";
 
 export default function TriviaManager({ 
-  initialTrivia, 
+  initialTrivia,
+  gameTypes,
+  departments,
   addAction, 
   editAction, 
   deleteAction, 
   toggleAction 
 }: { 
   initialTrivia: any[],
+  gameTypes: { slug: string, name: string }[],
+  departments?: string[],
   addAction: (data: FormData) => Promise<void>,
   editAction: (data: FormData) => Promise<void>,
   deleteAction: (id: string) => Promise<void>,
   toggleAction: (id: string, status: boolean) => Promise<void>
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  const compatibleGameSlugs = ['general-trivia', 'trivia', 'typing', 'typing-challenge'];
+  const filteredGameTypes = gameTypes.filter(g => compatibleGameSlugs.includes(g.slug));
+  
+  const [selectedGameSlug, setSelectedGameSlug] = useState<string>(filteredGameTypes[0]?.slug || "trivia");
+
+  const isMultipleChoice = ['general-trivia', 'trivia'].includes(selectedGameSlug);
+  const isTargetText = ['typing', 'typing-challenge'].includes(selectedGameSlug);
+  const isPuzzle = false;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -27,37 +40,81 @@ export default function TriviaManager({
           Add New Question
         </h2>
         <form action={addAction} className="space-y-4">
+          <div className="mb-2">
+            <label className="block text-sm font-medium mb-2">Select Game Type</label>
+            <input type="hidden" name="gameSlug" value={selectedGameSlug} />
+            <div className="grid grid-cols-2 gap-3">
+              {filteredGameTypes.map(gt => {
+                const isSelected = selectedGameSlug === gt.slug;
+                return (
+                  <button
+                    key={gt.slug}
+                    type="button"
+                    onClick={() => setSelectedGameSlug(gt.slug)}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 text-sm transition-all ${
+                      isSelected 
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm scale-[1.02]" 
+                        : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:bg-muted"
+                    }`}
+                  >
+                    {gt.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          
           <div>
-            <label className="block text-sm font-medium mb-1">Question Text</label>
+            <label className="block text-sm font-medium mb-1">
+              {isTargetText ? "Target Text" : isPuzzle ? "Puzzle Text" : "Question Text"}
+            </label>
             <textarea 
               name="question" 
               required 
               className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-              placeholder="E.g., What year was our company founded?"
+              placeholder={isTargetText ? "E.g., The quick brown fox..." : isPuzzle ? "E.g., scrambled word like 'TAC' or 'H_LL_'" : "E.g., What year was our company founded? or What is 15 + 27?"}
               rows={3}
             />
+            {isTargetText && (
+              <p className="text-xs text-muted-foreground mt-1">This text will be used for both the prompt and the correct answer.</p>
+            )}
           </div>
+
+          {isPuzzle && (
+             <div>
+              <label className="block text-sm font-medium mb-1">Correct Answer</label>
+              <input 
+                type="text" 
+                name="correctAnswerDirect" 
+                required 
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                placeholder="E.g., CAT or HELLO"
+              />
+            </div>
+          )}
           
-          <div className="space-y-3">
-            <label className="block text-sm font-medium">Multiple Choice Options</label>
-            <div className="flex gap-2 items-center">
-              <input type="radio" name="correctOption" value="1" required className="mt-1" />
-              <input type="text" name="option1" required placeholder="Option 1" className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
+          {isMultipleChoice && (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium">Multiple Choice Options</label>
+              <div className="flex gap-2 items-center">
+                <input type="radio" name="correctOption" value="1" required className="mt-1" />
+                <input type="text" name="option1" required placeholder="Option 1" className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
+              </div>
+              <div className="flex gap-2 items-center">
+                <input type="radio" name="correctOption" value="2" required className="mt-1" />
+                <input type="text" name="option2" required placeholder="Option 2" className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
+              </div>
+              <div className="flex gap-2 items-center">
+                <input type="radio" name="correctOption" value="3" required className="mt-1" />
+                <input type="text" name="option3" required placeholder="Option 3" className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
+              </div>
+              <div className="flex gap-2 items-center">
+                <input type="radio" name="correctOption" value="4" required className="mt-1" />
+                <input type="text" name="option4" required placeholder="Option 4" className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Select the radio button next to the correct answer.</p>
             </div>
-            <div className="flex gap-2 items-center">
-              <input type="radio" name="correctOption" value="2" required className="mt-1" />
-              <input type="text" name="option2" required placeholder="Option 2" className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
-            </div>
-            <div className="flex gap-2 items-center">
-              <input type="radio" name="correctOption" value="3" required className="mt-1" />
-              <input type="text" name="option3" required placeholder="Option 3" className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
-            </div>
-            <div className="flex gap-2 items-center">
-              <input type="radio" name="correctOption" value="4" required className="mt-1" />
-              <input type="text" name="option4" required placeholder="Option 4" className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Select the radio button next to the correct answer.</p>
-          </div>
+          )}
 
           <div className="pt-2 border-t border-border mt-4">
             <label className="block text-sm font-medium mb-1">Target Department</label>
@@ -66,10 +123,9 @@ export default function TriviaManager({
               className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
             >
               <option value="General">General (Everyone)</option>
-              <option value="Engineering">Engineering</option>
-              <option value="Sales">Sales</option>
-              <option value="Marketing">Marketing</option>
-              <option value="HR">HR</option>
+              {(departments || []).map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
             </select>
           </div>
 
@@ -96,14 +152,15 @@ export default function TriviaManager({
           <div className="p-4 border-b border-border bg-muted/30">
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Calendar size={20} className="text-primary" />
-              Trivia Database
+              Custom Questions Database
             </h2>
+            <p className="text-sm text-muted-foreground mt-1">Manage scheduled and anytime custom questions.</p>
           </div>
           
           <div className="divide-y divide-border">
             {(!initialTrivia || initialTrivia.length === 0) ? (
               <div className="p-8 text-center text-muted-foreground">
-                No company trivia questions are scheduled. Add one to inject it into the daily game!
+                No custom questions are scheduled. Add one to inject it into the daily game!
               </div>
             ) : (
               initialTrivia.map((t) => {
@@ -119,36 +176,94 @@ export default function TriviaManager({
                         <input type="hidden" name="id" value={t.id} />
                         
                         <div>
-                          <label className="block text-xs font-medium mb-1">Question</label>
-                          <textarea 
-                            name="question" 
-                            required 
-                            defaultValue={t.question}
-                            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
-                            rows={2}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="block text-xs font-medium">Options</label>
-                            {t.options.map((opt: string, i: number) => (
-                              <div key={i} className="flex gap-2 items-center">
-                                <input type="radio" name="correctOption" value={i + 1} defaultChecked={opt === t.correct_answer} required />
-                                <input type="text" name={`option${i + 1}`} required defaultValue={opt} className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm" />
-                              </div>
+                          <label className="block text-xs font-medium mb-2">Game Type</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {filteredGameTypes.map(gt => (
+                              <label key={gt.slug} className="cursor-pointer">
+                                <input 
+                                  type="radio" 
+                                  name="gameSlug" 
+                                  value={gt.slug} 
+                                  defaultChecked={(t.game_slug || "trivia") === gt.slug} 
+                                  className="peer sr-only" 
+                                />
+                                <div className="text-center p-2 rounded-lg border-2 border-border text-xs text-muted-foreground peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary peer-checked:font-bold transition-all hover:bg-muted">
+                                  {gt.name}
+                                </div>
+                              </label>
                             ))}
                           </div>
+                        </div>
+                        {(() => {
+                          const currentSlug = t.game_slug || "trivia";
+                          const isMC = ['general-trivia', 'trivia'].includes(currentSlug);
+                          const isTarget = ['typing', 'typing-challenge'].includes(currentSlug);
+                          const isPzl = false;
                           
+                          return (
+                            <>
+                              <div>
+                                <label className="block text-xs font-medium mb-1">
+                                  {isTarget ? "Target Text" : isPzl ? "Puzzle Text" : "Question Text"}
+                                </label>
+                                <textarea 
+                                  name="question" 
+                                  required 
+                                  defaultValue={t.question}
+                                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                                  rows={2}
+                                />
+                              </div>
+
+                              {isPzl && (
+                                <div>
+                                  <label className="block text-xs font-medium mb-1">Correct Answer</label>
+                                  <input 
+                                    type="text" 
+                                    name="correctAnswerDirect" 
+                                    defaultValue={t.correct_answer}
+                                    required 
+                                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+                                  />
+                                </div>
+                              )}
+
+                              {isMC && (
+                                <div className="space-y-2">
+                                  <label className="block text-xs font-medium">Options</label>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="flex gap-2 items-center">
+                                      <input type="radio" name="correctOption" value="1" defaultChecked={t.correct_answer === t.options?.[0]} required />
+                                      <input type="text" name="option1" defaultValue={t.options?.[0]} required className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm" />
+                                    </div>
+                                    <div className="flex gap-2 items-center">
+                                      <input type="radio" name="correctOption" value="2" defaultChecked={t.correct_answer === t.options?.[1]} required />
+                                      <input type="text" name="option2" defaultValue={t.options?.[1]} required className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm" />
+                                    </div>
+                                    <div className="flex gap-2 items-center">
+                                      <input type="radio" name="correctOption" value="3" defaultChecked={t.correct_answer === t.options?.[2]} required />
+                                      <input type="text" name="option3" defaultValue={t.options?.[2]} required className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm" />
+                                    </div>
+                                    <div className="flex gap-2 items-center">
+                                      <input type="radio" name="correctOption" value="4" defaultChecked={t.correct_answer === t.options?.[3]} required />
+                                      <input type="text" name="option4" defaultValue={t.options?.[3]} required className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm shadow-sm" />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-4">
                             <div>
                               <label className="block text-xs font-medium mb-1">Department</label>
                               <select name="department" defaultValue={t.department || "General"} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm">
                                 <option value="General">General</option>
-                                <option value="Engineering">Engineering</option>
-                                <option value="Sales">Sales</option>
-                                <option value="Marketing">Marketing</option>
-                                <option value="HR">HR</option>
+                                {(departments || []).map(dept => (
+                                  <option key={dept} value={dept}>{dept}</option>
+                                ))}
                               </select>
                             </div>
                             <div>
@@ -184,6 +299,9 @@ export default function TriviaManager({
                             🔄 Anytime Pool
                           </span>
                         )}
+                        <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                          {gameTypes.find(g => g.slug === (t.game_slug || 'trivia'))?.name || "Trivia"}
+                        </span>
                         <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-secondary-foreground">
                           {t.department || "General"}
                         </span>

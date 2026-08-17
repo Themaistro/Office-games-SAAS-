@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import SortableHeader from "./SortableHeader";
 import PlayerDrawer from "./PlayerDrawer";
 import { Search, SearchX, RotateCcw, Power, PowerOff, CheckSquare, Square } from "lucide-react";
@@ -18,11 +19,20 @@ function formatRelativeTime(dateString: string | null) {
   return `${Math.floor(diffInSeconds / 86400)}d ago`;
 }
 
-export default function UserRosterTable({ users, departments }: { users: any[], departments: any[] }) {
+export default function UserRosterTable({ users, departments, currentPage = 1, totalPages = 1, totalUsers = 0 }: { users: any[], departments: any[], currentPage?: number, totalPages?: number, totalUsers?: number }) {
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [drawerUserId, setDrawerUserId] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", newPage.toString());
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const toggleAll = () => {
     if (selectedUsers.size === users.length && users.length > 0) {
@@ -109,7 +119,7 @@ export default function UserRosterTable({ users, departments }: { users: any[], 
                 <th className="px-6 py-4 font-semibold"><SortableHeader label="Level" sortKey="current_level" /></th>
                 <th className="px-6 py-4 font-semibold"><SortableHeader label="Total XP" sortKey="total_xp" /></th>
                 <th className="px-6 py-4 font-semibold"><SortableHeader label="Streak" sortKey="current_streak" /></th>
-                <th className="px-6 py-4 font-semibold"><SortableHeader label="Status" sortKey="is_active" /></th>
+                <th className="px-6 py-4 font-semibold"><SortableHeader label="Last Active" sortKey="last_played_at" /></th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
@@ -130,6 +140,7 @@ export default function UserRosterTable({ users, departments }: { users: any[], 
                 users.map((u) => {
                   const isActive = u.is_active !== false; // default true if undefined
                   const isSelected = selectedUsers.has(u.id);
+                  const lastActiveTime = u.last_played_at || u.updated_at;
 
                   return (
                     <tr key={u.id} className={`hover:bg-muted/30 transition-colors group ${isSelected ? 'bg-primary/5' : ''} ${!isActive ? 'opacity-60' : ''}`}>
@@ -187,7 +198,7 @@ export default function UserRosterTable({ users, departments }: { users: any[], 
                         </div>
                       </td>
                       <td className="px-6 py-4 text-xs text-muted-foreground">
-                        {formatRelativeTime(u.updated_at)}
+                        {formatRelativeTime(lastActiveTime)}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -212,6 +223,33 @@ export default function UserRosterTable({ users, departments }: { users: any[], 
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 text-sm text-muted-foreground">
+          <div>
+            Showing {users.length > 0 ? (currentPage - 1) * 50 + 1 : 0} to {Math.min(currentPage * 50, totalUsers)} of {totalUsers} players
+          </div>
+          <div className="flex gap-2">
+            <button 
+              disabled={currentPage <= 1}
+              onClick={() => handlePageChange(currentPage - 1)}
+              className="px-3 py-1 bg-card border border-border rounded hover:bg-muted disabled:opacity-50 transition-colors"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1 font-medium text-foreground">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button 
+              disabled={currentPage >= totalPages}
+              onClick={() => handlePageChange(currentPage + 1)}
+              className="px-3 py-1 bg-card border border-border rounded hover:bg-muted disabled:opacity-50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

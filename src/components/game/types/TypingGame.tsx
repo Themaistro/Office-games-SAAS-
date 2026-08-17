@@ -96,7 +96,10 @@ export default function TypingGame({ question, onAnswer, isSubmitting }: GameCom
     onAnswer(finalInput || "[Timeout]", { 
       customIsCorrect: accuracy > 0, 
       customTimeSpent: timeSpent, 
-      isPerfect
+      isPerfect,
+      customScoreModifiers: {
+        accuracy: accuracy
+      }
     }, timeSpent);
   };
 

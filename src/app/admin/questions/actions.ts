@@ -19,6 +19,7 @@ export async function addCompanyTrivia(formData: FormData) {
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   const question = formData.get("question") as string;
+  const gameSlug = formData.get("gameSlug") as string;
   const opt1 = formData.get("option1") as string;
   const opt2 = formData.get("option2") as string;
   const opt3 = formData.get("option3") as string;
@@ -27,21 +28,43 @@ export async function addCompanyTrivia(formData: FormData) {
   const targetDateRaw = formData.get("targetDate") as string; // YYYY-MM-DD or empty
   const department = formData.get("department") as string;
 
-  if (!question || !opt1 || !opt2 || !opt3 || !opt4 || !correctOptIndex) {
-    throw new Error("Question, options, and correct answer are required.");
+  const isMC = ['general-trivia', 'trivia'].includes(gameSlug);
+  const isTarget = ['typing', 'typing-challenge'].includes(gameSlug);
+  const isPzl = false;
+
+  if (!question || !gameSlug) {
+    throw new Error("Question and game type are required.");
   }
 
-  const options = [opt1, opt2, opt3, opt4];
-  const correctAnswer = options[parseInt(correctOptIndex) - 1];
+  let finalOptions: string[] = [];
+  let finalCorrectAnswer = "";
+
+  if (isMC) {
+    if (!opt1 || !opt2 || !opt3 || !opt4 || !correctOptIndex) {
+      throw new Error("Options and correct answer are required for multiple choice games.");
+    }
+    finalOptions = [opt1, opt2, opt3, opt4];
+    finalCorrectAnswer = finalOptions[parseInt(correctOptIndex) - 1];
+  } else if (isTarget) {
+    finalOptions = [];
+    finalCorrectAnswer = question; // Target text is its own answer
+  } else if (isPzl) {
+    const directAnswer = formData.get("correctAnswerDirect") as string;
+    if (!directAnswer) throw new Error("Correct answer is required for puzzle games.");
+    finalOptions = [];
+    finalCorrectAnswer = directAnswer;
+  }
+
   const targetDate = targetDateRaw ? targetDateRaw : null;
   const dept = department || "General";
 
   const { error } = await supabase
     .from("company_trivia")
     .insert({
+      game_slug: gameSlug,
       question,
-      options,
-      correct_answer: correctAnswer,
+      options: finalOptions,
+      correct_answer: finalCorrectAnswer,
       target_date: targetDate,
       department: dept,
       is_active: true
@@ -72,6 +95,7 @@ export async function editCompanyTrivia(formData: FormData) {
 
   const id = formData.get("id") as string;
   const question = formData.get("question") as string;
+  const gameSlug = formData.get("gameSlug") as string;
   const opt1 = formData.get("option1") as string;
   const opt2 = formData.get("option2") as string;
   const opt3 = formData.get("option3") as string;
@@ -80,21 +104,43 @@ export async function editCompanyTrivia(formData: FormData) {
   const targetDateRaw = formData.get("targetDate") as string;
   const department = formData.get("department") as string;
 
-  if (!id || !question || !opt1 || !opt2 || !opt3 || !opt4 || !correctOptIndex) {
+  const isMC = ['general-trivia', 'trivia'].includes(gameSlug);
+  const isTarget = ['typing', 'typing-challenge'].includes(gameSlug);
+  const isPzl = false;
+
+  if (!id || !question || !gameSlug) {
     throw new Error("Missing required fields.");
   }
 
-  const options = [opt1, opt2, opt3, opt4];
-  const correctAnswer = options[parseInt(correctOptIndex) - 1];
+  let finalOptions: string[] = [];
+  let finalCorrectAnswer = "";
+
+  if (isMC) {
+    if (!opt1 || !opt2 || !opt3 || !opt4 || !correctOptIndex) {
+      throw new Error("Options and correct answer are required for multiple choice games.");
+    }
+    finalOptions = [opt1, opt2, opt3, opt4];
+    finalCorrectAnswer = finalOptions[parseInt(correctOptIndex) - 1];
+  } else if (isTarget) {
+    finalOptions = [];
+    finalCorrectAnswer = question;
+  } else if (isPzl) {
+    const directAnswer = formData.get("correctAnswerDirect") as string;
+    if (!directAnswer) throw new Error("Correct answer is required for puzzle games.");
+    finalOptions = [];
+    finalCorrectAnswer = directAnswer;
+  }
+
   const targetDate = targetDateRaw ? targetDateRaw : null;
   const dept = department || "General";
 
   const { error } = await supabase
     .from("company_trivia")
     .update({
+      game_slug: gameSlug,
       question,
-      options,
-      correct_answer: correctAnswer,
+      options: finalOptions,
+      correct_answer: finalCorrectAnswer,
       target_date: targetDate,
       department: dept
     })

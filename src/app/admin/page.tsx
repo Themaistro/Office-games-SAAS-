@@ -72,19 +72,41 @@ export default async function AdminDashboardPage() {
     return d;
   });
 
-  const chartPromises = last7Days.map(async (d) => {
+  const startDateStr = last7Days[0].toISOString().split('T')[0];
+  
+  const { data: recentSessions } = await supabase
+    .from("daily_sessions")
+    .select("date")
+    .gte("date", startDateStr);
+
+  const sessionsByDate = (recentSessions || []).reduce((acc, curr) => {
+    acc[curr.date] = (acc[curr.date] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const chartData = last7Days.map((d) => {
     const dateStr = d.toISOString().split('T')[0];
-    const { count } = await supabase
-      .from("daily_sessions")
-      .select("*", { count: "exact", head: true })
-      .eq("date", dateStr);
     return {
       date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      sessions: count || 0
+      sessions: sessionsByDate[dateStr] || 0
     };
   });
+
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayDateStr = yesterdayDate.toISOString().split('T')[0];
+  const sessionsYesterday = sessionsByDate[yesterdayDateStr] || 0;
   
-  const chartData = await Promise.all(chartPromises);
+  // Calculate participation trend
+  let trendDirection = "neutral";
+  let trendValue = 0;
+  if (sessionsYesterday > 0) {
+    trendValue = Math.round(((sessionsToday - sessionsYesterday) / sessionsYesterday) * 100);
+    trendDirection = trendValue > 0 ? "up" : trendValue < 0 ? "down" : "neutral";
+  } else if (sessionsToday > 0) {
+    trendDirection = "up";
+    trendValue = 100;
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -113,7 +135,10 @@ export default async function AdminDashboardPage() {
           </div>
           <span className="text-3xl font-bold">{participationRate}%</span>
           <span className="text-xs text-muted-foreground font-medium mt-2 flex items-center gap-1">
-            {sessionsToday || 0} players today
+            {sessionsToday || 0} players today 
+            {trendDirection === "up" && <span className="text-green-500 ml-1">↑ {trendValue}%</span>}
+            {trendDirection === "down" && <span className="text-destructive ml-1">↓ {Math.abs(trendValue)}%</span>}
+            {trendDirection === "neutral" && <span className="text-muted-foreground ml-1">- 0%</span>}
           </span>
         </div>
         

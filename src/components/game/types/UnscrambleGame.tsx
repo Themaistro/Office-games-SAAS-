@@ -35,14 +35,11 @@ export default function UnscrambleGame({ question, onAnswer, isSubmitting, showH
       const isPerfect = mistakes === 0;
       onAnswer(option, { customIsCorrect: true, isPerfect });
     } else {
-      setMistakes(m => m + 1);
       setShakingOption(option);
       setTimeout(() => setShakingOption(null), 500);
       
-      // Optionally eliminate the wrong answer they just clicked
-      if (!eliminatedOptions.includes(option)) {
-        setEliminatedOptions(prev => [...prev, option]);
-      }
+      // Fail immediately on wrong answer
+      onAnswer(option, { customIsCorrect: false, isPerfect: false });
     }
   };
 

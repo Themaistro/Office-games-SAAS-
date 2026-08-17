@@ -20,11 +20,12 @@ export default function StroopGame({ question, onAnswer, isSubmitting }: GamePro
   const [startTime] = useState(Date.now());
   const [wordIdx, setWordIdx] = useState(0);
   const [colorIdx, setColorIdx] = useState(0);
-  const [choices, setChoices] = useState<typeof COLORS>([]);
+  const [choices, setChoices] = useState<(typeof COLORS[0] & { displayColorClass: string })[]>([]);
   
   // Timer setup based on difficulty
   const difficulty = question.difficulty || 'medium';
-  const initialTime = difficulty === 'easy' ? 5 : (difficulty === 'medium' ? 3 : 1.5);
+  // Give them a bit more time because the buttons are now also confusing
+  const initialTime = difficulty === 'easy' ? 10 : (difficulty === 'medium' ? 8 : 6);
   const [timeLeft, setTimeLeft] = useState(initialTime);
 
   useEffect(() => {
@@ -40,8 +41,19 @@ export default function StroopGame({ question, onAnswer, isSubmitting }: GamePro
 
     const correctColor = COLORS[cIdx];
     const otherColors = COLORS.filter(c => c.name !== correctColor.name).sort(() => 0.5 - Math.random());
-    const selectedDecoys = otherColors.slice(0, 3);
-    setChoices([correctColor, ...selectedDecoys].sort(() => 0.5 - Math.random()));
+    const numDecoys = difficulty === 'easy' ? 3 : (difficulty === 'medium' ? 5 : 7);
+    const selectedDecoys = otherColors.slice(0, numDecoys);
+    const finalChoices = [correctColor, ...selectedDecoys].sort(() => 0.5 - Math.random());
+    
+    // Assign a random confusing display color to each button!
+    const confusingChoices = finalChoices.map(choice => {
+      // Pick a random color for the button text that is NOT the choice's actual name
+      const availableClasses = COLORS.filter(c => c.name !== choice.name).map(c => c.tailwind);
+      const displayColorClass = availableClasses[Math.floor(Math.random() * availableClasses.length)];
+      return { ...choice, displayColorClass };
+    });
+    
+    setChoices(confusingChoices);
   }, []);
 
   // Timer countdown
@@ -67,7 +79,10 @@ export default function StroopGame({ question, onAnswer, isSubmitting }: GamePro
     const isCorrect = selectedColorName === COLORS[colorIdx].name;
     
     // Pass the selected string so the parent knows what they chose
-    onAnswer(selectedColorName, isCorrect, timeTaken);
+    onAnswer(selectedColorName, {
+      customIsCorrect: isCorrect,
+      dynamicCorrectAnswer: COLORS[colorIdx].name
+    }, timeTaken);
   };
 
   return (
@@ -101,7 +116,7 @@ export default function StroopGame({ question, onAnswer, isSubmitting }: GamePro
             key={color.name}
             onClick={() => handleSelect(color.name)}
             disabled={isSubmitting}
-            className="font-bold py-6 rounded-2xl border-2 border-border bg-card hover:bg-secondary/50 text-foreground transition-all active:scale-95 shadow-sm text-2xl"
+            className={`font-black py-6 rounded-2xl border-2 border-border bg-card hover:bg-secondary/50 transition-all active:scale-95 shadow-sm text-2xl ${color.displayColorClass}`}
           >
             {color.name}
           </button>

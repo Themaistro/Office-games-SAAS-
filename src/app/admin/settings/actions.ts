@@ -39,6 +39,7 @@ export async function resetSeason() {
     .select("id, full_name, department, total_xp")
     .eq("role", "employee")
     .order("total_xp", { ascending: false })
+    .order("full_name", { ascending: true })
     .limit(3);
 
   if (topPlayers && topPlayers.length > 0) {
@@ -175,6 +176,25 @@ export async function factoryResetPlatform() {
     season_start_date: new Date().toISOString()
   }).eq("id", 1);
 
-  revalidatePath("/admin");
   revalidatePath("/admin/settings");
+}
+
+export async function bulkUpdateTimeLimits(dailyLimit: number, sessionLimit: number) {
+  const adminClient = await createAdminClient();
+  
+  const { error } = await adminClient
+    .from("profiles")
+    .update({
+      daily_time_limit_minutes: dailyLimit,
+      session_time_limit_minutes: sessionLimit
+    })
+    .eq("role", "employee");
+
+  if (error) {
+    console.error("Failed to bulk update time limits:", error);
+    throw new Error("Failed to update time limits.");
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/users");
 }

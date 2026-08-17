@@ -72,7 +72,7 @@ export default async function AdminLayout({
           </Link>
           <Link href="/admin/questions" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
             <HelpCircle size={18} />
-            Company Trivia
+            Custom Questions
           </Link>
           <Link href="/admin/games" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
             <Brain size={18} />

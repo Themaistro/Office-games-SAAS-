@@ -196,8 +196,8 @@ export function generateCardMatch(count: number, difficulty: string): any[] {
   const results = [];
   for (let i = 0; i < count; i++) {
     // Number of pairs based on difficulty
-    let numPairs = 4; // easy = 8 cards
-    if (difficulty === 'medium') numPairs = 6; // 12 cards
+    let numPairs = 6; // easy = 12 cards
+    if (difficulty === 'medium') numPairs = 7; // 14 cards
     if (difficulty === 'hard') numPairs = 8; // 16 cards
     
     const theme = themes[Math.floor(Math.random() * themes.length)];

@@ -93,7 +93,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   
   const handleAnswer = async (
     answer: string, 
-    optionsOrIsCorrect?: boolean | { customIsCorrect?: boolean, customTimeSpent?: number, isPerfect?: boolean, isSkipped?: boolean, customScoreModifiers?: any }, 
+    optionsOrIsCorrect?: boolean | { customIsCorrect?: boolean, customTimeSpent?: number, isPerfect?: boolean, isSkipped?: boolean, customScoreModifiers?: any, dynamicCorrectAnswer?: string }, 
     legacyTimeSpent?: number
   ) => {
     if (isSubmitting) return;
@@ -104,6 +104,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     let isPerfect: boolean | undefined;
     let isSkipped: boolean | undefined;
     let customScoreModifiers: any;
+    let dynamicCorrectAnswer: string | undefined;
 
     if (typeof optionsOrIsCorrect === 'boolean') {
       customIsCorrect = optionsOrIsCorrect;
@@ -114,6 +115,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       isPerfect = optionsOrIsCorrect.isPerfect;
       isSkipped = optionsOrIsCorrect.isSkipped;
       customScoreModifiers = optionsOrIsCorrect.customScoreModifiers;
+      dynamicCorrectAnswer = optionsOrIsCorrect.dynamicCorrectAnswer;
     }
 
     const timeSpent = customTimeSpent !== undefined ? customTimeSpent : Math.floor((Date.now() - questionStartTime) / 1000);
@@ -132,8 +134,8 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       const isCorrect = customIsCorrect !== undefined ? customIsCorrect : (result.success ? result.isCorrect : false);
       const xpEarned = result.success ? (result.xpEarned || 0) : 0;
       
-      const correctAnswer = result.success ? result.correctAnswer : sq.question.correct_answer;
-      const displayCorrectAnswer = correctAnswer || "Completed Successfully";
+      const dbCorrectAnswer = result.success ? result.correctAnswer : sq.question.correct_answer;
+      const displayCorrectAnswer = dynamicCorrectAnswer || dbCorrectAnswer || "Completed Successfully";
 
       if (isCorrect && !isSkipped) {
         setCurrentCombo(prev => prev + 1);
@@ -149,14 +151,14 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       
       setStats(newStats);
       
-      setFeedback({
-        isCorrect: isCorrect && !isSkipped,
-        xpEarned,
+      const feedbackData: FeedbackState = {
+        isCorrect: isCorrect || false,
+        xpEarned: xpEarned,
         correctAnswer: displayCorrectAnswer,
-        breakdown: result.breakdown,
-        isSkipped
-      });
-      
+        breakdown: result.success ? result.breakdown : undefined,
+        isSkipped: isSkipped || false
+      };
+      setFeedback(feedbackData);
       setIsSubmitting(false);
     } catch (e) {
       console.error(e);
@@ -256,57 +258,63 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           )}
           
           <h2 className="text-3xl font-bold mb-2">
-            {feedback.isSkipped ? "Skipped!" : (feedback.isCorrect ? "Correct!" : "Incorrect")}
+            {feedback.isSkipped ? "Skipped!" : (
+              feedback.isCorrect 
+                ? (['typing', 'typing-challenge', 'card-match', 'card_match'].includes(currentSessionQuestion.question.game_type.slug) ? "Completed!" : "Correct!") 
+                : "Incorrect"
+            )}
           </h2>
           
           {(feedback.isCorrect || feedback.isSkipped) && feedback.breakdown ? (
-            <div className="w-full bg-card border border-border rounded-xl p-4 mb-6 shadow-sm text-sm font-medium">
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
+            <div className="w-full bg-card border border-border rounded-2xl p-5 mb-6 shadow-sm text-sm font-medium">
+              <div className="flex justify-between items-center py-2 border-b border-border/30">
                 <span className="text-muted-foreground flex items-center gap-2">
                   {feedback.isSkipped ? <SkipForward size={16}/> : <CheckCircle size={16}/>} 
-                  {feedback.isSkipped ? "Skip Penalty" : "Correct Answer"}
+                  {feedback.isSkipped ? "Skip Penalty" : "Base XP"}
                 </span>
-                <span className={feedback.isSkipped ? "text-destructive font-bold" : ""}>
+                <span className={feedback.isSkipped ? "text-destructive font-bold text-lg" : "font-bold text-lg"}>
                   {feedback.breakdown.base > 0 ? '+' : ''}{feedback.breakdown.base}
                 </span>
               </div>
               {!feedback.isSkipped && feedback.breakdown.speed > 0 && (
-                <div className="flex justify-between items-center py-2 border-b border-border/50 text-blue-500">
+                <div className="flex justify-between items-center py-2 border-b border-border/30 text-blue-500">
                   <span className="flex items-center gap-2"><Zap size={16}/> Speed Bonus</span>
-                  <span>+{feedback.breakdown.speed}</span>
+                  <span className="font-bold text-lg">+{feedback.breakdown.speed}</span>
                 </div>
               )}
               {!feedback.isSkipped && feedback.breakdown.noHint > 0 && (
-                <div className="flex justify-between items-center py-2 border-b border-border/50 text-green-500">
-                  <span className="flex items-center gap-2"><Lightbulb size={16}/> No Hint</span>
-                  <span>+{feedback.breakdown.noHint}</span>
+                <div className="flex justify-between items-center py-2 border-b border-border/30 text-green-500">
+                  <span className="flex items-center gap-2"><Lightbulb size={16}/> No Hint Bonus</span>
+                  <span className="font-bold text-lg">+{feedback.breakdown.noHint}</span>
                 </div>
               )}
               {!feedback.isSkipped && feedback.breakdown.perfect > 0 && (
-                <div className="flex justify-between items-center py-2 border-b border-border/50 text-purple-500">
-                  <span className="flex items-center gap-2"><Star size={16}/> Perfect Puzzle</span>
-                  <span>+{feedback.breakdown.perfect}</span>
+                <div className="flex justify-between items-center py-2 border-b border-border/30 text-purple-500">
+                  <span className="flex items-center gap-2"><Star size={16}/> Perfect Score</span>
+                  <span className="font-bold text-lg">+{feedback.breakdown.perfect}</span>
                 </div>
               )}
               {!feedback.isSkipped && feedback.breakdown.combo > 0 && (
-                <div className="flex justify-between items-center py-2 border-b border-border/50 text-orange-500">
+                <div className="flex justify-between items-center py-2 border-b border-border/30 text-orange-500">
                   <span className="flex items-center gap-2"><Flame size={16}/> Combo Bonus</span>
-                  <span>+{feedback.breakdown.combo}</span>
+                  <span className="font-bold text-lg">+{feedback.breakdown.combo}</span>
                 </div>
               )}
-              <div className="flex justify-between items-center py-2 mt-2 font-bold text-lg text-primary">
-                <span>Total XP Earned</span>
+              <div className="flex justify-between items-center pt-4 mt-2 font-black text-xl text-primary">
+                <span>Total Earned</span>
                 <span className={feedback.isSkipped ? "text-destructive" : ""}>
                   {feedback.xpEarned > 0 ? '+' : ''}{feedback.xpEarned} XP
                 </span>
               </div>
             </div>
           ) : (
-            <div className="mb-8 w-full bg-card border border-border rounded-xl p-4 shadow-sm text-sm font-medium">
-              <p className="text-muted-foreground mb-1">The correct answer was:</p>
-              <p className="text-xl font-bold mb-6">{feedback.correctAnswer}</p>
-              <div className="flex justify-between items-center py-2 border-t border-border/50 mt-2 font-bold text-lg text-muted-foreground">
-                <span>Total XP Earned</span>
+            <div className="mb-8 w-full bg-card border border-border rounded-2xl p-5 shadow-sm text-sm font-medium">
+              <p className="text-muted-foreground mb-2">The correct answer was:</p>
+              <div className="bg-muted/50 p-4 rounded-xl border border-border/50 mb-6">
+                <p className="text-xl font-bold break-words">{feedback.correctAnswer}</p>
+              </div>
+              <div className="flex justify-between items-center pt-2 font-black text-xl text-muted-foreground">
+                <span>Total Earned</span>
                 <span>+0 XP</span>
               </div>
             </div>

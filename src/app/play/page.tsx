@@ -57,7 +57,6 @@ export default function PlayPage() {
         if (prev === null) return null;
         if (prev <= 1) {
           clearInterval(interval);
-          handleEndSession(session.id);
           return 0;
         }
         return prev - 1;
@@ -65,7 +64,14 @@ export default function PlayPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [globalTimeLeft, finishing, session]);
+  }, [globalTimeLeft, finishing]);
+
+  // Watch for timer reaching 0 to trigger endSession safely outside render
+  useEffect(() => {
+    if (globalTimeLeft === 0 && !finishing && session?.id) {
+      handleEndSession(session.id);
+    }
+  }, [globalTimeLeft, finishing, session?.id]);
 
   const handleEndSession = async (sessionId: string) => {
     if (finishing) return;
