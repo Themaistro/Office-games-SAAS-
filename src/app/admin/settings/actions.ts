@@ -70,6 +70,7 @@ export async function resetSeason() {
     .update({
       total_xp: 0,
       current_streak: 0,
+      best_streak: 0,
       current_level: 1,
       games_played: 0
     })
@@ -171,6 +172,7 @@ export async function factoryResetPlatform() {
     .update({
       total_xp: 0,
       current_streak: 0,
+      best_streak: 0,
       current_level: 1,
       games_played: 0
     })
