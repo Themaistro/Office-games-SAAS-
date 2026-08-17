@@ -4,55 +4,64 @@ import { useEffect } from "react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 
+import { createClient } from "@/lib/supabase/client";
+
 export function useDashboardTutorial() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (localStorage.getItem("has_seen_dashboard_tutorial")) return;
 
-    // Small delay to let DOM render (especially Navbar)
-    const timeoutId = setTimeout(() => {
-      const el = document.getElementById("tour-dashboard");
-      if (!el) return;
+    const checkFirstTime = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("profiles").select("games_played").eq("id", user.id).single();
+      if (!data || data.games_played > 0) return;
 
-      const driverObj = driver({
-        showProgress: true,
-        animate: true,
-        steps: [
-          {
-            popover: {
-              title: "Welcome to Daily Brain Arena! 🧠",
-              description: "Would you like a quick tour to learn the ropes? Click 'Start Tour' to begin, or the 'X' to skip and get right to the action.",
-              nextBtnText: "Start Tour",
+      // Small delay to let DOM render (especially Navbar)
+      const timeoutId = setTimeout(() => {
+        const el = document.getElementById("tour-dashboard");
+        if (!el) return;
+
+        const driverObj = driver({
+          showProgress: true,
+          animate: true,
+          steps: [
+            {
+              popover: {
+                title: "Welcome to Daily Brain Arena! 🧠",
+                description: "Would you like a quick tour to learn the ropes? Click 'Start Tour' to begin, or the 'X' to skip and get right to the action.",
+                nextBtnText: "Start Tour",
+              }
+            },
+            {
+              element: "#tour-dashboard",
+              popover: {
+                title: "The Dashboard 🏠",
+                description: "This is your Dashboard. Here you can start your daily mission, play mini-games in the Lounge, and track your progress.",
+                side: "bottom",
+                align: "start"
+              }
+            },
+            {
+              element: "#tour-leaderboard",
+              popover: {
+                title: "Check the Ranks 🏆",
+                description: "See how you stack up against your colleagues. Earn XP by completing daily missions to climb the leaderboard!",
+                side: "bottom",
+                align: "start"
+              }
             }
-          },
-          {
-            element: "#tour-dashboard",
-            popover: {
-              title: "The Dashboard 🏠",
-              description: "This is your Dashboard. Here you can start your daily mission, play mini-games in the Lounge, and track your progress.",
-              side: "bottom",
-              align: "start"
-            }
-          },
-          {
-            element: "#tour-leaderboard",
-            popover: {
-              title: "Check the Ranks 🏆",
-              description: "See how you stack up against your colleagues. Earn XP by completing daily missions to climb the leaderboard!",
-              side: "bottom",
-              align: "start"
-            }
+          ],
+          onDestroyStarted: () => {
+            driverObj.destroy();
+            localStorage.setItem("has_seen_dashboard_tutorial", "true");
           }
-        ],
-        onDestroyStarted: () => {
-          driverObj.destroy();
-          localStorage.setItem("has_seen_dashboard_tutorial", "true");
-        }
-      });
-      driverObj.drive();
-    }, 1500);
-
-    return () => clearTimeout(timeoutId);
+        });
+        driverObj.drive();
+      }, 1500);
+    };
+    checkFirstTime();
   }, []);
 }
 
@@ -61,7 +70,14 @@ export function useGameTutorial() {
     if (typeof window === "undefined") return;
     if (localStorage.getItem("has_seen_game_tutorial")) return;
 
-    const timeoutId = setTimeout(() => {
+    const checkFirstTime = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("profiles").select("games_played").eq("id", user.id).single();
+      if (!data || data.games_played > 0) return;
+
+      const timeoutId = setTimeout(() => {
       const hintEl = document.getElementById("tour-hint-button");
       const skipEl = document.getElementById("tour-skip-button");
       
@@ -111,8 +127,8 @@ export function useGameTutorial() {
       });
       
       driverObj.drive();
-    }, 1500);
-
-    return () => clearTimeout(timeoutId);
+      }, 1500);
+    };
+    checkFirstTime();
   }, []);
 }
