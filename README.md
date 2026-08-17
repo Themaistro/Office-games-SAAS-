@@ -1,25 +1,44 @@
 # Daily Brain Arena
 
-Daily Brain Arena is a corporate game platform designed to offer employees a fun, competitive, and time-boxed daily challenge. The platform strictly limits gameplay to 15 minutes per day per user, ensuring a healthy balance while providing an engaging break.
+Daily Brain Arena is a corporate gamification platform designed to offer employees a fun, competitive, and time-boxed daily challenge. It provides a healthy break for teams, boosts morale, and fosters friendly competition across departments.
+
+## Features
+
+- **Daily Missions (13 Mini-games)**: A rich catalog of brain-training games including:
+  - **Memory & Focus**: Card Match, Memory Game, Sequence Game, Odd Object.
+  - **Speed & Reaction**: Reaction Time, Stroop Effect, Target Number.
+  - **Math & Logic**: Mental Math, Sudoku Lite, Logic Puzzles.
+  - **Word & Knowledge**: Word Scramble, Missing Letters, Company/IT Trivia.
+- **Real-Time Multiplayer**: 
+  - Challenge colleagues to live **Chess** and **Tic-Tac-Toe** matches.
+  - Spectate live ongoing matches from the Office Lounge.
+- **Strict Timeboxing**: A server-enforced daily time limit ensures employees only play for a healthy, configurable duration (e.g., 15 minutes) per day.
+- **Progression System**: Earn XP for performance, build daily streaks, level up, and compete on the global leaderboard.
+- **Admin Dashboard**: 
+  - Real-time participation analytics and heatmaps.
+  - Player roster management and bulk time-limit configuration.
+  - Game rotation and trivia question management.
+  - Global announcement broadcasting (Info, Success, Warning, Urgent).
+  - One-click Season Reset and Factory Wipes.
+- **Interactive Onboarding**: Integrated `driver.js` product tours guide new users through their first mission, navigating the leaderboard, and challenging coworkers.
 
 ## Architecture
 
 - **Frontend**: Next.js 16 (App Router), React 19, TypeScript
 - **Styling**: Tailwind CSS v4, custom HSL theme, Framer Motion for tasteful animations
 - **Backend**: Next.js Server Actions & API Routes for secure, server-authoritative logic
-- **Database**: PostgreSQL (via Supabase)
+- **Database**: PostgreSQL (via Supabase) with Row Level Security (RLS)
+- **Real-time**: Supabase Realtime Channels (for multiplayer sync and live activity feeds)
 - **Authentication**: Supabase Auth (Email/Password & Google OAuth)
-- **Hosting**: Vercel ready
-
-## Core Mechanics
-- **15-Minute Rule**: A strictly enforced server-side timer ensures employees cannot play longer than 15 minutes a day.
-- **Fair Play**: Timer cannot be manipulated client-side, closing the browser does not pause the session, and questions are randomized.
-- **Progression**: XP, Levels, and Streaks to reward consistency.
-- **Monthly Seasons**: Leaderboards reset at the beginning of the month.
+- **Hosting**: Optimized for Vercel
 
 ## Installation & Setup
 
-1. **Clone the repository** (or download the source).
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Themaistro/Office-games-SAAS-.git
+   cd Office-games-SAAS-
+   ```
 2. **Install dependencies**:
    ```bash
    npm install
@@ -29,17 +48,18 @@ Daily Brain Arena is a corporate game platform designed to offer employees a fun
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ```
 
-## Supabase & Database Setup
+## Database Setup (Automated)
 
-1. Create a new Supabase project.
-2. Go to the SQL Editor in your Supabase dashboard.
-3. Run the SQL script located at `schema.sql` to generate all tables, relationships, and RLS policies.
-4. Set up Auth providers (Email/Password, Google) in the Supabase Auth settings.
+The project includes an automated setup script that applies all schema migrations, RLS policies, and populates the database with hundreds of starter trivia questions and words.
 
-## Seed Data (Coming Soon)
-A seed script will be provided to automatically generate teams, game types, and 100+ sample questions.
+1. Ensure your `.env.local` is fully configured.
+2. Run the database setup script:
+   ```bash
+   node db/scripts/setup_db.js
+   ```
 
 ## Running Locally
 
@@ -49,15 +69,18 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Testing (Planned)
-- Unit tests via Vitest/Jest for XP/Streak calculation.
-- E2E tests for the 15-minute lockout logic.
+## Admin Setup
+
+By default, all new users are employees. To create an admin account:
+1. Sign up normally via the UI.
+2. Either manually update your role in the Supabase `profiles` table to `'admin'`, OR run the included helper script:
+   ```bash
+   node db/scripts/make_admin.js your-email@example.com
+   ```
 
 ## Deployment to Vercel
-1. Push your code to a Git repository.
-2. Import the project in Vercel.
-3. Add the `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` as Environment Variables.
-4. Deploy!
 
-## Admin Setup
-To create an admin account, sign up normally via the UI, then manually update your role in the Supabase `profiles` table to `'admin'`.
+1. Push your code to your GitHub repository.
+2. Import the project in Vercel.
+3. Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to your Vercel Environment Variables.
+4. Deploy!
