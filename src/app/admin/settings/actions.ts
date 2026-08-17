@@ -55,15 +55,22 @@ export async function resetSeason() {
   }
 
   // 2. Wipe historical sessions
-  await adminClient.from("daily_sessions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { error: e2 } = await adminClient.from("daily_sessions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e2) throw new Error("Failed to wipe sessions: " + e2.message);
 
   // 3. Wipe all chess and ttt games (clears the live feed)
-  await adminClient.from("chess_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await adminClient.from("ttt_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await adminClient.from("activity_feed").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { error: e4 } = await adminClient.from("chess_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e4) throw new Error("Failed to wipe chess games: " + e4.message);
+
+  const { error: e5 } = await adminClient.from("ttt_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e5) throw new Error("Failed to wipe ttt games: " + e5.message);
+
+  const { error: e6 } = await adminClient.from("activity_feed").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e6) throw new Error("Failed to wipe activity feed: " + e6.message);
 
   // 4. Wipe cached questions (daily pool) to force a fresh pull for the new season
-  await adminClient.from("questions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { error: e3 } = await adminClient.from("questions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e3) throw new Error("Failed to wipe questions: " + e3.message);
 
   // 4. Reset employee profiles
   const { error: profileError } = await adminClient
@@ -88,8 +95,7 @@ export async function resetSeason() {
     season_start_date: new Date().toISOString()
   }).eq("id", 1);
 
-  revalidatePath("/admin");
-  revalidatePath("/admin/settings");
+  revalidatePath("/", "layout");
 }
 
 export async function getSystemSettings() {
@@ -155,18 +161,26 @@ export async function factoryResetPlatform() {
   const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
   // 1. Wipe all historical season winners
-  await adminClient.from("season_winners").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { error: e1 } = await adminClient.from("season_winners").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e1) throw new Error("Failed to wipe season winners: " + e1.message);
 
   // 2. Wipe historical sessions
-  await adminClient.from("daily_sessions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { error: e2 } = await adminClient.from("daily_sessions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e2) throw new Error("Failed to wipe sessions: " + e2.message);
 
   // 3. Wipe cached questions (daily pool)
-  await adminClient.from("questions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { error: e3 } = await adminClient.from("questions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e3) throw new Error("Failed to wipe questions: " + e3.message);
 
   // 3b. Wipe all chess and ttt games (clears the live feed)
-  await adminClient.from("chess_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await adminClient.from("ttt_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await adminClient.from("activity_feed").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  const { error: e4 } = await adminClient.from("chess_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e4) throw new Error("Failed to wipe chess games: " + e4.message);
+
+  const { error: e5 } = await adminClient.from("ttt_games").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e5) throw new Error("Failed to wipe ttt games: " + e5.message);
+
+  const { error: e6 } = await adminClient.from("activity_feed").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (e6) throw new Error("Failed to wipe activity feed: " + e6.message);
 
   // 4. Reset employee profiles
   const { error: profileError } = await adminClient
@@ -188,7 +202,7 @@ export async function factoryResetPlatform() {
     season_start_date: new Date().toISOString()
   }).eq("id", 1);
 
-  revalidatePath("/admin/settings");
+  revalidatePath("/", "layout");
 }
 
 export async function bulkUpdateTimeLimits(dailyLimit: number, sessionLimit: number) {
