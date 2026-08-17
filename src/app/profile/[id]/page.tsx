@@ -9,6 +9,7 @@ import CognitiveRadarChart from "@/components/profile/CognitiveRadarChart";
 import ChessStatsCard from "@/components/profile/ChessStatsCard";
 import TttStatsCard from "@/components/profile/TttStatsCard";
 import ChallengeMenu from "@/components/profile/ChallengeMenu";
+import ChallengeTutorialTrigger from "@/components/tutorial/ChallengeTutorialTrigger";
 
 export const dynamic = "force-dynamic";
 
@@ -330,7 +331,10 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
                   <span className="font-black text-xl text-foreground">#{userRank}</span>
                 </div>
                 {user.id !== profile.id && (
-                  <ChallengeMenu targetUserId={profile.id} />
+                  <>
+                    <ChallengeTutorialTrigger />
+                    <ChallengeMenu targetUserId={profile.id} />
+                  </>
                 )}
               </div>
             </div>

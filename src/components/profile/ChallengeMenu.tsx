@@ -42,7 +42,7 @@ export default function ChallengeMenu({ targetUserId }: { targetUserId: string }
   };
 
   return (
-    <div className="relative w-full" ref={menuRef}>
+    <div id="tour-challenge-menu" className="relative w-full" ref={menuRef}>
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-xl font-bold shadow-sm transition-colors text-sm w-full"

@@ -224,3 +224,106 @@ export function useProfileTutorial() {
     checkFirstTime();
   }, []);
 }
+
+export function useLeaderboardTutorial() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem("has_seen_leaderboard_tutorial")) return;
+
+    const checkFirstTime = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("profiles").select("games_played").eq("id", user.id).single();
+      if (!data || data.games_played > 0) return;
+
+      const timeoutId = setTimeout(() => {
+        const el = document.getElementById("tour-leaderboard-players");
+        if (!el) return;
+
+        const driverObj = driver({
+          showProgress: true,
+          animate: true,
+          allowClose: false,
+          showButtons: ['next', 'previous', 'close'],
+          doneBtnText: 'Finish Tour',
+          nextBtnText: 'Next',
+          prevBtnText: 'Back',
+          steps: [
+            {
+              popover: {
+                title: "The Leaderboard 🏆",
+                description: "Welcome to the Leaderboard! This is where you compete with the entire company.",
+                nextBtnText: "Start Tour",
+              }
+            },
+            {
+              element: "#tour-leaderboard-players",
+              popover: {
+                title: "Challenge Other Players ⚔️",
+                description: "You can click on any player's name here to view their profile. From their profile page, you can send them a direct challenge for a match of Chess or Tic-Tac-Toe!",
+                side: "top",
+                align: "center"
+              }
+            }
+          ],
+          onDestroyStarted: () => {
+            driverObj.destroy();
+            localStorage.setItem("has_seen_leaderboard_tutorial", "true");
+          }
+        });
+        
+        driverObj.drive();
+      }, 1500);
+    };
+    checkFirstTime();
+  }, []);
+}
+
+export function useChallengeTutorial() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem("has_seen_challenge_tutorial")) return;
+
+    const checkFirstTime = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("profiles").select("games_played").eq("id", user.id).single();
+      if (!data || data.games_played > 0) return;
+
+      const timeoutId = setTimeout(() => {
+        const el = document.getElementById("tour-challenge-menu");
+        if (!el) return;
+
+        const driverObj = driver({
+          showProgress: true,
+          animate: true,
+          allowClose: false,
+          showButtons: ['next', 'previous', 'close'],
+          doneBtnText: 'Finish Tour',
+          nextBtnText: 'Next',
+          prevBtnText: 'Back',
+          steps: [
+            {
+              element: "#tour-challenge-menu",
+              popover: {
+                title: "Issue a Challenge! ⚔️",
+                description: "You've found another player's profile! Click this button to instantly send them a challenge. If they accept, you'll jump right into a match together.",
+                side: "left",
+                align: "center"
+              }
+            }
+          ],
+          onDestroyStarted: () => {
+            driverObj.destroy();
+            localStorage.setItem("has_seen_challenge_tutorial", "true");
+          }
+        });
+        
+        driverObj.drive();
+      }, 1500);
+    };
+    checkFirstTime();
+  }, []);
+}

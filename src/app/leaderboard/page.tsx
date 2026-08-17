@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Trophy, Medal, User, Flame } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Link from "next/link";
+import LeaderboardTutorialTrigger from "@/components/tutorial/LeaderboardTutorialTrigger";
 
 // We'll mock the data if the DB isn't populated yet, but here's the real query structure.
 export default async function LeaderboardPage() {
@@ -101,11 +102,12 @@ export default async function LeaderboardPage() {
           
           {/* PLAYER LEADERBOARD */}
           <div className="lg:col-span-2 space-y-4">
+            <LeaderboardTutorialTrigger />
             <h2 className="text-xl font-bold flex items-center gap-2">
               <User size={20} className="text-primary"/> 
               Top Employees
             </h2>
-            <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+            <div id="tour-leaderboard-players" className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
               <div className="grid grid-cols-12 gap-4 p-4 border-b border-border bg-muted/50 text-sm font-semibold text-muted-foreground">
                 <div className="col-span-2 sm:col-span-1 text-center">#</div>
                 <div className="col-span-5 sm:col-span-6">Player</div>
