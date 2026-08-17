@@ -6,6 +6,7 @@ import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
 import CooldownTimer from "@/components/dashboard/CooldownTimer";
 import LiveActivityFeed from "@/components/dashboard/LiveActivityFeed";
 import UnifiedOfficeLounge from "@/components/dashboard/UnifiedOfficeLounge";
+import DashboardTutorialTrigger from "@/components/tutorial/DashboardTutorialTrigger";
 
 export const dynamic = "force-dynamic";
 
@@ -128,6 +129,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-7xl">
+      <DashboardTutorialTrigger />
       {/* Announcements Banner */}
       <AnnouncementBanner announcements={announcements || []} />
 

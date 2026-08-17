@@ -21,6 +21,8 @@ import MissingLettersGame from "./types/MissingLettersGame";
 import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap, Star, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { submitAnswer } from "@/app/play/actions";
+import { useGameTutorial } from "@/hooks/useTutorials";
+import clsx from "clsx";
 
 interface GameEngineProps {
   sessionQuestions: SessionQuestion[];
@@ -44,6 +46,7 @@ interface FeedbackState {
 }
 
 export default function GameEngine({ sessionQuestions, onComplete }: GameEngineProps) {
+  useGameTutorial();
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(() => {
     const firstUnanswered = sessionQuestions.findIndex(q => !q.is_completed);
@@ -418,12 +421,14 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           </div>
           
           {canUseHint && (
-            <button 
+            <button
+              id="tour-hint-button"
               onClick={handleUseHint}
               disabled={wasHintUsed || feedback !== null || hintsLeft <= 0}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-transform shadow-sm ${
+              className={clsx(
+                "flex items-center gap-2 px-4 py-2 rounded-full font-bold transition-all",
                 wasHintUsed || hintsLeft <= 0 ? 'bg-muted text-muted-foreground opacity-50' : 'bg-primary/10 text-primary hover:bg-primary/20 active:scale-95'
-              }`}
+              )}
             >
               <Lightbulb size={16} />
               <span className="text-sm hidden sm:inline">Hint</span>
@@ -431,7 +436,8 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
             </button>
           )}
 
-          <button 
+          <button
+            id="tour-skip-button"
             onClick={handleSkip}
             disabled={isSubmitting || feedback !== null}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-transform shadow-sm ${

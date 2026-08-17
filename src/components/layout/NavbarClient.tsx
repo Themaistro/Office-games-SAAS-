@@ -59,6 +59,7 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
             return (
               <Link
                 key={link.name}
+                id={`tour-${link.name.toLowerCase()}`}
                 href={link.href}
                 className={`relative flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-colors group ${
                   isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
