@@ -110,8 +110,15 @@ export function useGameTutorial() {
         {
           popover: {
             title: "Your First Daily Mission! 🎯",
-            description: "Welcome to your first mission! Let's take a quick look at the tools you have. You can skip this at any time.",
+            description: "Welcome to your first mission! Let's take a quick look at the tools you have.",
             nextBtnText: "Start Tour",
+          }
+        },
+        {
+          popover: {
+            title: "Speed Matters! ⚡",
+            description: "There's a timer running in the background. The faster you solve a challenge, the higher your Speed Bonus! Don't worry though—if you leave the page to check the dashboard, the timer pauses until you return.",
+            nextBtnText: "Next",
           }
         }
       ];

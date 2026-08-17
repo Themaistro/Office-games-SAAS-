@@ -86,8 +86,19 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     }
     setCurrentDifficulty(nextDiff || 'medium');
     
-    setQuestionStartTime(Date.now());
+    const start = Date.now();
+    setQuestionStartTime(start);
     setWasHintUsed(false); // Reset hint for new question
+
+    // Track elapsed time when component unmounts (e.g. user goes to dashboard)
+    return () => {
+      const qId = sessionQuestions[currentIndex]?.question?.id;
+      if (qId) {
+        const elapsed = Date.now() - start;
+        const accumulated = parseInt(sessionStorage.getItem(`question_accumulated_${qId}`) || '0');
+        sessionStorage.setItem(`question_accumulated_${qId}`, (accumulated + elapsed).toString());
+      }
+    };
   }, [currentIndex, sessionQuestions]);
   
   const currentSlug = currentSessionQuestion?.question?.game_type?.slug || '';
@@ -121,8 +132,12 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       dynamicCorrectAnswer = optionsOrIsCorrect.dynamicCorrectAnswer;
     }
 
-    const timeSpent = customTimeSpent !== undefined ? customTimeSpent : Math.floor((Date.now() - questionStartTime) / 1000);
+    const accumulated = parseInt(sessionStorage.getItem(`question_accumulated_${currentSessionQuestion?.question?.id}`) || '0');
+    const timeSpent = customTimeSpent !== undefined ? customTimeSpent : Math.floor(((Date.now() - questionStartTime) + accumulated) / 1000);
     const sq = currentSessionQuestion;
+
+    // Clear accumulated time for this question
+    sessionStorage.removeItem(`question_accumulated_${sq?.question?.id}`);
 
     try {
       const result = await submitAnswer(sq.id, answer, timeSpent, {
