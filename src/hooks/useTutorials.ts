@@ -19,9 +19,16 @@ export function useDashboardTutorial() {
         animate: true,
         steps: [
           {
-            element: "#tour-dashboard",
             popover: {
               title: "Welcome to Daily Brain Arena! 🧠",
+              description: "Would you like a quick tour to learn the ropes? Click 'Start Tour' to begin, or the 'X' to skip and get right to the action.",
+              nextBtnText: "Start Tour",
+            }
+          },
+          {
+            element: "#tour-dashboard",
+            popover: {
+              title: "The Dashboard 🏠",
               description: "This is your Dashboard. Here you can start your daily mission, play mini-games in the Lounge, and track your progress.",
               side: "bottom",
               align: "start"
@@ -60,7 +67,15 @@ export function useGameTutorial() {
       
       if (!hintEl && !skipEl) return;
 
-      const steps: any[] = [];
+      const steps: any[] = [
+        {
+          popover: {
+            title: "Your First Daily Mission! 🎯",
+            description: "Would you like a quick tour of the mission tools? Click 'Start Tour' to begin, or the 'X' to skip and start playing.",
+            nextBtnText: "Start Tour",
+          }
+        }
+      ];
       if (hintEl) {
         steps.push({
           element: "#tour-hint-button",
