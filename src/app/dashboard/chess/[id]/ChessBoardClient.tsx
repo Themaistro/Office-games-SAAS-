@@ -136,13 +136,13 @@ export default function ChessBoardClient({
       if (isWhiteTurn) {
         setWhiteTimeMs((prev: number) => {
           const next = Math.max(0, prev - 100);
-          if (next === 0 && prev > 0) declareChessTimeout(game.id);
+          if (next === 0 && prev > 0) setTimeout(() => declareChessTimeout(game.id), 0);
           return next;
         });
       } else {
         setBlackTimeMs((prev: number) => {
           const next = Math.max(0, prev - 100);
-          if (next === 0 && prev > 0) declareChessTimeout(game.id);
+          if (next === 0 && prev > 0) setTimeout(() => declareChessTimeout(game.id), 0);
           return next;
         });
       }
