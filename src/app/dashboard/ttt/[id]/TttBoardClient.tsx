@@ -174,15 +174,15 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
         </div>
 
         <div className={clsx(
-          "relative z-10 w-10 h-10 rounded-xl flex items-center justify-center mt-2 shadow-sm",
+          "relative z-10 w-10 h-10 rounded-xl flex items-center justify-center mt-2 shadow-sm mb-2",
           symbol === "X" ? "bg-blue-500/10 text-blue-500" : "bg-red-500/10 text-red-500"
         )}>
           {symbol === "X" ? <XIcon strokeWidth={3} /> : <Circle strokeWidth={3} />}
         </div>
         
         {/* Rivalry Score Indicator */}
-        <div className="absolute -bottom-4 right-1/2 translate-x-1/2 bg-background border border-border shadow-md rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap z-20">
-          Score: {symbol === "X" ? matchupScore.xWins : matchupScore.oWins}
+        <div className="relative z-20 bg-background border border-border shadow-sm rounded-full px-4 py-1 text-xs font-black tracking-wider text-muted-foreground uppercase">
+          Score: <span className={symbol === "X" ? "text-blue-500" : "text-red-500"}>{symbol === "X" ? matchupScore.xWins : matchupScore.oWins}</span>
         </div>
       </div>
     );
