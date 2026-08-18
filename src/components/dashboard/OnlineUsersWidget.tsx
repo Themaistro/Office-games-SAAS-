@@ -13,61 +13,10 @@ type OnlineUser = {
   online_at: string;
 };
 
+import { usePresence } from "@/components/providers/PresenceProvider";
+
 export default function OnlineUsersWidget({ currentUserId, profile }: { currentUserId: string, profile: any }) {
-  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
-  const supabase = createClient();
-
-  useEffect(() => {
-    // Create a unique presence channel
-    const channel = supabase.channel('online_users', {
-      config: {
-        presence: {
-          key: currentUserId,
-        },
-      },
-    });
-
-    const updatePresenceState = () => {
-      const state = channel.presenceState();
-      const users = new Map<string, OnlineUser>();
-      
-      for (const key in state) {
-        const presences = state[key] as any[];
-        if (presences.length > 0) {
-          const p = presences[0];
-          if (p.user_id !== currentUserId) {
-            users.set(p.user_id, p as OnlineUser);
-          }
-        }
-      }
-      
-      const onlineArr = Array.from(users.values()).sort((a, b) => {
-        return new Date(b.online_at).getTime() - new Date(a.online_at).getTime();
-      });
-      
-      setOnlineUsers(onlineArr);
-    };
-
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        updatePresenceState();
-      })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-        updatePresenceState();
-      })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-        updatePresenceState();
-      })
-      .subscribe(async (status, err) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.error('Presence channel error', err);
-        }
-      });
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [currentUserId, profile?.full_name, profile?.avatar_url, profile?.department]);
+  const onlineUsers = usePresence();
 
   return (
     <div className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
