@@ -8,6 +8,8 @@ import LiveActivityFeed from "@/components/dashboard/LiveActivityFeed";
 import UnifiedOfficeLounge from "@/components/dashboard/UnifiedOfficeLounge";
 import DashboardTutorialTrigger from "@/components/tutorial/DashboardTutorialTrigger";
 
+import OnlineUsersWidget from "@/components/dashboard/OnlineUsersWidget";
+
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
@@ -374,6 +376,9 @@ export default async function DashboardPage() {
                 )}
               </div>
             </div>
+
+            {/* Online Users */}
+            <OnlineUsersWidget currentUserId={user.id} profile={profile} />
             
           </div>
         </div>
