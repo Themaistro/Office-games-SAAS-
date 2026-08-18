@@ -13,6 +13,7 @@ import { createTttRematch } from "../actions";
 export default function TttBoardClient({ initialGame, currentUserId, matchupScore }: { initialGame: any; currentUserId: string; matchupScore: { xWins: number; oWins: number; draws: number } }) {
   const [rematchState, setRematchState] = useState<"idle" | "requested" | "received" | "loading">("idle");
   const [newGameId, setNewGameId] = useState<string | null>(null);
+  const [opponentPresent, setOpponentPresent] = useState(false);
   const [game, setGame] = useState<any>(initialGame);
   const [loadingAction, setLoadingAction] = useState(false);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
@@ -27,7 +28,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
   useEffect(() => {
     const channel = supabase
       .channel(`ttt_games_${game.id}`, {
-        config: { broadcast: { self: false } }
+        config: { broadcast: { self: false }, presence: { key: currentUserId } }
       })
       .on('broadcast', { event: 'rematch_request' }, () => {
         setRematchState("received");
@@ -58,7 +59,20 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
           return { ...prev, ...newRecord };
         });
       })
-      .subscribe();
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const opponentId = game.x_player_id === currentUserId ? game.o_player_id : game.x_player_id;
+        let isPresent = false;
+        for (const key in state) {
+           if (key === opponentId) isPresent = true;
+        }
+        setOpponentPresent(isPresent);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ user_id: currentUserId });
+        }
+      });
 
     channelRef.current = channel;
 
@@ -159,6 +173,11 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
         )}
         
         <div className="relative z-10 w-16 h-16 rounded-full overflow-hidden border-4 border-background shadow-md bg-secondary flex items-center justify-center">
+          {(!opponentPresent && player.id !== currentUserId) && (
+            <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center z-20">
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-background px-2 py-0.5 rounded-full border shadow-sm">Left</span>
+            </div>
+          )}
           {player.avatar_url ? (
             <img src={player.avatar_url} className="w-full h-full object-cover" />
           ) : (
@@ -290,13 +309,14 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
                 {!isSpectator && (
                   <button 
                     onClick={handleRequestRematch}
-                    disabled={rematchState !== "idle"}
+                    disabled={rematchState !== "idle" || !opponentPresent}
                     className={clsx(
                       "flex-[2] px-6 py-3 rounded-xl font-bold transition-all shadow-lg",
+                      !opponentPresent ? "bg-destructive/10 text-destructive cursor-not-allowed" :
                       rematchState === "requested" ? "bg-muted text-muted-foreground cursor-default" : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-primary/20"
                     )}
                   >
-                    {rematchState === "requested" ? "Waiting for Opponent..." : "Play Again"}
+                    {!opponentPresent ? "Opponent Left" : rematchState === "requested" ? "Waiting for Opponent..." : "Play Again"}
                   </button>
                 )}
               </div>
