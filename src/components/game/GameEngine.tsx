@@ -407,6 +407,16 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   return (
     <div id="game-engine-container" className="w-full flex flex-col items-center">
       <div className="w-full mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card border border-border px-6 py-4 rounded-2xl shadow-sm relative overflow-hidden">
+        
+        {/* Progress Bar Background */}
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-secondary">
+          {/* Progress Bar Fill */}
+          <div 
+            className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_10px_rgba(var(--primary),0.5)]" 
+            style={{ width: `${((currentIndex) / sessionQuestions.length) * 100}%` }}
+          />
+        </div>
+
         {showLevelUp && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-accent text-accent-foreground animate-in zoom-in duration-300">
             <div className="flex items-center gap-2 text-xl font-black tracking-widest uppercase">
@@ -417,15 +427,18 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           </div>
         )}
 
-        <div className="flex flex-col">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-            Sprint Progress
-            {currentDifficulty === 'easy' && <span className="bg-green-500/20 text-green-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-green-500" /> EASY</span>}
-            {currentDifficulty === 'medium' && <span className="bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-yellow-500" /> MEDIUM</span>}
-            {currentDifficulty === 'hard' && <span className="bg-red-500/20 text-red-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> HARD</span>}
-          </span>
-          <span className="font-bold text-lg">
+        <div className="flex flex-col pt-1">
+          <div className="flex items-center gap-2 justify-between w-full mb-1">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+              Sprint Progress
+              {currentDifficulty === 'easy' && <span className="bg-green-500/20 text-green-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-green-500" /> EASY</span>}
+              {currentDifficulty === 'medium' && <span className="bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-yellow-500" /> MEDIUM</span>}
+              {currentDifficulty === 'hard' && <span className="bg-red-500/20 text-red-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> HARD</span>}
+            </span>
+          </div>
+          <span className="font-bold text-lg flex items-baseline gap-2">
             Challenge #{currentIndex + 1}
+            <span className="text-xs text-muted-foreground font-medium">of {sessionQuestions.length}</span>
           </span>
           {currentSessionQuestion?.question?.content?.isCompanyTrivia && (
             <span className="mt-1 bg-purple-500 text-white px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm w-fit">
