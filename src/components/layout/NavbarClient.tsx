@@ -3,8 +3,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Brain, LogOut, User, Trophy, Flame, LayoutDashboard, Settings, ChevronDown, Shield } from "lucide-react";
+import { Brain, LogOut, User, Trophy, Flame, LayoutDashboard, Settings, ChevronDown, Shield, Search } from "lucide-react";
 import NotificationBellClient from "./NotificationBellClient";
+import SearchUsersModal from "./SearchUsersModal";
 
 interface NavbarClientProps {
   user: any;
@@ -15,6 +16,7 @@ interface NavbarClientProps {
 export default function NavbarClient({ user, profile, onSignOut }: NavbarClientProps) {
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -28,6 +30,18 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Global shortcut for search (Ctrl+K or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const navLinks = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Leaderboard", href: "/leaderboard", icon: Trophy },
@@ -38,49 +52,63 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
   }
 
   return (
-    <div className="fixed top-6 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
-      {/* Floating Glass Pill */}
-      <nav className="flex items-center gap-2 p-2 rounded-full bg-background/70 backdrop-blur-xl border border-border/60 shadow-2xl pointer-events-auto transition-all max-w-[calc(100vw-2rem)]">
-        
-        {/* Brand Icon */}
-        <Link 
-          href="/dashboard" 
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:scale-105 transition-transform mr-2 ml-1"
-        >
-          <Brain size={20} />
-        </Link>
+    <>
+      <SearchUsersModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      
+      <div className="fixed top-6 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
+        {/* Floating Glass Pill */}
+        <nav className="flex items-center gap-2 p-2 rounded-full bg-background/70 backdrop-blur-xl border border-border/60 shadow-2xl pointer-events-auto transition-all max-w-[calc(100vw-2rem)]">
+          
+          {/* Brand Icon */}
+          <Link 
+            href="/dashboard" 
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm hover:scale-105 transition-transform mr-2 ml-1"
+          >
+            <Brain size={20} />
+          </Link>
 
-        {/* Navigation Links */}
-        <div className="flex items-center gap-1">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
-            const Icon = link.icon;
-            
-            return (
-              <Link
-                key={link.name}
-                id={`tour-${link.name.toLowerCase()}`}
-                href={link.href}
-                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-colors group ${
-                  isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {isActive && (
-                  <div className="absolute inset-0 bg-primary rounded-full -z-10 shadow-sm animate-in zoom-in-95 duration-200" />
-                )}
-                <Icon size={16} className={isActive ? "text-primary-foreground" : "group-hover:scale-110 transition-transform"} />
-                <span className="hidden sm:inline-block">{link.name}</span>
-              </Link>
-            );
-          })}
-        </div>
+          {/* Navigation Links */}
+          <div className="flex items-center gap-1">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+              const Icon = link.icon;
+              
+              return (
+                <Link
+                  key={link.name}
+                  id={`tour-${link.name.toLowerCase()}`}
+                  href={link.href}
+                  className={`relative flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-colors group ${
+                    isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute inset-0 bg-primary rounded-full -z-10 shadow-sm animate-in zoom-in-95 duration-200" />
+                  )}
+                  <Icon size={16} className={isActive ? "text-primary-foreground" : "group-hover:scale-110 transition-transform"} />
+                  <span className="hidden sm:inline-block">{link.name}</span>
+                </Link>
+              );
+            })}
+          </div>
 
-        <div className="w-px h-8 bg-border/60 mx-2" />
+          <div className="w-px h-8 bg-border/60 mx-2" />
 
-        {user && <NotificationBellClient userId={user.id} />}
+          {/* Search Button */}
+          {user && (
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+              title="Search Users (Cmd/Ctrl + K)"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+          )}
 
-        {/* Stats Badge */}
-        {user && profile && profile.role !== "admin" && (
+          {user && <NotificationBellClient userId={user.id} />}
+
+          {/* Stats Badge */}
+          {user && profile && profile.role !== "admin" && (
           <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/40 mr-2 shadow-inner">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-black text-muted-foreground uppercase">Lv</span>
@@ -144,5 +172,6 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
         )}
       </nav>
     </div>
+    </>
   );
 }
