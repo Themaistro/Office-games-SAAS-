@@ -181,8 +181,12 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
         </div>
         
         {/* Rivalry Score Indicator */}
-        <div className="relative z-20 bg-background border border-border shadow-sm rounded-full px-4 py-1 text-xs font-black tracking-wider text-muted-foreground uppercase">
-          Score: <span className={symbol === "X" ? "text-blue-500" : "text-red-500"}>{symbol === "X" ? matchupScore.xWins : matchupScore.oWins}</span>
+        <div className="relative z-20 bg-background border border-border shadow-sm rounded-full px-4 py-1.5 text-sm font-black flex items-center gap-1.5">
+          <span className="text-green-500">{symbol === "X" ? matchupScore.xWins : matchupScore.oWins}</span>
+          <span className="text-border">/</span>
+          <span className="text-muted-foreground">{matchupScore.draws}</span>
+          <span className="text-border">/</span>
+          <span className="text-red-500">{symbol === "X" ? matchupScore.oWins : matchupScore.xWins}</span>
         </div>
       </div>
     );
