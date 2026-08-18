@@ -67,6 +67,9 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   // Difficulty & Overlay State
   const [currentDifficulty, setCurrentDifficulty] = useState(sessionQuestions[currentIndex]?.question?.difficulty || 'medium');
   const [showLevelUp, setShowLevelUp] = useState(false);
+  
+  // Auto-proceed logic
+  const [autoProceedCountdown, setAutoProceedCountdown] = useState<number | null>(null);
 
   // Stats tracking
   const [stats, setStats] = useState({
@@ -101,8 +104,23 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
         sessionStorage.setItem(`question_accumulated_${qId}`, (accumulated + elapsed).toString());
       }
     };
-  }, [currentIndex, sessionQuestions]);
+  }, [currentIndex, sessionQuestions, currentDifficulty]);
   
+  useEffect(() => {
+    if (feedback && currentIndex < sessionQuestions.length - 1) {
+      const currentQ = sessionQuestions[currentIndex];
+      const nextQ = sessionQuestions[currentIndex + 1];
+      
+      if (currentQ?.question?.game_type?.slug === nextQ?.question?.game_type?.slug) {
+        setAutoProceedCountdown(3);
+      } else {
+        setAutoProceedCountdown(null);
+      }
+    } else {
+      setAutoProceedCountdown(null);
+    }
+  }, [feedback, currentIndex, sessionQuestions]);
+
   const currentSlug = currentSessionQuestion?.question?.game_type?.slug || '';
   const noHintSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'sequence'];
   const canUseHint = !noHintSlugs.includes(currentSlug);
@@ -200,6 +218,18 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       onComplete();
     }
   };
+
+  useEffect(() => {
+    if (autoProceedCountdown === null) return;
+    if (autoProceedCountdown <= 0) {
+      handleNextChallenge();
+      return;
+    }
+    const timer = setTimeout(() => {
+      setAutoProceedCountdown(prev => prev! - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [autoProceedCountdown]);
 
   const handleUseHint = () => {
     if (wasHintUsed || feedback !== null || hintsLeft <= 0) return;
@@ -355,7 +385,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
             onClick={handleNextChallenge}
             className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-4 rounded-xl shadow-md transition-transform active:scale-95 text-lg"
           >
-            {currentIndex < sessionQuestions.length - 1 ? "NEXT CHALLENGE" : "FINISH MISSION"}
+            {currentIndex < sessionQuestions.length - 1 ? (autoProceedCountdown !== null ? `NEXT CHALLENGE (${autoProceedCountdown}s)` : "NEXT CHALLENGE") : "FINISH MISSION"}
             <ArrowRight size={20} />
           </button>
         </div>
