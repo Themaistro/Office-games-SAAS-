@@ -272,8 +272,15 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
               <SkipForward className="w-16 h-16 text-orange-600 dark:text-orange-400" />
             </div>
           ) : feedback.isCorrect ? (
-            <div className="bg-green-100 dark:bg-green-900/30 p-6 rounded-full mb-4">
+            <div className="relative bg-green-100 dark:bg-green-900/30 p-6 rounded-full mb-4">
               <CheckCircle className="w-16 h-16 text-green-600 dark:text-green-400" />
+              {feedback.xpEarned > 0 && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none animate-float-up z-50 flex items-center justify-center whitespace-nowrap">
+                  <span className="text-4xl font-black text-primary drop-shadow-[0_4px_4px_rgba(0,0,0,0.25)] stroke-white" style={{ WebkitTextStroke: '2px white' }}>
+                    +{feedback.xpEarned} XP
+                  </span>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-red-100 dark:bg-red-900/30 p-6 rounded-full mb-4">
