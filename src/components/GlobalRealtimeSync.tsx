@@ -27,8 +27,6 @@ export default function GlobalRealtimeSync() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => triggerRefresh())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_sessions' }, () => triggerRefresh())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => triggerRefresh())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_games' }, () => triggerRefresh())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ttt_games' }, () => triggerRefresh())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'system_settings' }, () => {
         // We removed window.location.reload()! 
         // Now it seamlessly updates the server components behind the scenes

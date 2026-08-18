@@ -34,14 +34,18 @@ export default function UnifiedLobbiesWidget({ currentUserId }: { currentUserId:
   useEffect(() => {
     fetchGames();
 
+    const handleGameChange = () => {
+      setTimeout(() => fetchGames(), 500);
+    };
+
     const chessChannel = supabase
       .channel('public:chess_games')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_games' }, () => fetchGames())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_games' }, handleGameChange)
       .subscribe();
 
     const tttChannel = supabase
       .channel('public:ttt_games')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ttt_games' }, () => fetchGames())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ttt_games' }, handleGameChange)
       .subscribe();
 
     return () => {
