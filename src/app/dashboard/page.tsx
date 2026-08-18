@@ -135,13 +135,11 @@ export default async function DashboardPage() {
       {/* Announcements Banner */}
       <AnnouncementBanner announcements={announcements || []} />
 
-      <div id="tour-dashboard" className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+      <div id="tour-dashboard" className="flex flex-col gap-8 lg:gap-12">
         
-        {/* ==================== LEFT COLUMN (MAIN CONTENT) ==================== */}
-        <div className="lg:col-span-8 flex flex-col gap-10">
-          
-          {/* Welcome Banner */}
-          <div className="flex flex-col gap-6">
+        {/* ==================== TOP ROW (PERSONAL STATS) ==================== */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-8 flex flex-col justify-center gap-6">
             <h1 className="text-4xl font-black tracking-tight text-foreground">
               Welcome back, <span className="text-primary">{profile?.full_name?.split(' ')[0] || profile?.email?.split('@')[0]}!</span>
             </h1>
@@ -163,7 +161,6 @@ export default async function DashboardPage() {
                   className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-accent transition-all duration-1000 ease-out"
                   style={{ width: `${progressPercent}%` }}
                 />
-                {/* Glossy overlay */}
                 <div className="absolute inset-0 bg-gradient-to-b from-white/25 to-transparent mix-blend-overlay" />
               </div>
               
@@ -173,131 +170,141 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
-
-          {/* Main Mission Card */}
-          <div id="tour-daily-mission" className="relative rounded-3xl bg-card border border-border/60 shadow-xl overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-50" />
-            
-            <div className="relative px-6 py-12 sm:p-16 text-center flex flex-col items-center">
-              <div className="mb-6 relative">
-                <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse" />
-                <div className="relative bg-background border border-primary/20 w-20 h-20 rounded-full flex items-center justify-center shadow-lg">
-                  <Shield className="text-primary" size={40} />
+          
+          <div className="lg:col-span-4 flex flex-col justify-end gap-4 pb-1">
+            <div className="grid grid-cols-2 gap-4 h-[116px]">
+              <div className="flex flex-col items-center justify-center text-center gap-2 bg-card border border-border/60 p-4 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2">
+                  <Flame className="text-orange-500" size={24} />
+                  <span className="text-2xl font-black leading-none">{profile?.current_streak || 0}</span>
                 </div>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Day Streak</span>
               </div>
               
-              <h2 className="text-3xl sm:text-5xl font-black tracking-tight mb-4">
-                {isCompleted ? "Mission Accomplished!" : "Today's Mission"}
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-lg mx-auto mb-10 font-medium">
-                {isCompleted 
-                  ? "Exceptional work. Your XP has been permanently secured. Rest up, your next challenge awaits tomorrow."
-                  : "Engage your mind. Complete the random assortment of mini-games as fast and accurately as possible."}
-              </p>
-              
-              {isCompleted ? (
-                <div className="flex flex-col items-center gap-8 w-full max-w-3xl">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
-                    {[
-                      { label: "Score", value: latestSession.total_score || 0 },
-                      { 
-                        label: "XP Earned", 
-                        value: `+${latestSession.total_xp_earned ?? latestSession.total_score ?? 0}`, 
-                        color: "text-accent",
-                        subtext: (latestSession.total_xp_earned ?? 0) > (latestSession.total_score ?? 0) 
-                          ? `${latestSession.total_score} Base + ${(latestSession.total_xp_earned ?? 0) - (latestSession.total_score ?? 0)} Streak` 
-                          : null
-                      },
-                      { label: "Status", value: "Done", color: "text-emerald-500" },
-                      { label: "Time", value: formattedTime }
-                    ].map((stat, i) => (
-                      <div key={i} className="flex flex-col items-center p-4 bg-background/60 backdrop-blur-md rounded-2xl border border-border/50 shadow-sm relative">
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">{stat.label}</span>
-                        <span className={`text-2xl font-black ${stat.color || "text-foreground"}`}>{stat.value}</span>
-                        {stat.subtext && (
-                          <span className="absolute bottom-1 text-[10px] font-bold text-accent/80 tracking-tight whitespace-nowrap">
-                            {stat.subtext}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {isInCooldown ? (
-                    <div className="mt-4">
-                      <CooldownTimer createdAt={latestSession.created_at} />
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-4 mt-4">
-                      <Link
-                        href="/play/start"
-                        className="group/btn relative inline-flex items-center justify-center gap-3 rounded-2xl bg-primary px-10 py-5 text-xl font-black text-primary-foreground overflow-hidden transition-all shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95"
-                      >
-                        <span className="relative z-10 flex items-center gap-2">
-                          <Play fill="currentColor" size={24} />
-                          START NEXT CHALLENGE
-                        </span>
-                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
-                      </Link>
-                    </div>
-                  )}
+              <div className="flex flex-col items-center justify-center text-center gap-2 bg-card border border-border/60 p-4 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2">
+                  <Trophy className="text-yellow-500" size={24} />
+                  <span className="text-2xl font-black leading-none">#{userRank}</span>
                 </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  <Link
-                    href={isInProgress ? "/play" : "/play/start"}
-                    className="group/btn relative inline-flex items-center justify-center gap-3 rounded-2xl bg-primary px-12 py-5 text-xl font-black text-primary-foreground overflow-hidden transition-all shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95"
-                  >
-                    <span className="relative z-10 flex items-center gap-2">
-                      <Play fill="currentColor" size={24} />
-                      {isInProgress ? "RESUME CHALLENGE" : "START CHALLENGE"}
-                    </span>
-                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
-                  </Link>
-                </div>
-              )}
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Rank</span>
+              </div>
             </div>
           </div>
-
-          {/* The Office Lounge (Unified) */}
-          <div id="tour-office-lounge">
-            <UnifiedOfficeLounge currentUserId={user.id} />
-          </div>
-
-          {/* Unified Activity Feed (Live Feed + Matches) */}
-          <LiveActivityFeed />
-
         </div>
 
-        {/* ==================== RIGHT COLUMN (SIDEBAR) ==================== */}
-        <div className="lg:col-span-4 flex flex-col gap-8">
-          <div className="sticky top-24 flex flex-col gap-8">
+        {/* ==================== MAIN CONTENT & SIDEBAR ==================== */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+          
+          {/* LEFT COLUMN */}
+          <div className="lg:col-span-8 flex flex-col gap-8">
             
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col items-center justify-center text-center gap-2 bg-card border border-border/60 p-5 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-                <div className="bg-orange-500/20 p-3 rounded-2xl">
-                  <Flame className="text-orange-500" size={28} />
+            {/* Main Mission Card (More compact) */}
+            <div id="tour-daily-mission" className="relative rounded-3xl bg-card border border-border/60 shadow-xl overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-50" />
+              
+              <div className="relative px-6 py-8 sm:p-10 flex flex-col items-center text-center">
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
+                    <div className="relative bg-background border border-primary/20 w-14 h-14 rounded-full flex items-center justify-center shadow-lg">
+                      <Shield className="text-primary" size={28} />
+                    </div>
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
+                    {isCompleted ? "Mission Accomplished!" : "Today's Mission"}
+                  </h2>
                 </div>
-                <div>
-                  <span className="text-2xl font-black leading-none block mb-1">{profile?.current_streak || 0}</span>
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Day Streak</span>
-                </div>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center gap-2 bg-card border border-border/60 p-5 rounded-3xl shadow-sm hover:shadow-md transition-shadow">
-                <div className="bg-yellow-500/20 p-3 rounded-2xl">
-                  <Trophy className="text-yellow-500" size={28} />
-                </div>
-                <div>
-                  <span className="text-2xl font-black leading-none block mb-1">#{userRank}</span>
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Global Rank</span>
-                </div>
+                
+                <p className="text-base text-muted-foreground max-w-lg mx-auto mb-8 font-medium">
+                  {isCompleted 
+                    ? "Exceptional work. Your XP has been permanently secured. Rest up, your next challenge awaits tomorrow."
+                    : "Engage your mind. Complete the random assortment of mini-games as fast and accurately as possible."}
+                </p>
+                
+                {isCompleted ? (
+                  <div className="flex flex-col items-center gap-6 w-full max-w-3xl">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full">
+                      {[
+                        { label: "Score", value: latestSession.total_score || 0 },
+                        { 
+                          label: "XP Earned", 
+                          value: `+${latestSession.total_xp_earned ?? latestSession.total_score ?? 0}`, 
+                          color: "text-accent",
+                          subtext: (latestSession.total_xp_earned ?? 0) > (latestSession.total_score ?? 0) 
+                            ? `${latestSession.total_score} Base + ${(latestSession.total_xp_earned ?? 0) - (latestSession.total_score ?? 0)} Streak` 
+                            : null
+                        },
+                        { label: "Status", value: "Done", color: "text-emerald-500" },
+                        { label: "Time", value: formattedTime }
+                      ].map((stat, i) => (
+                        <div key={i} className="flex flex-col items-center p-3 bg-background/60 backdrop-blur-md rounded-2xl border border-border/50 shadow-sm relative">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">{stat.label}</span>
+                          <span className={`text-xl font-black ${stat.color || "text-foreground"}`}>{stat.value}</span>
+                          {stat.subtext && (
+                            <span className="absolute bottom-1 text-[9px] font-bold text-accent/80 tracking-tight whitespace-nowrap">
+                              {stat.subtext}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {isInCooldown ? (
+                      <div className="mt-2">
+                        <CooldownTimer createdAt={latestSession.created_at} />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-4 mt-2">
+                        <Link
+                          href="/play/start"
+                          className="group/btn relative inline-flex items-center justify-center gap-3 rounded-2xl bg-primary px-8 py-4 text-lg font-black text-primary-foreground overflow-hidden transition-all shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95"
+                        >
+                          <span className="relative z-10 flex items-center gap-2">
+                            <Play fill="currentColor" size={20} />
+                            START NEXT CHALLENGE
+                          </span>
+                          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    <Link
+                      href={isInProgress ? "/play" : "/play/start"}
+                      className="group/btn relative inline-flex items-center justify-center gap-3 rounded-2xl bg-primary px-10 py-4 text-lg font-black text-primary-foreground overflow-hidden transition-all shadow-xl hover:shadow-primary/30 hover:scale-105 active:scale-95"
+                    >
+                      <span className="relative z-10 flex items-center gap-2">
+                        <Play fill="currentColor" size={20} />
+                        {isInProgress ? "RESUME CHALLENGE" : "START CHALLENGE"}
+                      </span>
+                      <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300" />
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Global Leaderboard */}
-            <div className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
+            {/* The Office Lounge (Unified) */}
+            <div id="tour-office-lounge">
+              <UnifiedOfficeLounge currentUserId={user.id} />
+            </div>
+
+            {/* Unified Activity Feed (Live Feed + Matches) */}
+            <LiveActivityFeed />
+
+          </div>
+
+          {/* RIGHT COLUMN (SIDEBAR) */}
+          <div className="lg:col-span-4 flex flex-col gap-8">
+            <div className="sticky top-24 flex flex-col gap-8">
+              
+              {/* Online Users */}
+              <OnlineUsersWidget currentUserId={user.id} profile={profile} />
+
+              {/* Global Leaderboard */}
+              <div className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-black tracking-tight">Top Players</h3>
                 <div className="bg-primary/10 text-primary px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase">
                   Global
@@ -376,14 +383,11 @@ export default async function DashboardPage() {
                 )}
               </div>
             </div>
-
-            {/* Online Users */}
-            <OnlineUsersWidget currentUserId={user.id} profile={profile} />
             
           </div>
         </div>
-
       </div>
+    </div>
     </div>
   );
 }
