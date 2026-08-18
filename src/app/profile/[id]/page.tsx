@@ -328,7 +328,7 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
                 <div className="flex items-center gap-2 bg-background/50 backdrop-blur px-4 py-2 rounded-2xl border border-border/50 shadow-sm">
                   <Trophy className="text-yellow-500 w-5 h-5" />
                   <span className="font-bold text-muted-foreground">Global Rank</span>
-                  <span className="font-black text-xl text-foreground">#{userRank}</span>
+                  <span className="font-black text-xl text-foreground">{userRank === "Admin" ? "Admin" : `#${userRank}`}</span>
                 </div>
                 {user.id !== profile.id && (
                   <>
@@ -400,8 +400,8 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
                   { icon: Flame, color: "text-orange-500", label: "Current Streak", value: profile.current_streak },
                   { icon: CalendarDays, color: "text-blue-500", label: "Best Streak", value: profile.best_streak },
                   { icon: Target, color: "text-green-500", label: "Missions", value: profile.games_played },
-                  { icon: Trophy, color: "text-yellow-500", label: "Global Rank", value: `#${userRank}` },
-                  { icon: Star, color: "text-purple-500", label: "Dept Rank", value: `#${deptRank}` }
+                  { icon: Trophy, color: "text-yellow-500", label: "Global Rank", value: userRank === "Admin" ? "Admin" : `#${userRank}` },
+                  { icon: Star, color: "text-purple-500", label: "Dept Rank", value: profile.role === "admin" ? "Admin" : `#${deptRank}` }
                 ].map((stat, i) => (
                   <div key={i} className="bg-card/40 border border-border/50 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 hover:bg-card/80 transition-colors shadow-sm group hover:-translate-y-1">
                     <stat.icon className={clsx("mb-3 w-8 h-8 transition-transform group-hover:scale-110", stat.color)} />

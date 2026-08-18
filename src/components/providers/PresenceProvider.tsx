@@ -26,7 +26,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, avatar_url, department')
+        .select('full_name, avatar_url, department, role')
         .eq('id', session.user.id)
         .single();
 
@@ -63,13 +63,15 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
         .on('presence', { event: 'leave' }, updatePresenceState)
         .subscribe(async (status: string) => {
           if (status === 'SUBSCRIBED') {
-            await channel.track({
-              user_id: session.user.id,
-              full_name: profile.full_name || "Unknown",
-              avatar_url: profile.avatar_url || "",
-              department: profile.department || "",
-              online_at: new Date().toISOString(),
-            });
+            if (profile.role !== 'admin') {
+              await channel.track({
+                user_id: session.user.id,
+                full_name: profile.full_name || "Unknown",
+                avatar_url: profile.avatar_url || "",
+                department: profile.department || "",
+                online_at: new Date().toISOString(),
+              });
+            }
           }
         });
     };
