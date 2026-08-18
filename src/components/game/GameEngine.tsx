@@ -18,7 +18,7 @@ import MentalMathGame from "./types/MentalMathGame";
 import TargetNumberGame from "./types/TargetNumberGame";
 import CompanyTriviaGame from "./types/CompanyTriviaGame";
 import MissingLettersGame from "./types/MissingLettersGame";
-import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap, Star, SkipForward } from "lucide-react";
+import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap, Star, SkipForward, Brain } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { submitAnswer } from "@/app/play/actions";
 import { useGameTutorial } from "@/hooks/useTutorials";
@@ -443,19 +443,10 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
 
   return (
     <div id="game-engine-container" className="w-full flex flex-col items-center">
-      <div className="w-full mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card border border-border px-6 py-4 rounded-2xl shadow-sm relative overflow-hidden">
-        
-        {/* Progress Bar Background */}
-        <div className="absolute top-0 left-0 w-full h-1.5 bg-secondary">
-          {/* Progress Bar Fill */}
-          <div 
-            className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_10px_rgba(var(--primary),0.5)]" 
-            style={{ width: `${((currentIndex) / sessionQuestions.length) * 100}%` }}
-          />
-        </div>
+      <div className="w-full mb-6 flex flex-col items-start gap-4 bg-card border border-border px-6 pt-4 pb-6 rounded-2xl shadow-sm relative overflow-visible">
 
         {showLevelUp && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-accent text-accent-foreground animate-in zoom-in duration-300">
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-accent text-accent-foreground animate-in zoom-in duration-300 rounded-2xl">
             <div className="flex items-center gap-2 text-xl font-black tracking-widest uppercase">
               <Zap size={24} className="animate-pulse" />
               Difficulty Increased
@@ -464,60 +455,85 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           </div>
         )}
 
-        <div className="flex flex-col pt-1">
-          <div className="flex items-center gap-2 justify-between w-full mb-1">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-              Sprint Progress
-              {currentDifficulty === 'easy' && <span className="bg-green-500/20 text-green-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-green-500" /> EASY</span>}
-              {currentDifficulty === 'medium' && <span className="bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-yellow-500" /> MEDIUM</span>}
-              {currentDifficulty === 'hard' && <span className="bg-red-500/20 text-red-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> HARD</span>}
+        <div className="w-full flex justify-between items-start">
+          <div className="flex flex-col pt-1">
+            <div className="flex items-center gap-2 justify-between w-full mb-1">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                Sprint Progress
+                {currentDifficulty === 'easy' && <span className="bg-green-500/20 text-green-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-green-500" /> EASY</span>}
+                {currentDifficulty === 'medium' && <span className="bg-yellow-500/20 text-yellow-600 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-yellow-500" /> MEDIUM</span>}
+                {currentDifficulty === 'hard' && <span className="bg-red-500/20 text-red-500 px-2 py-0.5 rounded-sm text-[10px] flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> HARD</span>}
+              </span>
+            </div>
+            <span className="font-bold text-lg flex items-baseline gap-2">
+              Challenge #{currentIndex + 1}
+              <span className="text-xs text-muted-foreground font-medium">of {sessionQuestions.length}</span>
             </span>
-          </div>
-          <span className="font-bold text-lg flex items-baseline gap-2">
-            Challenge #{currentIndex + 1}
-            <span className="text-xs text-muted-foreground font-medium">of {sessionQuestions.length}</span>
-          </span>
-          {currentSessionQuestion?.question?.content?.isCompanyTrivia && (
-            <span className="mt-1 bg-purple-500 text-white px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm w-fit">
-              <Star size={12} className="fill-white" />
-              Company Bonus
-            </span>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-3 self-end sm:self-auto">
-          <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-500 px-3 py-1.5 rounded-full font-bold shadow-sm">
-            <Flame size={16} />
-            <span>x{currentCombo}</span>
+            {currentSessionQuestion?.question?.content?.isCompanyTrivia && (
+              <span className="mt-1 bg-purple-500 text-white px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm w-fit">
+                <Star size={12} className="fill-white" />
+                Company Bonus
+              </span>
+            )}
           </div>
           
-          {canUseHint && (
-            <button
-              id="tour-hint-button"
-              onClick={handleUseHint}
-              disabled={wasHintUsed || feedback !== null || hintsLeft <= 0}
-              className={clsx(
-                "flex items-center gap-2 px-4 py-2 rounded-full font-bold transition-all",
-                wasHintUsed || hintsLeft <= 0 ? 'bg-muted text-muted-foreground opacity-50' : 'bg-primary/10 text-primary hover:bg-primary/20 active:scale-95'
-              )}
-            >
-              <Lightbulb size={16} />
-              <span className="text-sm hidden sm:inline">Hint</span>
-              <span className="text-sm">({hintsLeft})</span>
-            </button>
-          )}
+          <div className="flex items-center gap-3 mt-2 sm:mt-0">
+            <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-500 px-3 py-1.5 rounded-full font-bold shadow-sm">
+              <Flame size={16} />
+              <span>x{currentCombo}</span>
+            </div>
+            
+            {canUseHint && (
+              <button
+                id="tour-hint-button"
+                onClick={handleUseHint}
+                disabled={wasHintUsed || feedback !== null || hintsLeft <= 0}
+                className={clsx(
+                  "flex items-center gap-2 px-4 py-2 rounded-full font-bold transition-all",
+                  wasHintUsed || hintsLeft <= 0 ? 'bg-muted text-muted-foreground opacity-50' : 'bg-primary/10 text-primary hover:bg-primary/20 active:scale-95'
+                )}
+              >
+                <Lightbulb size={16} />
+                <span className="text-sm hidden sm:inline">Hint</span>
+                <span className="text-sm">({hintsLeft})</span>
+              </button>
+            )}
 
-          <button
-            id="tour-skip-button"
-            onClick={handleSkip}
-            disabled={isSubmitting || feedback !== null}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-transform shadow-sm ${
-              feedback !== null ? 'bg-muted text-muted-foreground opacity-50' : 'bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-95'
-            }`}
+            <button
+              id="tour-skip-button"
+              onClick={handleSkip}
+              disabled={isSubmitting || feedback !== null}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-bold transition-transform shadow-sm ${
+                feedback !== null ? 'bg-muted text-muted-foreground opacity-50' : 'bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-95'
+              }`}
+            >
+              <SkipForward size={16} />
+              <span className="text-sm hidden sm:inline">Skip</span>
+            </button>
+          </div>
+        </div>
+
+        {/* New Segmented Progress Bar */}
+        <div className="w-full mt-2 relative px-2">
+          <div className="w-full h-4 bg-secondary rounded-full overflow-hidden relative border border-border/50 shadow-inner">
+            <div className="absolute inset-0 w-full h-full flex justify-between z-10 opacity-30">
+              {Array.from({ length: sessionQuestions.length }).map((_, i) => (
+                <div key={i} className="h-full w-[2px] bg-card" />
+              ))}
+            </div>
+            <div 
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out z-0"
+              style={{ width: `${(currentIndex / sessionQuestions.length) * 100}%` }}
+            />
+          </div>
+          <div 
+            className="absolute top-1/2 -translate-y-1/2 z-20 transition-all duration-500 ease-out drop-shadow-lg"
+            style={{ left: `calc(${(currentIndex / sessionQuestions.length) * 100}% - 10px)` }}
           >
-            <SkipForward size={16} />
-            <span className="text-sm hidden sm:inline">Skip</span>
-          </button>
+            <div className="bg-card p-1.5 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.1)] border border-primary/20">
+              <Brain size={22} className="text-primary animate-pulse" />
+            </div>
+          </div>
         </div>
       </div>
       
