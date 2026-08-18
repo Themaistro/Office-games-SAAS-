@@ -27,48 +27,47 @@ export default function OnlineUsersWidget({ currentUserId, profile }: { currentU
       },
     });
 
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        
-        // Flatten the presence state and grab the most recent presence per user
-        const users = new Map<string, OnlineUser>();
-        
-        for (const key in state) {
-          const presences = state[key] as any[];
-          if (presences.length > 0) {
-            // Usually the first one is fine
-            const p = presences[0];
-            if (p.user_id !== currentUserId) {
-              users.set(p.user_id, p as OnlineUser);
-            }
+    const updatePresenceState = () => {
+      const state = channel.presenceState();
+      const users = new Map<string, OnlineUser>();
+      
+      for (const key in state) {
+        const presences = state[key] as any[];
+        if (presences.length > 0) {
+          const p = presences[0];
+          if (p.user_id !== currentUserId) {
+            users.set(p.user_id, p as OnlineUser);
           }
         }
-        
-        // Convert to array and sort by recent
-        const onlineArr = Array.from(users.values()).sort((a, b) => {
-          return new Date(b.online_at).getTime() - new Date(a.online_at).getTime();
-        });
-        
-        setOnlineUsers(onlineArr);
+      }
+      
+      const onlineArr = Array.from(users.values()).sort((a, b) => {
+        return new Date(b.online_at).getTime() - new Date(a.online_at).getTime();
+      });
+      
+      setOnlineUsers(onlineArr);
+    };
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        updatePresenceState();
       })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          // Track the current user's presence
-          await channel.track({
-            user_id: currentUserId,
-            full_name: profile.full_name,
-            avatar_url: profile.avatar_url,
-            department: profile.department,
-            online_at: new Date().toISOString(),
-          });
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        updatePresenceState();
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        updatePresenceState();
+      })
+      .subscribe(async (status, err) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('Presence channel error', err);
         }
       });
 
     return () => {
-      supabase.removeChannel(channel);
+      channel.unsubscribe();
     };
-  }, [currentUserId, profile.full_name, profile.avatar_url, profile.department, supabase]);
+  }, [currentUserId, profile?.full_name, profile?.avatar_url, profile?.department]);
 
   return (
     <div className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm">

@@ -34,9 +34,43 @@ export default function GlobalRealtimeSync() {
       })
       .subscribe();
 
+    let presenceChannel: any = null;
+
+    const setupPresence = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url, department')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!profile) return;
+
+      presenceChannel = supabase.channel('online_users', {
+        config: { presence: { key: session.user.id } },
+      });
+
+      presenceChannel.subscribe(async (status: string) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            user_id: session.user.id,
+            full_name: profile.full_name || "Unknown",
+            avatar_url: profile.avatar_url || "",
+            department: profile.department || "",
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+    };
+
+    setupPresence();
+
     return () => {
       clearTimeout(timeoutId);
       supabase.removeChannel(channel);
+      if (presenceChannel) supabase.removeChannel(presenceChannel);
     };
   }, [router]);
 
