@@ -470,8 +470,12 @@ for (const gameId in questionsByGame) {
       }
     }
 
-    // Prepend the company trivia questions at the beginning so players don't miss them if they run out of time
-    selectedQuestions.unshift(...companyTriviaQuestions);
+    // Randomly disperse the company trivia questions throughout the sequence 
+    // rather than forcing them at the beginning.
+    for (const companyQ of companyTriviaQuestions) {
+      const randomIndex = Math.floor(Math.random() * (selectedQuestions.length + 1));
+      selectedQuestions.splice(randomIndex, 0, companyQ);
+    }
 
     const sessionQuestionsData = selectedQuestions.map((q, index) => ({
       session_id: session.id,
