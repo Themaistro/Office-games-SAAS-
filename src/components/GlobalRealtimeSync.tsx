@@ -25,6 +25,14 @@ export default function GlobalRealtimeSync() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_games' }, () => {
         router.refresh();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ttt_games' }, () => {
+        router.refresh();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_settings' }, () => {
+        // A global setting was updated (like a factory wipe or season reset).
+        // A hard reload is safest to clear out all cached client states.
+        window.location.reload();
+      })
       .subscribe();
 
     return () => {
