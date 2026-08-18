@@ -191,14 +191,17 @@ export async function startDailySession() {
         // Offset the dayOffset by diffIndex so easy/medium/hard don't pull the exact same slice if they fall back to the same master bank
         const sliceIndex = dayOffset * 3 + diffIndex; 
 
+        // Use a deterministic sort (by UUID) so that the sliceIndex correctly cycles through the bank day-by-day without random repeats
+        const deterministicSort = (a: any, b: any) => (a.id > b.id ? 1 : -1);
+
         if (game.slug === "mental-math" || game.slug === "mental_math") {
           diffBatch = generateMentalMath(10, diff);
         } else if (game.slug === "word-unscramble" || game.slug === "unscramble" || game.slug === "word_unscramble") {
-          const shuffledWords = [...(masterWords || [])].sort(() => 0.5 - Math.random());
-          diffBatch = generateWordUnscramble(shuffledWords, 25, diff, sliceIndex);
+          const sortedWords = [...(masterWords || [])].sort(deterministicSort);
+          diffBatch = generateWordUnscramble(sortedWords, 25, diff, sliceIndex);
         } else if (game.slug === "typing-challenge" || game.slug === "typing" || game.slug === "typing_challenge") {
-          const shuffledTyping = [...(masterTyping || [])].sort(() => 0.5 - Math.random());
-          diffBatch = generateTypingChallenge(shuffledTyping, 25, diff, sliceIndex);
+          const sortedTyping = [...(masterTyping || [])].sort(deterministicSort);
+          diffBatch = generateTypingChallenge(sortedTyping, 25, diff, sliceIndex);
         } else if (game.slug === "memory") {
           diffBatch = generateMemory(25, diff);
         } else if (game.slug === "sudoku_lite" || game.slug === "sudoku-lite") {
@@ -206,10 +209,11 @@ export async function startDailySession() {
         } else if (game.slug === "target-number" || game.slug === "math") {
           diffBatch = generateTargetNumber(10, diff);
         } else if (game.slug === "word") {
-          diffBatch = generateMissingLetters(masterWords || [], 10, diff, sliceIndex);
+          const sortedWords = [...(masterWords || [])].sort(deterministicSort);
+          diffBatch = generateMissingLetters(sortedWords, 10, diff, sliceIndex);
         } else if (game.slug === "odd-object" || game.slug === "odd_object") {
-          const shuffledOdd = [...(masterOdd || [])].sort(() => 0.5 - Math.random());
-          diffBatch = generateOddObject(shuffledOdd, 25, diff, sliceIndex);
+          const sortedOdd = [...(masterOdd || [])].sort(deterministicSort);
+          diffBatch = generateOddObject(sortedOdd, 25, diff, sliceIndex);
         } else if (game.slug === "logic") {
           diffBatch = generateSequence(25, diff);
         } else if (['reaction', 'stroop', 'card_match', 'card-match', 'sequence'].includes(game.slug)) {
@@ -220,11 +224,11 @@ export async function startDailySession() {
           }));
         } else if (game.slug === "coding") {
           const codingTrivia = (masterTrivia || []).filter(t => ['IT', 'Engineering', 'Product'].includes(t.department));
-          const shuffledCoding = [...codingTrivia].sort(() => 0.5 - Math.random());
-          diffBatch = generateTrivia(shuffledCoding, 25, diff, sliceIndex);
+          const sortedCoding = [...codingTrivia].sort(deterministicSort);
+          diffBatch = generateTrivia(sortedCoding, 25, diff, sliceIndex);
         } else {
-          const shuffledTrivia = [...(masterTrivia || [])].sort(() => 0.5 - Math.random());
-          diffBatch = generateTrivia(shuffledTrivia, 50, diff, sliceIndex);
+          const sortedTrivia = [...(masterTrivia || [])].sort(deterministicSort);
+          diffBatch = generateTrivia(sortedTrivia, 50, diff, sliceIndex);
         }
 
         for (const gen of diffBatch) {
