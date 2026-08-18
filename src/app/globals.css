@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Force Light Mode by redefining the 'dark' variant to look for a '.dark' class that we never apply */
+@custom-variant dark (&:is(.dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -52,32 +55,7 @@
   --radius: 0.75rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #020617; /* slate-950 */
-    --foreground: #f8fafc; /* slate-50 */
-    
-    --primary: #6366f1; /* indigo-500 */
-    --primary-foreground: #ffffff;
-    
-    --secondary: #1e293b; /* slate-800 */
-    --secondary-foreground: #f8fafc;
-    
-    --accent: #a78bfa; /* violet-400 */
-    --accent-foreground: #ffffff;
-    
-    --destructive: #f87171; /* red-400 */
-    --destructive-foreground: #020617;
-    
-    --muted: #0f172a; /* slate-900 */
-    --muted-foreground: #94a3b8; /* slate-400 */
-    
-    --card: #0f172a;
-    --card-foreground: #f8fafc;
-    
-    --border: #1e293b;
-  }
-}
+
 
 body {
   background: var(--background);
