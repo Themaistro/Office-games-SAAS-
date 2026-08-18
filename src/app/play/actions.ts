@@ -137,7 +137,7 @@ export async function startDailySession() {
   while (true) {
     const { data, error: qError } = await supabase
       .from("questions")
-      .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active)")
+      .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active, easy_rounds, medium_rounds, hard_rounds)")
       .gte("created_at", twoHoursAgo)
       .in("game_type_id", activeGameIds)
       .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -260,7 +260,7 @@ export async function startDailySession() {
       const { data: insertedQuestions, error: insertError } = await adminClient
         .from("questions")
         .insert(newQuestions)
-        .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active)");
+        .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active, easy_rounds, medium_rounds, hard_rounds)");
         
       if (insertError) {
         console.error("Failed inserting new questions:", insertError);
@@ -351,7 +351,7 @@ export async function startDailySession() {
         const { data: insertedQs, error: insertError } = await adminClient
           .from("questions")
           .insert(newCompanyQs)
-          .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active)");
+          .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active, easy_rounds, medium_rounds, hard_rounds)");
           
         if (!insertError && insertedQs) {
           console.log(`Injected ${insertedQs.length} new custom company trivia questions!`);
@@ -418,32 +418,23 @@ export async function startDailySession() {
       questionsByGame[q.game_type_id].push(q);
     }
 
-    // Sort and select exactly 3 rounds per game (Easy -> Medium -> Hard)
-for (const gameId in questionsByGame) {
+    for (const gameId in questionsByGame) {
       const easyQs = questionsByGame[gameId].filter(q => q.difficulty === 'easy').sort(() => 0.5 - Math.random());
       const medQs = questionsByGame[gameId].filter(q => q.difficulty === 'medium').sort(() => 0.5 - Math.random());
       const hardQs = questionsByGame[gameId].filter(q => q.difficulty === 'hard').sort(() => 0.5 - Math.random());
       const sampleQ = easyQs[0] || medQs[0] || hardQs[0];
       const gameTypes = sampleQ?.game_types as any;
-      const gameSlug = Array.isArray(gameTypes) ? gameTypes[0]?.slug : gameTypes?.slug;
+      const gameTypesObj = Array.isArray(gameTypes) ? gameTypes[0] : gameTypes;
+      
+      const easyRounds = gameTypesObj?.easy_rounds ?? 1;
+      const medRounds = gameTypesObj?.medium_rounds ?? 1;
+      const hardRounds = gameTypesObj?.hard_rounds ?? 1;
 
-      const getRandomQ = (qs: any[]) => qs.length > 0 ? qs[Math.floor(Math.random() * qs.length)] : null;
-
-      if (gameSlug === 'trivia') {
-        // Select 5 questions for Trivia (1 Easy, 2 Medium, 2 Hard)
-        questionsByGame[gameId] = [
-          ...easyQs.slice(0, 1),
-          ...medQs.slice(0, 2),
-          ...hardQs.slice(0, 2)
-        ].filter(Boolean);
-      } else {
-        // Select 3 random questions (1 easy, 1 medium, 1 hard) from today's pool for other games
-        questionsByGame[gameId] = [
-          getRandomQ(easyQs),
-          getRandomQ(medQs),
-          getRandomQ(hardQs)
-        ].filter(Boolean);
-      }
+      questionsByGame[gameId] = [
+        ...easyQs.slice(0, easyRounds),
+        ...medQs.slice(0, medRounds),
+        ...hardQs.slice(0, hardRounds)
+      ].filter(Boolean);
     }
 
     const selectedQuestions: any[] = [];

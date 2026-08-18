@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { toggleGameStatus } from "../actions";
+import { toggleGameStatus, updateGameRounds } from "../actions";
 import { Shield } from "lucide-react";
 import GamesClient from "./GamesClient";
 
@@ -56,13 +56,18 @@ export default async function AdminGamesPage() {
     await toggleGameStatus(gameId, currentStatus);
   };
 
+  const handleUpdateRounds = async (gameId: string, easy: number, medium: number, hard: number) => {
+    "use server";
+    await updateGameRounds(gameId, easy, medium, hard);
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Games Management</h1>
           <p className="text-muted-foreground mt-1">
-            Toggle which mini-games are available in the daily sprints.
+            Toggle which mini-games are available in the daily sprints and configure difficulty rounds.
           </p>
         </div>
         <Shield className="text-primary w-12 h-12 opacity-50" />
@@ -70,7 +75,8 @@ export default async function AdminGamesPage() {
 
       <GamesClient 
         initialGroupedGames={groupedGames} 
-        toggleAction={handleToggle} 
+        toggleAction={handleToggle}
+        updateRoundsAction={handleUpdateRounds} 
       />
     </div>
   );
