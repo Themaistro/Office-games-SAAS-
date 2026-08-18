@@ -8,6 +8,7 @@ import { updateChessGameState, resignChessGame, drawChessGame, declareChessTimeo
 import { Loader2, Flag, Handshake, Send, Eye, User, X as XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useVfx } from "@/hooks/useVfx";
 
 const darkSquareStyle = { backgroundColor: "#739552" };
 const lightSquareStyle = { backgroundColor: "#ebecd0" };
@@ -46,6 +47,13 @@ export default function ChessBoardClient({
   const [gameStatus, setGameStatus] = useState(game.status);
   const [isOpponentConnected, setIsOpponentConnected] = useState(false);
   const [spectators, setSpectators] = useState<any[]>([]);
+  const { triggerConfetti } = useVfx();
+
+  useEffect(() => {
+    if (gameStatus === 'finished' && game.winner_id === currentUserId) {
+      triggerConfetti();
+    }
+  }, [gameStatus, game.winner_id, currentUserId, triggerConfetti]);
   
   const getCalculatedTime = (baseTime: number, isMyTurn: boolean, lastMoveStamp: string | null, status: string) => {
     if (status === 'in_progress' && isMyTurn && lastMoveStamp) {

@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, Circle, X as XIcon, Trophy, User, Flag } from "luci
 import { makeTttMove, cancelTttGame, resignTttGame } from "../actions";
 import { clsx } from "clsx";
 import Link from "next/link";
+import { useVfx } from "@/hooks/useVfx";
 
 import { createTttRematch } from "../actions";
 
@@ -14,6 +15,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
   const [rematchState, setRematchState] = useState<"idle" | "requested" | "received" | "loading">("idle");
   const [newGameId, setNewGameId] = useState<string | null>(null);
   const [opponentPresent, setOpponentPresent] = useState(false);
+  const { triggerConfetti } = useVfx();
   const [game, setGame] = useState<any>(initialGame);
   const [loadingAction, setLoadingAction] = useState(false);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
@@ -24,6 +26,12 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
   useEffect(() => {
     setGame(initialGame);
   }, [initialGame]);
+
+  useEffect(() => {
+    if (game.status === 'finished' && game.winner_id === currentUserId) {
+      triggerConfetti();
+    }
+  }, [game.status, game.winner_id, currentUserId, triggerConfetti]);
 
   useEffect(() => {
     const channel = supabase

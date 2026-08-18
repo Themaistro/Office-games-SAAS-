@@ -22,6 +22,7 @@ import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap
 import { useRouter } from "next/navigation";
 import { submitAnswer } from "@/app/play/actions";
 import { useGameTutorial } from "@/hooks/useTutorials";
+import { useVfx } from "@/hooks/useVfx";
 import clsx from "clsx";
 
 interface GameEngineProps {
@@ -47,6 +48,7 @@ interface FeedbackState {
 
 export default function GameEngine({ sessionQuestions, onComplete }: GameEngineProps) {
   useGameTutorial();
+  const { triggerConfetti, triggerShake } = useVfx();
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(() => {
     const firstUnanswered = sessionQuestions.findIndex(q => !q.is_completed);
@@ -176,6 +178,9 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
         breakdown: result.success ? result.breakdown : undefined,
         isSkipped: isSkipped || false
       };
+      if (!feedbackData.isCorrect && !feedbackData.isSkipped) {
+        triggerShake("game-engine-container");
+      }
       setFeedback(feedbackData);
       setIsSubmitting(false);
     } catch (e) {
@@ -190,6 +195,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     if (currentIndex < sessionQuestions.length - 1) {
       setCurrentIndex(prev => prev + 1);
     } else {
+      triggerConfetti();
       setIsSessionComplete(true);
       onComplete();
     }
@@ -399,7 +405,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   };
 
   return (
-    <div className="w-full flex flex-col items-center">
+    <div id="game-engine-container" className="w-full flex flex-col items-center">
       <div className="w-full mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-card border border-border px-6 py-4 rounded-2xl shadow-sm relative overflow-hidden">
         {showLevelUp && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-accent text-accent-foreground animate-in zoom-in duration-300">
