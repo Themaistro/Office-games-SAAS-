@@ -18,7 +18,8 @@ export default async function LeaderboardPage() {
     .select("id, full_name, avatar_url, department, total_xp, current_level, current_streak")
     .eq("role", "employee")
     .order("total_xp", { ascending: false })
-    .order("full_name", { ascending: true });
+    .order("full_name", { ascending: true })
+    .limit(100);
 
   const { data: prizes } = await supabase
     .from("prizes")

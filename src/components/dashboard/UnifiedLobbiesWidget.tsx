@@ -67,7 +67,8 @@ export default function UnifiedLobbiesWidget({ currentUserId }: { currentUserId:
         black_profile:profiles!chess_games_black_player_id_fkey(full_name, avatar_url, chess_elo)
       `)
       .in('status', ['waiting', 'in_progress'])
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(30);
 
     const { data: tttData } = await supabase
       .from('ttt_games')
@@ -81,7 +82,8 @@ export default function UnifiedLobbiesWidget({ currentUserId }: { currentUserId:
         o_profile:profiles!ttt_games_o_player_id_fkey(full_name, avatar_url, ttt_elo)
       `)
       .in('status', ['waiting', 'in_progress'])
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(30);
 
     const openGames: OpenGame[] = [];
 
