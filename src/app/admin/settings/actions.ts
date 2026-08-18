@@ -143,6 +143,33 @@ export async function updateSystemSettings(formData: FormData) {
     });
   }
 
+  // Also apply this instantly to all active sessions created today so it updates without waiting for tomorrow
+  const today = new Date().toISOString().split('T')[0];
+  
+  // We only want to update users who do NOT have a custom override
+  // But a simple approach is to fetch users without overrides, then update their sessions
+  const { data: profilesWithoutOverrides } = await adminClient
+    .from("profiles")
+    .select("id")
+    .is("session_time_limit_minutes", null);
+    
+  if (profilesWithoutOverrides && profilesWithoutOverrides.length > 0) {
+    const userIds = profilesWithoutOverrides.map(p => p.id);
+    await adminClient
+      .from("daily_sessions")
+      .update({ allowed_duration_seconds: game_duration_seconds })
+      .gte("created_at", today)
+      .in("user_id", userIds);
+      
+    // Additionally, wake up any sessions that were prematurely marked completed if we increased the time
+    await adminClient
+      .from("daily_sessions")
+      .update({ is_completed: false, status: 'in_progress' })
+      .gte("created_at", today)
+      .in("user_id", userIds)
+      .eq("is_completed", true);
+  }
+
   revalidatePath("/admin");
   revalidatePath("/admin/settings");
   revalidatePath("/dashboard");
