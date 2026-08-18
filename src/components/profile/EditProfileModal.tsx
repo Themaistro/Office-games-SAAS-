@@ -7,7 +7,7 @@ import { User, X, Check, Loader2, Edit3 } from "lucide-react";
 import { clsx } from "clsx";
 
 const AVATARS = [
-  // Cute avatars (Lorelei)
+  // Cute Avatars - Lorelei (Expanded)
   "https://api.dicebear.com/7.x/lorelei/svg?seed=Mimi&backgroundColor=ffd5dc",
   "https://api.dicebear.com/7.x/lorelei/svg?seed=Bella&backgroundColor=b6e3f4",
   "https://api.dicebear.com/7.x/lorelei/svg?seed=Chloe&backgroundColor=d1d4f9",
@@ -16,7 +16,41 @@ const AVATARS = [
   "https://api.dicebear.com/7.x/lorelei/svg?seed=Zoe&backgroundColor=ffc0cb",
   "https://api.dicebear.com/7.x/lorelei/svg?seed=Mia&backgroundColor=a8e6cf",
   "https://api.dicebear.com/7.x/lorelei/svg?seed=Ruby&backgroundColor=ffd3b6",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Lola&backgroundColor=f5b7b1",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Stella&backgroundColor=d2b4de",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Daisy&backgroundColor=f9e79f",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Luna&backgroundColor=aed6f1",
   
+  // Cute Mini Avatars (Miniavs)
+  "https://api.dicebear.com/7.x/miniavs/svg?seed=Cute1&backgroundColor=ffc0cb",
+  "https://api.dicebear.com/7.x/miniavs/svg?seed=Cute2&backgroundColor=b6e3f4",
+  "https://api.dicebear.com/7.x/miniavs/svg?seed=Cute3&backgroundColor=ffd5dc",
+  "https://api.dicebear.com/7.x/miniavs/svg?seed=Cute4&backgroundColor=ffdfbf",
+  "https://api.dicebear.com/7.x/miniavs/svg?seed=Cute5&backgroundColor=a8e6cf",
+  "https://api.dicebear.com/7.x/miniavs/svg?seed=Cute6&backgroundColor=c0aede",
+  "https://api.dicebear.com/7.x/miniavs/svg?seed=Cute7&backgroundColor=ffd3b6",
+  "https://api.dicebear.com/7.x/miniavs/svg?seed=Cute8&backgroundColor=d1d4f9",
+
+  // Cute Big Smiles
+  "https://api.dicebear.com/7.x/big-smile/svg?seed=Happy1&backgroundColor=a8e6cf",
+  "https://api.dicebear.com/7.x/big-smile/svg?seed=Happy2&backgroundColor=ffc0cb",
+  "https://api.dicebear.com/7.x/big-smile/svg?seed=Happy3&backgroundColor=ffd5dc",
+  "https://api.dicebear.com/7.x/big-smile/svg?seed=Happy4&backgroundColor=b6e3f4",
+  "https://api.dicebear.com/7.x/big-smile/svg?seed=Happy5&backgroundColor=ffdfbf",
+  "https://api.dicebear.com/7.x/big-smile/svg?seed=Happy6&backgroundColor=c0aede",
+  "https://api.dicebear.com/7.x/big-smile/svg?seed=Happy7&backgroundColor=ffd3b6",
+  "https://api.dicebear.com/7.x/big-smile/svg?seed=Happy8&backgroundColor=d1d4f9",
+
+  // Cute Notionists
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art1&backgroundColor=ffd5dc",
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art2&backgroundColor=a8e6cf",
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art3&backgroundColor=b6e3f4",
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art4&backgroundColor=ffc0cb",
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art5&backgroundColor=ffdfbf",
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art6&backgroundColor=ffd3b6",
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art7&backgroundColor=c0aede",
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art8&backgroundColor=d1d4f9",
+
   // Strong/Action avatars (Adventurer)
   "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack&backgroundColor=c0aede",
   "https://api.dicebear.com/7.x/adventurer/svg?seed=Max&backgroundColor=b6e3f4",
