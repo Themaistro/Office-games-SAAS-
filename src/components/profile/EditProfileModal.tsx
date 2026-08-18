@@ -166,7 +166,7 @@ interface EditProfileModalProps {
 export default function EditProfileModal({ currentName, currentAvatar, currentDepartment, children }: EditProfileModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState(currentName);
-  const [avatar, setAvatar] = useState(currentAvatar || AVATARS[0]);
+  const [avatar, setAvatar] = useState(currentAvatar || AVATAR_CATEGORIES[0].avatars[0]);
   const [department, setDepartment] = useState(currentDepartment || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mounted, setMounted] = useState(false);
