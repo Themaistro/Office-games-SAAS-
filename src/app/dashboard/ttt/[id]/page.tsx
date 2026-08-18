@@ -34,11 +34,40 @@ export default async function TttGamePage({ params }: { params: Promise<{ id: st
     redirect("/dashboard");
   }
 
+  // Calculate Head-to-Head Rivalry Score
+  let matchupScore = { xWins: 0, oWins: 0, draws: 0 };
+  
+  if (game.x_player_id && game.o_player_id) {
+    const xId = game.x_player_id;
+    const oId = game.o_player_id;
+
+    const { data: history } = await supabase
+      .from("ttt_games")
+      .select("status, x_player_id, o_player_id")
+      .in("status", ["x_won", "o_won", "draw"])
+      .or(`and(x_player_id.eq.${xId},o_player_id.eq.${oId}),and(x_player_id.eq.${oId},o_player_id.eq.${xId})`);
+
+    if (history) {
+      for (const h of history) {
+        if (h.status === "draw") {
+          matchupScore.draws++;
+        } else if (h.status === "x_won") {
+          if (h.x_player_id === xId) matchupScore.xWins++;
+          else matchupScore.oWins++;
+        } else if (h.status === "o_won") {
+          if (h.o_player_id === xId) matchupScore.xWins++;
+          else matchupScore.oWins++;
+        }
+      }
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <TttBoardClient 
         initialGame={game} 
         currentUserId={user.id} 
+        matchupScore={matchupScore}
       />
     </div>
   );

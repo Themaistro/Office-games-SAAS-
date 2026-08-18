@@ -8,7 +8,11 @@ import { makeTttMove, cancelTttGame, resignTttGame } from "../actions";
 import { clsx } from "clsx";
 import Link from "next/link";
 
-export default function TttBoardClient({ initialGame, currentUserId }: { initialGame: any; currentUserId: string }) {
+import { createTttRematch } from "../actions";
+
+export default function TttBoardClient({ initialGame, currentUserId, matchupScore }: { initialGame: any; currentUserId: string; matchupScore: { xWins: number; oWins: number; draws: number } }) {
+  const [rematchState, setRematchState] = useState<"idle" | "requested" | "received" | "loading">("idle");
+  const [newGameId, setNewGameId] = useState<string | null>(null);
   const [game, setGame] = useState<any>(initialGame);
   const [loadingAction, setLoadingAction] = useState(false);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
@@ -24,6 +28,13 @@ export default function TttBoardClient({ initialGame, currentUserId }: { initial
     const channel = supabase
       .channel(`ttt_games_${game.id}`, {
         config: { broadcast: { self: false } }
+      })
+      .on('broadcast', { event: 'rematch_request' }, () => {
+        setRematchState("received");
+      })
+      .on('broadcast', { event: 'rematch_accepted' }, (payload) => {
+        setRematchState("loading");
+        router.push(`/dashboard/ttt/${payload.payload}`);
       })
       .on('broadcast', { event: 'move' }, (payload) => {
         const index = payload.payload;
@@ -90,6 +101,31 @@ export default function TttBoardClient({ initialGame, currentUserId }: { initial
 
   const isGameOver = game.status === "x_won" || game.status === "o_won" || game.status === "draw";
 
+  const handleRequestRematch = () => {
+    setRematchState("requested");
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'rematch_request',
+      payload: currentUserId
+    });
+  };
+
+  const handleAcceptRematch = async () => {
+    setRematchState("loading");
+    try {
+      const createdId = await createTttRematch(game.id);
+      channelRef.current?.send({
+        type: 'broadcast',
+        event: 'rematch_accepted',
+        payload: createdId
+      });
+      router.push(`/dashboard/ttt/${createdId}`);
+    } catch (e: any) {
+      console.error(e);
+      setRematchState("idle");
+    }
+  };
+
   let statusMessage = "Waiting for Opponent...";
   if (game.status === "in_progress") {
     statusMessage = myTurn ? "Your Turn" : "Opponent's Turn";
@@ -142,6 +178,11 @@ export default function TttBoardClient({ initialGame, currentUserId }: { initial
           symbol === "X" ? "bg-blue-500/10 text-blue-500" : "bg-red-500/10 text-red-500"
         )}>
           {symbol === "X" ? <XIcon strokeWidth={3} /> : <Circle strokeWidth={3} />}
+        </div>
+        
+        {/* Rivalry Score Indicator */}
+        <div className="absolute -bottom-4 right-1/2 translate-x-1/2 bg-background border border-border shadow-md rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap z-20">
+          Score: {symbol === "X" ? matchupScore.xWins : matchupScore.oWins}
         </div>
       </div>
     );
@@ -238,13 +279,45 @@ export default function TttBoardClient({ initialGame, currentUserId }: { initial
               <p className="text-muted-foreground text-sm font-semibold mb-6">
                 {game.status === "draw" ? "It's a tie! Well played both." : "Elo ratings have been updated."}
               </p>
-              <Link href="/dashboard" className="px-6 py-3 rounded-xl font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/20">
-                Return to Lounge
-              </Link>
+              <div className="flex gap-3 mt-2 w-full">
+                <Link href="/dashboard" className="flex-1 px-4 py-3 rounded-xl font-bold bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all text-center">
+                  Lobby
+                </Link>
+                {!isSpectator && (
+                  <button 
+                    onClick={handleRequestRematch}
+                    disabled={rematchState !== "idle"}
+                    className={clsx(
+                      "flex-[2] px-6 py-3 rounded-xl font-bold transition-all shadow-lg",
+                      rematchState === "requested" ? "bg-muted text-muted-foreground cursor-default" : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-primary/20"
+                    )}
+                  >
+                    {rematchState === "requested" ? "Waiting for Opponent..." : "Play Again"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
       </div>
+      {rematchState === "received" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-card p-6 rounded-3xl border shadow-xl max-w-sm w-full mx-4 animate-in zoom-in-95 text-center">
+            <h3 className="text-xl font-black mb-2">Rematch Requested!</h3>
+            <p className="text-muted-foreground text-sm mb-6">Your opponent wants to play again. Do you accept?</p>
+            <div className="flex gap-3">
+              <button onClick={() => setRematchState("idle")} className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-lg font-bold text-sm transition-colors">Decline</button>
+              <button 
+                onClick={handleAcceptRematch}
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg font-bold text-sm transition-colors"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showResignConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-card p-6 rounded-3xl border shadow-xl max-w-sm w-full mx-4 animate-in zoom-in-95">

@@ -350,3 +350,40 @@ export async function resignTttGame(gameId: string) {
   await processTttGameEnd(adminClient, game, newStatus, gameId);
   revalidatePath("/dashboard");
 }
+
+export async function createTttRematch(oldGameId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
+  const adminClient = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+  const { data: oldGame } = await adminClient.from("ttt_games").select("*").eq("id", oldGameId).single();
+  if (!oldGame) throw new Error("Old game not found");
+
+  if (oldGame.x_player_id !== user.id && oldGame.o_player_id !== user.id) {
+    throw new Error("Unauthorized to rematch this game");
+  }
+
+  // Swap X and O for the rematch
+  const newXPlayerId = oldGame.o_player_id;
+  const newOPlayerId = oldGame.x_player_id;
+
+  const { data, error } = await adminClient
+    .from("ttt_games")
+    .insert({
+      x_player_id: newXPlayerId,
+      o_player_id: newOPlayerId,
+      status: "in_progress", // Immediately start
+      board_state: "---------",
+      current_turn: "X",
+    })
+    .select()
+    .single();
+
+  if (error || !data) throw new Error("Failed to create rematch");
+
+  revalidatePath("/dashboard");
+  return data.id;
+}
