@@ -13,7 +13,7 @@ export default async function LoginPage({
 }) {
   const resolvedParams = await searchParams;
   
-  const { rows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM profiles WHERE role <> 'admin'");
+  const { rows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM users WHERE role <> 'admin'");
   const playersCount = rows[0]?.count ?? 0;
   
   return (
