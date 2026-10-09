@@ -14,7 +14,7 @@ export default async function LoginPage({
   
   // Keep the public login page independent from optional database statistics.
   // Authentication itself is handled by the server action below.
-  const playersCount = 0;
+  const playersCount: number = 0;
   
   return (
     <div className="flex min-h-screen bg-background relative overflow-hidden">
