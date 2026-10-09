@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+/* Force Light Mode by redefining the 'dark' variant to look for a '.dark' class that we never apply */
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+:root {
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
+  
+  --primary: #4f46e5; /* indigo-600 */
+  --primary-foreground: #ffffff;
+  
+  --secondary: #e2e8f0; /* slate-200 */
+  --secondary-foreground: #0f172a;
+  
+  --accent: #8b5cf6; /* violet-500 */
+  --accent-foreground: #ffffff;
+  
+  --destructive: #ef4444; /* red-500 */
+  --destructive-foreground: #ffffff;
+  
+  --muted: #f1f5f9; /* slate-100 */
+  --muted-foreground: #64748b; /* slate-500 */
+  
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  
+  --border: #e2e8f0; /* slate-200 */
+  
+  --radius: 0.75rem;
+}
+
+
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee 20s linear infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-60px) rotate(15deg); }
+  66% { transform: translateY(40px) rotate(-15deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+.animate-float-delay-1 { animation-delay: -2s; }
+.animate-float-delay-2 { animation-delay: -4s; }
+.animate-float-delay-3 { animation-delay: -6s; }
+.pause-on-hover:hover .animate-marquee {
+  animation-play-state: paused;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes timePulse {
+  0%, 100% { transform: scale(1); color: var(--destructive); }
+  50% { transform: scale(1.1); color: #ff0000; }
+}
+
+.animate-time-pulse {
+  animation: timePulse 1s infinite ease-in-out;
+}
+
+@keyframes floatUpAndFade {
+  0% { transform: translateY(0) scale(0.8); opacity: 0; }
+  20% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+  80% { transform: translateY(-60px) scale(1); opacity: 1; }
+  100% { transform: translateY(-80px) scale(0.9); opacity: 0; }
+}
+
+.animate-float-up {
+  animation: floatUpAndFade 1.5s ease-out forwards;
+}

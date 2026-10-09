@@ -1,0 +1,1224 @@
+[
+  {
+    "id": "3fe3ea9d-785f-473d-b630-0af6c25e6165",
+    "question": "Earl Grey tea is black tea flavoured with what?",
+    "answer": "Bergamot oil",
+    "decoys": [
+      "Lavender",
+      "Vanilla",
+      "Honey"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "41af5263-805f-4a35-87ec-b14fb7072c55",
+    "question": "Named after the mallow flower, mauve is a shade of what?",
+    "answer": "Purple",
+    "decoys": [
+      "Red",
+      "Brown",
+      "Pink"
+    ],
+    "department": "General",
+    "difficulty": "hard",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "37e28b38-9b49-4d38-8040-1d41657e8eed",
+    "question": "What was the name of the WWF professional wrestling tag team made up of the wrestlers Ax and Smash?",
+    "answer": "Demolition",
+    "decoys": [
+      "The Dream Team",
+      "The Bushwhackers",
+      "The British Bulldogs"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "27bc74b1-de5b-49bd-ac15-6eae38b81a3f",
+    "question": "What style of beer will typically have a higher than average hop content?",
+    "answer": "India Pale Ale",
+    "decoys": [
+      "Stout",
+      "Extra Special Bitter",
+      "Scotch Ale"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "8535fe2f-05bb-4a33-b8ff-d9b0e5d01613",
+    "question": "How long did it take the motorized window washers of the original World Trade Center to clean the entire exterior of the building?",
+    "answer": "1 Month",
+    "decoys": [
+      "3 Weeks",
+      "1 Week",
+      "2 Months"
+    ],
+    "department": "General",
+    "difficulty": "hard",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "3fd8c733-eb0c-4bac-b206-d432837d1869",
+    "question": "What is the official language in Barcelona beside Spanish?",
+    "answer": "Catalan",
+    "decoys": [
+      " Galician",
+      "French",
+      "Basque"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "ea336dd3-13b2-4068-8771-264c80e9ce80",
+    "question": "Astraphobia is the irrational fear of what?",
+    "answer": "Thunder",
+    "decoys": [
+      "Rain",
+      "Wind",
+      "Snow"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "c33e8915-f631-43b0-8193-1a393c9ac752",
+    "question": "Who is the youngest person to receive a Nobel Prize?",
+    "answer": "Malala Yousafzai",
+    "decoys": [
+      "Lawrence Bragg",
+      "Werner Heisenberg",
+      "Yasser Arafat"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "a43748a8-0330-43b2-96c6-37ef489f1ade",
+    "question": "When someone is cowardly, they are said to have what color belly?",
+    "answer": "Yellow",
+    "decoys": [
+      "Green",
+      "Red",
+      "Blue"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "0e606392-b498-4583-a070-ebcf9b4adb60",
+    "question": "What is the nickname of the US state of California?",
+    "answer": "Golden State",
+    "decoys": [
+      "Sunshine State",
+      "Bay State",
+      "Treasure State"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "e7a9f8fc-10d9-4be1-a09f-7371b3f9e071",
+    "question": "What machine element is located in the center of fidget spinners?",
+    "answer": "Bearings",
+    "decoys": [
+      "Axles",
+      "Gears",
+      "Belts"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "b19a796a-4b91-41b9-9a8b-a18b02c7ddd0",
+    "question": "What is the name given to Indian food cooked over charcoal in a clay oven?",
+    "answer": "Tandoori",
+    "decoys": [
+      "Biryani",
+      "Pani puri",
+      "Tiki masala"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "f05a1916-90fb-4703-bc65-6b7b87c9f1e5",
+    "question": "What alcoholic drink is mainly made from juniper berries?",
+    "answer": "Gin",
+    "decoys": [
+      "Vodka",
+      "Rum",
+      "Tequila"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "65e85b6b-33d0-4e76-90ea-d0e1f47c8b42",
+    "question": "What is the star sign of someone born on Valentines day?",
+    "answer": "Aquarius",
+    "decoys": [
+      "Pisces",
+      "Capricorn",
+      "Scorpio"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "0a9d5f62-ef50-49fb-b17a-a938666b739e",
+    "question": "The buried remains of which English explorer of Australia were found in London  in January 2019? ",
+    "answer": "Matthew Flinders",
+    "decoys": [
+      "William Bourke",
+      "Abel Tasman",
+      "Dirk Hartog"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "fdda4d5b-63b5-4edd-bd0c-3882434bb0df",
+    "question": "What is the official language of Brazil?",
+    "answer": "Portuguese",
+    "decoys": [
+      "Brazilian",
+      "Spanish",
+      "English"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "377c88d9-41e0-4aa1-be95-33915e53386f",
+    "question": "Where did the pineapple plant originate?",
+    "answer": "South America",
+    "decoys": [
+      "Hawaii",
+      "Europe",
+      "Asia"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "615743d2-0bba-47fe-a3e1-79784e1fa4d1",
+    "question": "Death Valley's Badwater Basin is North America's point of lowest elevation at how many feet below sea level?",
+    "answer": "282 feet",
+    "decoys": [
+      "79 feet",
+      "1,640 feet",
+      "12,092 feet"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "15ac2cc0-9ce5-46e2-872a-93ad9d59fee5",
+    "question": "In \"Katamari Damacy\", you control a character known as:",
+    "answer": "The Prince",
+    "decoys": [
+      "Fujio",
+      "Ichigo ",
+      "Foomin"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "34ecc435-fb40-4121-804f-06ea6aee2184",
+    "question": "In which country was the 1992 Summer Olympics Games held?",
+    "answer": "Spain",
+    "decoys": [
+      "Russia",
+      "Korea",
+      "USA"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "3680133f-d958-45ab-8e86-4569c7d7801d",
+    "question": "When was the website reddit founded ?",
+    "answer": "2005",
+    "decoys": [
+      "2008",
+      "2004",
+      "2006"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "6c814fbc-3a77-49b2-9e33-16f56b3c201a",
+    "question": "De Eemhof, Port Zelande and Het Heijderbos are holiday villas owned by what company?",
+    "answer": "Center Parcs",
+    "decoys": [
+      "Yelloh Village",
+      "Keycamp",
+      "Villa Plus"
+    ],
+    "department": "General",
+    "difficulty": "hard",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "134c491e-e65f-42d2-a376-7df2845da168",
+    "question": "What Latin phrase roughly translates to \"seize the day\"?",
+    "answer": "Carpe diem",
+    "decoys": [
+      "Memento mori",
+      "Plus ultra",
+      "Sic semper tyrannis"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "9dee70c9-5399-44d3-b917-5c0ea242ff72",
+    "question": "Coleslaw originated from which European country?",
+    "answer": "The Netherlands",
+    "decoys": [
+      "United Kingdom",
+      "Denmark",
+      "Germany"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "d405cb51-2c7f-4f90-a7dc-fba37ded468c",
+    "question": "What is Cynophobia the fear of?",
+    "answer": "Dogs",
+    "decoys": [
+      "Birds",
+      "Flying",
+      "Germs"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "8b5b4ae1-5bc6-48cd-aa1b-6a504f8d8cc6",
+    "question": "What do sailors call the front of a boat?",
+    "answer": "Bow",
+    "decoys": [
+      "Stern",
+      "Port",
+      "Starboard"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "83ed8ec4-0886-4ffd-8f5f-d4416f3af2a5",
+    "question": "How many cards are there in a standard deck of playing cards?",
+    "answer": "52",
+    "decoys": [
+      "32",
+      "40",
+      "64"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "799e7b79-4afc-463b-b3c4-064710006726",
+    "question": "What do sailors call the back of a boat?",
+    "answer": "Stern",
+    "decoys": [
+      "Bow",
+      "Starboard",
+      "Port"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "e7dac15f-7661-44d8-9b81-5a6bc7cb21b9",
+    "question": "What is the Swedish word for \"window\"?",
+    "answer": "F&ouml;nster",
+    "decoys": [
+      "H&aring;l",
+      "Sk&auml;rm",
+      "Ruta"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "9243ccc1-8394-435f-ab22-4fa79474bf8e",
+    "question": "What do sailors call the right side of a boat?",
+    "answer": "Starboard",
+    "decoys": [
+      "Port",
+      "Stern",
+      "Bow"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "77aa590f-de50-4b15-b80a-e2292014fba5",
+    "question": "Who is considered the \"Father of Modern Philosophy\"?",
+    "answer": "Ren&eacute; Descartes",
+    "decoys": [
+      "Plato",
+      "Albert Einstein",
+      "Antoine Lavoiser"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "2eebfa43-401c-4658-8695-42dfeb6cc3e1",
+    "question": "Which musician has collaborated with American producer Porter Robinson and released the 2016 song \"Shelter\"?",
+    "answer": "Madeon",
+    "decoys": [
+      "Mat Zo",
+      "deadmau5",
+      "Zedd"
+    ],
+    "department": "General",
+    "difficulty": "hard",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "370384ad-08ca-4815-919c-7a919f66e084",
+    "question": "When was the Declaration of Independence approved by the Second Continental Congress?",
+    "answer": "July 4, 1776",
+    "decoys": [
+      "May 4, 1776",
+      "June 4, 1776",
+      "July 2, 1776"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "4ac08a9a-e923-484b-9c09-88605407891d",
+    "question": "What type of animal was Harambe, who was shot after a child fell into it's enclosure at the Cincinnati Zoo?",
+    "answer": "Gorilla",
+    "decoys": [
+      "Tiger",
+      "Panda",
+      "Crocodile"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "160587fe-ddce-48fd-be15-5e758fe56c1d",
+    "question": "What is the romanized Russian word for \"winter\"?",
+    "answer": "Zima",
+    "decoys": [
+      "Leto",
+      "Vesna",
+      "Osen'"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "ba9034de-2461-43a0-a669-1df389d243e7",
+    "question": "Which of these Marvel games was released on the Playstation 2?",
+    "answer": "Spider-Man 2",
+    "decoys": [
+      "Silver Surfer",
+      "Howard the Duck",
+      "Wolverine: Adamantium Rage"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "cfd4c79d-4280-4ac1-92ae-8bd4ac0d1398",
+    "question": "What is the unit of currency in Laos?",
+    "answer": "Kip",
+    "decoys": [
+      "Ruble",
+      "Konra",
+      "Dollar"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "00c8b577-722c-4c30-abf8-2b841e89a705",
+    "question": "How would one say goodbye in Spanish?",
+    "answer": "Adi&oacute;s",
+    "decoys": [
+      " Hola",
+      "Au Revoir",
+      "Salir"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "dcc468db-4e9d-45f4-91c7-f5edd60ce760",
+    "question": "What does a milliner make and sell?",
+    "answer": "Hats",
+    "decoys": [
+      "Shoes",
+      "Belts",
+      "Shirts"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "4124229d-dc9a-4e94-9947-fc74b4e8e225",
+    "question": "What year was the first Apple iPod introduced?",
+    "answer": "2001",
+    "decoys": [
+      "2000",
+      "1999",
+      "1998"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "d1c8abb0-b2ad-4c03-803b-c2fcf90c3667",
+    "question": "In Half-Life, what is the name of the alien that attaches to heads?",
+    "answer": "Headcrab",
+    "decoys": [
+      "Bullsquid",
+      "Vortigaunt",
+      "Facehugger"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "a1c1d5ef-d93c-444a-a0f1-2b7af38a0518",
+    "question": "Who is depicted on the US hundred dollar bill?",
+    "answer": "Benjamin Franklin",
+    "decoys": [
+      "George Washington",
+      "Abraham Lincoln",
+      "Thomas Jefferson"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "f7f17954-3778-4cf3-8c1c-5c42c2df287f",
+    "question": "The tale of Robin Hood originates from which country?",
+    "answer": "England",
+    "decoys": [
+      "France",
+      "Portugal",
+      "Scotland"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "1592313e-5066-4aaa-a00a-597647681208",
+    "question": "What do sailors call the left side of a boat?",
+    "answer": "Port",
+    "decoys": [
+      "Starboard",
+      "Bow",
+      "Stern"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "17e15dac-f37d-401c-ba6c-51349ed7001e",
+    "question": "Which one of these is not a typical European sword design?",
+    "answer": "Scimitar",
+    "decoys": [
+      "Falchion",
+      "Ulfberht",
+      "Flamberge"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "d541e8b4-4e46-402b-8594-9e85773e622b",
+    "question": "Which of these American singers and songwriters won a Nobel Prize in Literature?",
+    "answer": "Bob Dylan",
+    "decoys": [
+      "Buddy Holly",
+      "Johnny Cash",
+      "Alice Cooper"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "983bf857-45ee-4346-a0d3-444e3697d683",
+    "question": "In the video-game franchise Kingdom Hearts, the main protagonist, carries a weapon with what shape?",
+    "answer": "Key",
+    "decoys": [
+      "Sword",
+      "Pen",
+      "Cellphone"
+    ],
+    "department": "General",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "7eace7cc-2a4b-4efd-b4de-9c2c29b920bc",
+    "question": "Which of the following  British Monarchs never appeared on a circulated pound sterling coin?",
+    "answer": "Edward VIII",
+    "decoys": [
+      "Victoria",
+      "George VI",
+      "Charles II"
+    ],
+    "department": "General",
+    "difficulty": "hard",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "af7af003-c65e-49d8-860a-7a45be708e64",
+    "question": "What is the romanized Chinese word for \"airplane\"?",
+    "answer": "Feiji",
+    "decoys": [
+      "Qiche",
+      "Zongxian",
+      "Huojian"
+    ],
+    "department": "General",
+    "difficulty": "hard",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "48cb76c4-7e2b-49d6-a8ea-24bf4e272f87",
+    "question": "In a 1994 CBS interview, Microsoft co-founder Bill Gates performed what unusual trick on camera?",
+    "answer": "Jumping over an office chair",
+    "decoys": [
+      "Jumping backwards over a desk",
+      "Standing on his head",
+      "Typing on a keyboard during a handstand"
+    ],
+    "department": "General",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "32d5c816-eb58-43db-b7c8-0fc8a763741e",
+    "question": "What does CRM stand for?",
+    "answer": "Customer Relationship Management",
+    "decoys": [
+      "Client Retention Model",
+      "Customer Revenue Management",
+      "Client Relationship Marketing"
+    ],
+    "department": "Sales",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "bee541fd-5c69-4219-b2c8-699657672669",
+    "question": "What is B2B?",
+    "answer": "Business to Business",
+    "decoys": [
+      "Business to Buyer",
+      "Buyer to Buyer",
+      "Brand to Business"
+    ],
+    "department": "Sales",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "4d19b693-0dea-48c6-8313-8cd1d0d8452f",
+    "question": "What does FMLA stand for?",
+    "answer": "Family and Medical Leave Act",
+    "decoys": [
+      "Federal Medical Leave Allowance",
+      "Family Maternity Leave Act",
+      "Fair Medical Leave Agreement"
+    ],
+    "department": "HR",
+    "difficulty": "easy",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "d10fabb9-21eb-4bc0-8bab-68a3d05ad73e",
+    "question": "What is Turnover Rate?",
+    "answer": "Rate at which employees leave",
+    "decoys": [
+      "Rate of new hires",
+      "Rate of sales",
+      "Rate of profit"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "31552a92-962e-4410-8628-72001a4ac8d3",
+    "question": "What is the primary goal of Sales strategy #1?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "19b8887b-6f1a-46f5-82eb-2b54a3a5cf52",
+    "question": "What is the primary goal of Sales strategy #2?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "5f7fd9b8-cb29-4152-b1e2-753a770d81b7",
+    "question": "What is the primary goal of Sales strategy #3?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "a7b8f691-f3c4-4670-bd2f-b5af4f5fc663",
+    "question": "What is the primary goal of Sales strategy #4?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "838c56de-0310-4673-95a8-e6eff32539cb",
+    "question": "What is the primary goal of Sales strategy #5?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "3af84263-666a-43eb-97dc-e741cc23cd3c",
+    "question": "What is the primary goal of Sales strategy #6?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "3cb56045-43dc-44ed-bd20-bbf12caa0cbd",
+    "question": "What is the primary goal of Sales strategy #7?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "74973ca6-218a-45c0-b585-1102892bceea",
+    "question": "What is the primary goal of Sales strategy #8?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "262f5472-4d21-41f4-8eff-53c562f9b2d5",
+    "question": "What is the primary goal of Sales strategy #9?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "365ea89e-557c-4ce5-a20e-92a44eed7511",
+    "question": "What is the primary goal of Sales strategy #10?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "1851fddc-1c4a-4c20-affb-23941f575c38",
+    "question": "What is the primary goal of Sales strategy #11?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "22c2c081-c4ec-492e-9b6b-812fc0dbbc29",
+    "question": "What is the primary goal of Sales strategy #12?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "7ec1e522-dc6b-4e39-be38-4a5f33895098",
+    "question": "What is the primary goal of Sales strategy #13?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "e25d0bfa-fd01-4d4b-b534-3186645e9475",
+    "question": "What is the primary goal of Sales strategy #14?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "3a5bc427-94d9-44d8-8264-45b941183ab5",
+    "question": "What is the primary goal of Sales strategy #15?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "a7d2aaa5-c2b7-41ee-8c79-e7658fa6ce23",
+    "question": "What is the primary goal of Sales strategy #16?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "82f2dda5-6944-4162-a17b-c83e70e2b09e",
+    "question": "What is the primary goal of Sales strategy #17?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "89579092-846a-4595-8df1-5a197f2e88b1",
+    "question": "What is the primary goal of Sales strategy #18?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "29e14713-43e3-4c8a-89a4-6d6d8ba88987",
+    "question": "What is the primary goal of Sales strategy #19?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "07cb28c2-582b-4303-bbc9-0892a6e8b109",
+    "question": "What is the primary goal of Sales strategy #20?",
+    "answer": "Increase Revenue",
+    "decoys": [
+      "Decrease Costs",
+      "Hire more",
+      "Do nothing"
+    ],
+    "department": "Sales",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "26d70461-65d6-4fd5-9dcc-7760fcba1691",
+    "question": "According to HR policy 100, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "a189b58a-5ca9-4c5c-af34-15512bbfe379",
+    "question": "According to HR policy 101, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "d7064490-d929-45d6-824b-87f29df57e05",
+    "question": "According to HR policy 102, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "c770a998-4c74-42a4-b5d9-cffd3590d4c5",
+    "question": "According to HR policy 103, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "ce214e50-089e-4392-9725-de3e5c8052d2",
+    "question": "According to HR policy 104, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "5a201910-a99d-4807-947f-2a3a6089ed18",
+    "question": "According to HR policy 105, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "1d2dd744-eb3e-4860-b8cb-4461e2afbe00",
+    "question": "According to HR policy 106, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "2068cd30-3c12-43d3-9b46-9260f8c022cc",
+    "question": "According to HR policy 107, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "33f3e92a-318c-4d65-a941-4fb881202502",
+    "question": "According to HR policy 108, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "3dfcca47-3350-4813-8104-644d2593c73d",
+    "question": "According to HR policy 109, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "ef96f03b-a80f-4320-8f2e-ca0d0c725a5e",
+    "question": "According to HR policy 110, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "9e0fddcf-419f-452d-b6a5-e9dfbb5a56bd",
+    "question": "According to HR policy 111, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "e64eee13-f99e-497d-ba53-4e72ec91b984",
+    "question": "According to HR policy 112, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "e93a89c0-655a-4e39-99aa-dda065e6e52a",
+    "question": "According to HR policy 113, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "f7ffd06a-a724-4970-b529-f8739f03e95b",
+    "question": "According to HR policy 114, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "36652e2a-c157-41d1-9c90-8449d8ab3150",
+    "question": "According to HR policy 115, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "7b2aaffd-64ac-42bd-bea6-e30cafdd4e99",
+    "question": "According to HR policy 116, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "eceb1300-be6e-49f0-b486-869865b7a5ab",
+    "question": "According to HR policy 117, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "1b45e80e-199b-4031-8128-fa7e568f93b5",
+    "question": "According to HR policy 118, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  },
+  {
+    "id": "d06679eb-c80b-487c-91fe-690bbe8fb5b8",
+    "question": "According to HR policy 119, what is required?",
+    "answer": "Compliance",
+    "decoys": [
+      "Ignoring it",
+      "Delegating",
+      "Complaining"
+    ],
+    "department": "HR",
+    "difficulty": "medium",
+    "created_at": "2026-08-14T15:56:34.31905+00:00"
+  }
+]

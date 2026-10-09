@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  daily-brain-arena:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Note: These MUST be provided during build time for Next.js to bake them into the client bundle
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    image: daily-brain-arena:latest
+    container_name: daily-brain-arena
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      # These are used at runtime
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - NODE_ENV=production
+    # If using a `.env` file, uncomment the line below:
+    # env_file:
+    #   - .env
