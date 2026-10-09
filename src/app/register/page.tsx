@@ -13,19 +13,21 @@ const DEFAULT_DEPARTMENTS = [
   "Sales",
 ];
 
+export const dynamic = "force-dynamic";
+
 export default async function RegisterPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  const { rows: departments } = await query<{ id: string; name: string }>(
-    "SELECT id, name FROM departments WHERE is_active = true ORDER BY sort_order ASC, name ASC"
+  const { rows: configuredDepartments } = await query<{ id: string; name: string; is_active: boolean }>(
+    "SELECT id, name, is_active FROM departments ORDER BY sort_order ASC, name ASC"
   );
   // Keep registration usable on a fresh PostgreSQL install before departments
   // have been configured by an administrator.
-  const departmentOptions = departments.length > 0
-    ? departments
+  const departmentOptions = configuredDepartments.length > 0
+    ? configuredDepartments.filter((department) => department.is_active)
     : DEFAULT_DEPARTMENTS.map((name) => ({ id: name, name }));
   
   return (
