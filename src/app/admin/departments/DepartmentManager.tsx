@@ -4,6 +4,8 @@ import { useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Trash2, Power, PowerOff, GripVertical, Edit2, Check, X } from "lucide-react";
 import { toggleDepartmentStatus, deleteDepartment, renameDepartment, updateDepartmentSortOrder } from "./actions";
+import { useToast } from "@/components/ui/ToastProvider";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 type Department = {
   id: string;
@@ -18,6 +20,8 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
+  const { toast } = useToast();
 
   const handleDragEnd = async (result: any) => {
     if (!result.destination) return;
@@ -45,17 +49,22 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
 
   const handleDelete = async (dept: Department) => {
     if (dept.playerCount > 0) {
-      alert(`Warning: There are ${dept.playerCount} players in ${dept.name}. Please reassign them in the Player Roster before deleting this department.`);
+      toast(`There are ${dept.playerCount} players in ${dept.name}. Reassign them in the Player Roster before deleting this department.`);
       return;
     }
     
-    if (confirm(`Are you sure you want to delete ${dept.name}?`)) {
-      try {
-        await deleteDepartment(dept.id);
-        setDepartments(departments.filter(d => d.id !== dept.id));
-      } catch (e: any) {
-        alert(e.message);
-      }
+    setDeleteTarget(dept);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteDepartment(deleteTarget.id);
+      setDepartments((current) => current.filter((d) => d.id !== deleteTarget.id));
+    } catch (e: any) {
+      toast(e.message || "Unable to delete the department.");
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -72,7 +81,7 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
       setDepartments(departments.map(d => d.id === id ? { ...d, name: editName.trim() } : d));
       setEditingId(null);
     } catch (e: any) {
-      alert(e.message);
+      toast(e.message || "Unable to rename the department.");
     } finally {
       setIsSaving(false);
     }
@@ -83,6 +92,7 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
   }
 
   return (
+    <>
     <DragDropContext onDragEnd={handleDragEnd}>
       <Droppable droppableId="departments">
         {(provided) => (
@@ -158,6 +168,8 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
         )}
       </Droppable>
     </DragDropContext>
+    <ConfirmModal isOpen={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} onConfirm={confirmDelete} title="Delete department?" message={`Delete ${deleteTarget?.name || "this department"}? This cannot be undone.`} confirmText="Delete" />
+    </>
   );
 }
 

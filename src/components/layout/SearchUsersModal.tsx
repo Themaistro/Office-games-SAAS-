@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Search, X, User, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -20,6 +21,13 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
     const searchUsers = async () => {
       if (query.trim().length < 2) {
         setResults([]);
@@ -35,10 +43,10 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
     return () => clearTimeout(timeout);
   }, [query]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 sm:pt-32">
+  return createPortal((
+    <div className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto px-4 pb-8 pt-20 sm:pt-32" role="dialog" aria-modal="true" aria-label="Search coworkers">
       {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity" 
@@ -117,6 +125,6 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 

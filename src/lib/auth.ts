@@ -32,8 +32,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const result = await query<CurrentUser>(
-    `SELECT u.id, u.email FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.token_hash = $1 AND s.expires_at > now()`,
+    `SELECT u.id, u.email FROM sessions s
+     JOIN users u ON u.id = s.user_id
+     LEFT JOIN profiles p ON p.id = u.id
+     WHERE s.token_hash = $1 AND s.expires_at > now() AND COALESCE(p.is_active, true) = true`,
     [hashToken(token)],
   );
   return result.rows[0] ?? null;

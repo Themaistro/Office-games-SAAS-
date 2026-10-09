@@ -22,7 +22,7 @@ export default function LiveActivityFeed() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   useEffect(() => {
     fetchFeed();
-    const timer = window.setInterval(fetchFeed, 5000);
+    const timer = window.setInterval(fetchFeed, 1000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -45,7 +45,7 @@ export default function LiveActivityFeed() {
   };
 
   return (
-    <div className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm flex flex-col h-[600px]">
+    <div className="flex min-h-[220px] flex-col rounded-3xl border border-border/60 bg-card p-5 shadow-sm max-h-[520px]">
       <div className="flex items-center gap-3 mb-6 shrink-0">
         <Activity className="text-primary" size={20} />
         <h3 className="text-lg font-black tracking-tight">Live Activity & Matches</h3>
@@ -57,7 +57,7 @@ export default function LiveActivityFeed() {
 
       <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
         {feed.length === 0 ? (
-          <div className="text-center text-muted-foreground text-sm mt-10">No recent activity.</div>
+          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/40 px-5 py-8 text-center text-sm text-muted-foreground">No recent activity yet. Be the first to start a mission or game.</div>
         ) : (
           feed.map((item) => (
             <div key={item.id} className="flex gap-4 items-start p-3 rounded-2xl bg-muted/30 border border-border/50 animate-in fade-in slide-in-from-right-4">

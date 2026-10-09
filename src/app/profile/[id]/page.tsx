@@ -10,9 +10,38 @@ import CognitiveRadarChart from "@/components/profile/CognitiveRadarChart";
 import ChessStatsCard from "@/components/profile/ChessStatsCard";
 import TttStatsCard from "@/components/profile/TttStatsCard";
 import ChallengeMenu from "@/components/profile/ChallengeMenu";
+import ProfileMessageButton from "@/components/messaging/ProfileMessageButton";
 import ChallengeTutorialTrigger from "@/components/tutorial/ChallengeTutorialTrigger";
 
 export const dynamic = "force-dynamic";
+
+async function attachGameProfiles(dbClient: any, games: any[] | null, pairs: { left: string; right: string; leftKey: string; rightKey: string }[]) {
+  const rows = games || [];
+  const ids = [...new Set(rows.flatMap((game) => pairs.flatMap((pair) => [game[pair.left], game[pair.right]]).filter(Boolean)))];
+  if (ids.length === 0) return rows;
+  const { data: profiles } = await dbClient.from("profiles").select("id, full_name, avatar_url, chess_elo").in("id", ids);
+  const byId = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
+  return rows.map((game) => {
+    const result = { ...game };
+    for (const pair of pairs) {
+      result[pair.leftKey] = byId.get(game[pair.left]) || null;
+      result[pair.rightKey] = byId.get(game[pair.right]) || null;
+    }
+    return result;
+  });
+}
+
+async function attachQuestionDetails(dbClient: any, rows: any[] | null) {
+  const questions = rows || [];
+  const ids = [...new Set(questions.map((row) => row.question_id).filter(Boolean))];
+  if (!ids.length) return questions;
+  const { data } = await dbClient.from("questions").select("id, game_type_id").in("id", ids);
+  const gameTypeIds = [...new Set((data || []).map((question: any) => question.game_type_id).filter(Boolean))];
+  const { data: gameTypes } = await dbClient.from("game_types").select("id, name").in("id", gameTypeIds);
+  const questionMap = new Map((data || []).map((question: any) => [question.id, question]));
+  const gameTypeMap = new Map((gameTypes || []).map((gameType: any) => [gameType.id, gameType]));
+  return questions.map((row) => ({ ...row, questions: { game_types: gameTypeMap.get(questionMap.get(row.question_id)?.game_type_id) || null } }));
+}
 
 export default async function PublicProfilePage(props: { params: Promise<{ id: string }>, searchParams?: Promise<{ tab?: string }> }) {
   const searchParams = await props.searchParams;
@@ -48,23 +77,22 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
   }
 
   // Fetch Chess Games for stats
-  const { data: chessGames } = await dbClient
+  const { data: rawChessGames } = await dbClient
     .from("chess_games")
-    .select(`
-      *,
-      white:profiles!chess_games_white_player_id_fkey ( id, full_name, avatar_url, chess_elo ),
-      black:profiles!chess_games_black_player_id_fkey ( id, full_name, avatar_url, chess_elo )
-    `)
+    .select("*")
     .or(`white_player_id.eq.${profileId},black_player_id.eq.${profileId}`)
     .in('status', ['white_won', 'black_won', 'draw'])
     .order('updated_at', { ascending: false });
 
-  const { data: tttGames } = await dbClient
+  const chessGames = await attachGameProfiles(dbClient, rawChessGames, [{ left: "white_player_id", right: "black_player_id", leftKey: "white", rightKey: "black" }]);
+
+  const { data: rawTttGames } = await dbClient
     .from('ttt_games')
-    .select(`*, x_player:profiles!ttt_games_x_player_id_fkey(id, full_name, avatar_url), o_player:profiles!ttt_games_o_player_id_fkey(id, full_name, avatar_url)`)
+    .select("*")
     .or(`x_player_id.eq.${profileId},o_player_id.eq.${profileId}`)
     .in('status', ['x_won', 'o_won', 'draw'])
     .order('updated_at', { ascending: false });
+  const tttGames = await attachGameProfiles(dbClient, rawTttGames, [{ left: "x_player_id", right: "o_player_id", leftKey: "x_player", rightKey: "o_player" }]);
 
   const currentLevelBaseXp = (profile.current_level - 1) * 1200;
   const nextLevelXp = profile.current_level * 1200;
@@ -173,21 +201,14 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
   if (sessionIds.length > 0) {
     const { data: questionsData } = await dbClient
       .from("session_questions")
-      .select(`
-        earned_xp, 
-        is_correct, 
-        questions (
-          game_types (
-            name
-          )
-        )
-      `)
+      .select("earned_xp, is_correct, question_id")
       .in("session_id", sessionIds);
       
     if (questionsData) {
       const statsMap: Record<string, { totalScore: number, plays: number, correctCount: number }> = {};
       
-      questionsData.forEach((q: any) => {
+      const detailedQuestions = await attachQuestionDetails(dbClient, questionsData);
+      detailedQuestions.forEach((q: any) => {
         const gt = q.questions?.game_types;
         const gameName = gt ? (Array.isArray(gt) ? gt[0]?.name : gt.name) : "Unknown Game";
         if (gameName === "Unknown Game") return; // Skip broken records
@@ -292,8 +313,8 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
       <main className="flex-1 container mx-auto px-4 pt-28 pb-8 max-w-5xl">
         
         {/* Profile Header (Glassmorphic) */}
-        <div className={`relative overflow-hidden bg-card/60 backdrop-blur-xl border ${borderColor} rounded-3xl p-8 sm:p-10 mb-8 flex flex-col md:flex-row gap-8 items-center md:items-start shadow-xl group transition-all duration-500 ${glowEffect}`}>
-          <div className={`absolute inset-0 bg-gradient-to-br ${themeColor} opacity-50`} />
+        <div className={`relative bg-card border ${borderColor} rounded-[2rem] p-8 sm:p-10 mb-8 flex flex-col md:flex-row gap-8 items-center md:items-start shadow-lg shadow-primary/5 group transition-all duration-500 ${glowEffect}`}>
+          <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${themeColor} opacity-20`} />
           
           {user.id === profile.id && (
             <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url} />
@@ -325,17 +346,18 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
                   </span>
                 </div>
               </div>
-              <div className="hidden md:flex flex-col items-end gap-2">
+              <div className="flex w-full flex-col items-center gap-2 md:w-auto md:items-end">
                 <div className="flex items-center gap-2 bg-background/50 backdrop-blur px-4 py-2 rounded-2xl border border-border/50 shadow-sm">
                   <Trophy className="text-yellow-500 w-5 h-5" />
                   <span className="font-bold text-muted-foreground">Global Rank</span>
                   <span className="font-black text-xl text-foreground">{userRank === "Admin" ? "Admin" : `#${userRank}`}</span>
                 </div>
                 {user.id !== profile.id && (
-                  <>
+                  <div className="flex w-full flex-wrap items-center justify-center gap-2 md:justify-end">
                     <ChallengeTutorialTrigger />
-                    <ChallengeMenu targetUserId={profile.id} />
-                  </>
+                    <div className="w-40"><ChallengeMenu targetUserId={profile.id} /></div>
+                    <ProfileMessageButton userId={user.id} person={{ id: profile.id, full_name: profile.full_name, avatar_url: profile.avatar_url }} />
+                  </div>
                 )}
               </div>
             </div>

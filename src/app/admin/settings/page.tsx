@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { resetSeason, getSystemSettings, factoryResetPlatform, updateSystemSettings } from "./actions";
 import { AlertTriangle, RefreshCw, CalendarDays, Hash, Flame } from "lucide-react";
+import { useToast } from "@/components/ui/ToastProvider";
 
 export default function SettingsPage() {
   const [isResetting, setIsResetting] = useState(false);
@@ -11,6 +12,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<any>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; type: 'season' | 'factory' | null }>({ isOpen: false, type: null });
   const [confirmText, setConfirmText] = useState("");
+  const { toast } = useToast();
 
   const loadSettings = async () => {
     const s = await getSystemSettings();
@@ -28,7 +30,7 @@ export default function SettingsPage() {
 
   const executeReset = async () => {
     if (confirmModal.type === 'factory') {
-      if (confirmText !== "FACTORY WIPE") return alert("Type FACTORY WIPE exactly to confirm.");
+      if (confirmText !== "FACTORY WIPE") { toast("Type FACTORY WIPE exactly to confirm."); return; }
       setIsFactoryResetting(true);
       try {
         await factoryResetPlatform();
@@ -41,7 +43,7 @@ export default function SettingsPage() {
         setIsFactoryResetting(false);
       }
     } else if (confirmModal.type === 'season') {
-      if (confirmText !== "RESET SEASON") return alert("Type RESET SEASON exactly to confirm.");
+      if (confirmText !== "RESET SEASON") { toast("Type RESET SEASON exactly to confirm."); return; }
       setIsResetting(true);
       try {
         await resetSeason();
@@ -130,7 +132,7 @@ export default function SettingsPage() {
             <input 
               type="number" 
               name="game_duration_minutes" 
-              defaultValue={settings?.game_duration_seconds ? Math.floor(settings.game_duration_seconds / 60) : 15}
+              defaultValue={settings?.daily_time_limit_minutes ?? 15}
               min="1"
               className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
@@ -196,7 +198,7 @@ export default function SettingsPage() {
       
       {/* Confirmation Modal */}
       {confirmModal.isOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="bg-card border border-destructive/30 rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
             <div className="bg-destructive/10 px-6 py-4 flex items-center gap-3 border-b border-destructive/20">
               <AlertTriangle className="text-destructive" size={24} />

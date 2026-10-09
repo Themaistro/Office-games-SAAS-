@@ -18,6 +18,7 @@ import {
   generateMemory
 } from '@/lib/game-content';
 import { SessionQuestion } from "@/types/game";
+import { query as pgQuery } from "@/lib/db";
 
 function getDateInTimezone(timezone?: string | null, date = new Date()) {
   const safeTimezone = timezone || "UTC";
@@ -36,6 +37,17 @@ function getDateInTimezone(timezone?: string | null, date = new Date()) {
       day: "2-digit",
     }).format(date);
   }
+}
+
+async function attachQuestionGameTypes(dbClient: any, questions: any[] | null) {
+  const rows = questions || [];
+  const ids = [...new Set(rows.map((question) => question.game_type_id).filter(Boolean))];
+  if (ids.length === 0) return rows;
+  const { data: gameTypes } = await dbClient.from("game_types")
+    .select("id, name, slug, is_active, easy_rounds, medium_rounds, hard_rounds")
+    .in("id", ids);
+  const byId = new Map((gameTypes || []).map((gameType: any) => [gameType.id, gameType]));
+  return rows.map((question) => ({ ...question, game_types: byId.get(question.game_type_id) || null }));
 }
 
 export async function startDailySession() {
@@ -146,9 +158,7 @@ export async function startDailySession() {
     return { error: "No active games available right now. Please check back later." };
   }
 
-  // Check if we have generated questions for today
-  // We only pull questions generated in the last 2 hours to bypass stale pools.
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  // Daily pools are explicitly tied to the player's local calendar date.
   
   let todaysQuestions: any[] = [];
   let page = 0;
@@ -157,8 +167,8 @@ export async function startDailySession() {
   while (true) {
     const { data, error: qError } = await dbClient
       .from("questions")
-      .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active, easy_rounds, medium_rounds, hard_rounds)")
-      .gte("created_at", twoHoursAgo)
+      .select("id, game_type_id, difficulty, content, options, base_xp, pool_date")
+      .eq("pool_date", today)
       .in("game_type_id", activeGameIds)
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -176,6 +186,8 @@ export async function startDailySession() {
     }
     page++;
   }
+
+  todaysQuestions = await attachQuestionGameTypes(dbClient, todaysQuestions);
 
   // Find which active games do NOT have any questions generated today
   const existingGameIds = new Set(todaysQuestions?.map(q => q.game_type_id) || []);
@@ -265,6 +277,7 @@ export async function startDailySession() {
           correct_answer: gen.correctAnswer,
           base_xp: 100,
           is_active: true
+          ,pool_date: today
         });
       }
     }
@@ -277,7 +290,7 @@ export async function startDailySession() {
       const { data: insertedQuestions, error: insertError } = await adminClient
         .from("questions")
         .insert(newQuestions)
-        .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active, easy_rounds, medium_rounds, hard_rounds)");
+        .select("id, game_type_id, difficulty, content, options, base_xp");
         
       if (insertError) {
         console.error("Failed inserting new questions:", insertError);
@@ -286,9 +299,23 @@ export async function startDailySession() {
       
       // Append the newly generated questions to our pool for the session
       if (insertedQuestions) {
-        todaysQuestions = [...(todaysQuestions || []), ...insertedQuestions];
+        todaysQuestions = [...(todaysQuestions || []), ...(await attachQuestionGameTypes(dbClient, insertedQuestions))];
       }
     }
+  }
+
+  // A generator bank may be empty in a fresh installation. Keep every active
+  // game playable by falling back to its validated seed questions instead of
+  // silently dropping that game from the daily mission.
+  const pooledGameIds = new Set(todaysQuestions.map(q => q.game_type_id));
+  const fallbackGameIds = activeGameIds.filter(id => !pooledGameIds.has(id));
+  if (fallbackGameIds.length > 0) {
+    const { data: fallbackQuestions } = await dbClient
+      .from("questions")
+      .select("id, game_type_id, difficulty, content, options, base_xp")
+      .in("game_type_id", fallbackGameIds)
+      .eq("is_active", true);
+    todaysQuestions = [...todaysQuestions, ...(await attachQuestionGameTypes(dbClient, fallbackQuestions))];
   }
 
   // ==========================================
@@ -355,7 +382,8 @@ export async function startDailySession() {
               options: trivia.options.sort(() => 0.5 - Math.random()),
               correct_answer: trivia.correct_answer,
               base_xp: 200,
-              is_active: true
+              is_active: true,
+              pool_date: today
             });
           }
         }
@@ -365,11 +393,11 @@ export async function startDailySession() {
         const { data: insertedQs, error: insertError } = await adminClient
           .from("questions")
           .insert(newCompanyQs)
-          .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active, easy_rounds, medium_rounds, hard_rounds)");
+          .select("id, game_type_id, difficulty, content, options, base_xp");
           
         if (!insertError && insertedQs) {
           console.log(`Injected ${insertedQs.length} new custom company trivia questions!`);
-          todaysQuestions = [...(todaysQuestions || []), ...insertedQs];
+          todaysQuestions = [...(todaysQuestions || []), ...(await attachQuestionGameTypes(dbClient, insertedQs))];
         } else if (insertError) {
           console.error("PostgreSQL insert error for company trivia:", insertError);
         }
@@ -416,7 +444,7 @@ export async function startDailySession() {
     .insert({
       user_id: user.id,
       date: today,
-      allowed_duration_seconds: profile?.session_time_limit_minutes ? (profile.session_time_limit_minutes * 60) : (settings?.game_duration_seconds ?? 900),
+      allowed_duration_seconds: profile?.session_time_limit_minutes ? (profile.session_time_limit_minutes * 60) : ((settings?.daily_time_limit_minutes ?? 15) * 60),
       is_completed: false
     })
     .select()
@@ -531,39 +559,34 @@ export async function startDailySession() {
 }
 
 export async function fetchSessionQuestions(sessionId: string) {
-  const dbClient = await createClient();
-  const { data: questions } = await dbClient
-    .from("session_questions")
-    .select(`
-      id, session_id, order_index, is_completed, question_id,
-      questions (
-        id, difficulty, content, options, base_xp, correct_answer,
-        game_types (id, name, slug, description)
-      )
-    `)
-    .eq("session_id", sessionId)
-    .order("order_index", { ascending: true });
-
-  if (!questions) return [];
+  const { rows: questions } = await pgQuery(`
+    SELECT sq.id, sq.session_id, sq.order_index, sq.is_completed, sq.question_id,
+           q.id AS q_id, q.difficulty, q.content, q.options, q.base_xp, q.correct_answer,
+           gt.id AS game_type_id, gt.name AS game_type_name, gt.slug AS game_type_slug,
+           gt.description AS game_type_description
+    FROM session_questions sq
+    JOIN questions q ON q.id = sq.question_id
+    JOIN game_types gt ON gt.id = q.game_type_id
+    WHERE sq.session_id = $1
+    ORDER BY sq.order_index ASC
+  `, [sessionId]);
 
   // Map to the shape GameEngine expects, filtering out any missing joins
-  const mappedQuestions = questions
-    .filter((sq: any) => sq.questions && sq.questions.game_types)
-    .map((sq: any) => ({
+  const mappedQuestions = questions.map((sq: any) => ({
       id: sq.id,
       session_id: sq.session_id,
       order_index: sq.order_index,
       is_completed: sq.is_completed,
       question_id: sq.question_id,
       question: {
-        id: sq.questions.id,
-        game_type_id: sq.questions.game_types.id,
-        game_type: sq.questions.game_types,
-        difficulty: sq.questions.difficulty,
-        content: sq.questions.content,
-        options: sq.questions.options,
-        correct_answer: sq.questions.correct_answer,
-        base_xp: sq.questions.base_xp,
+        id: sq.q_id,
+        game_type_id: sq.game_type_id,
+        game_type: { id: sq.game_type_id, name: sq.game_type_name, slug: sq.game_type_slug, description: sq.game_type_description },
+        difficulty: sq.difficulty,
+        content: sq.content,
+        options: sq.options,
+        correct_answer: sq.correct_answer,
+        base_xp: sq.base_xp,
       }
     })) as SessionQuestion[];
     
@@ -601,16 +624,38 @@ export async function submitAnswer(
   const { data: { user } } = await dbClient.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  // Fetch the question details
-  const { data: sq } = await dbClient
-    .from("session_questions")
-    .select(`
-      *,
-      questions(correct_answer, base_xp, content, game_types(slug)),
-      daily_sessions!inner(user_id)
-    `)
-    .eq("id", sessionQuestionId)
-    .single();
+  // Fetch the question details with explicit joins. The local PostgreSQL adapter
+  // does not support Supabase's nested relation projection syntax.
+  const { rows } = await pgQuery<{
+    id: string;
+    is_completed: boolean;
+    correct_answer: string;
+    base_xp: number;
+    content: Record<string, unknown> | null;
+    game_slug: string;
+    user_id: string;
+  }>(
+    `SELECT sq.id, sq.is_completed, q.correct_answer, q.base_xp, q.content,
+            gt.slug AS game_slug, ds.user_id
+     FROM session_questions sq
+     JOIN questions q ON q.id = sq.question_id
+     JOIN game_types gt ON gt.id = q.game_type_id
+     JOIN daily_sessions ds ON ds.id = sq.session_id
+     WHERE sq.id = $1
+     LIMIT 1`,
+    [sessionQuestionId]
+  );
+  const row = rows[0];
+  const sq = row ? {
+    ...row,
+    questions: {
+      correct_answer: row.correct_answer,
+      base_xp: row.base_xp,
+      content: row.content,
+      game_types: { slug: row.game_slug },
+    },
+    daily_sessions: { user_id: row.user_id },
+  } : null;
 
   if (!sq) throw new Error("Question not found");
   if (sq.daily_sessions.user_id !== user.id) throw new Error("Unauthorized");
@@ -618,6 +663,9 @@ export async function submitAnswer(
   if (!Number.isFinite(timeSpentSeconds) || timeSpentSeconds < 0 || timeSpentSeconds > 3600) {
     throw new Error("Invalid answer timing");
   }
+  // Browser timers can report fractional seconds, while PostgreSQL stores this
+  // column as an integer. Keep scoring precise but persist a safe whole number.
+  const persistedTimeSpentSeconds = Math.round(timeSpentSeconds);
 
   // Hotpatch check for correct answer
   const slug = sq.questions?.game_types?.slug;
@@ -629,10 +677,19 @@ export async function submitAnswer(
     dbCorrect = "3819";
   }
 
-  // Verify answer
+  // Interaction-driven games do not have a meaningful textual answer. Their
+  // game component reports the validated result of the interaction instead.
+  const interactionGames = new Set([
+    "reaction", "stroop", "typing", "typing-challenge", "sequence",
+    "card_match", "card-match", "sudoku_lite", "sudoku-lite",
+    "odd_object", "odd-object", "memory", "mental_math", "mental-math",
+    "math", "logic", "word", "unscramble", "word-unscramble"
+  ]);
   let isCorrect = false;
   if (options?.isSkipped) {
     isCorrect = false;
+  } else if (interactionGames.has(slug)) {
+    isCorrect = options?.customIsCorrect === true;
   } else {
     isCorrect = dbCorrect.toLowerCase() === answer.toLowerCase();
   }
@@ -702,7 +759,7 @@ export async function submitAnswer(
     .update({
       is_completed: true,
       earned_xp: xpEarned,
-      time_spent_seconds: timeSpentSeconds
+      time_spent_seconds: persistedTimeSpentSeconds
     })
     .eq("id", sessionQuestionId)
     .eq("is_completed", false)
@@ -800,13 +857,22 @@ export async function endSession(sessionId: string) {
       throw new Error("Could not update player progress");
     }
       
-    // Log Activity Feed Event
-    await adminClient.from("activity_feed").insert({
+    const activityRows = [{
       user_id: user.id,
-      type: "mission",
-      description: `completed a Daily Mission and earned ${finalTotalXp} XP!`,
-      metadata: { score: baseTotalXp, xp: finalTotalXp, streak: newStreak }
+      activity_type: "mission",
+      metadata: { description: `completed a Daily Mission with a score of ${baseTotalXp} and earned ${finalTotalXp} XP`, score: baseTotalXp, xp: finalTotalXp, streak: newStreak, session_id: sessionId }
+    }];
+    if (baseTotalXp >= 4000) activityRows.push({
+      user_id: user.id,
+      activity_type: "achievement",
+      metadata: { description: `finished a Daily Mission with a high score of ${baseTotalXp}`, score: baseTotalXp }
     });
+    if (newLevel > (Math.floor((profile.total_xp || 0) / 1200) + 1)) activityRows.push({
+      user_id: user.id,
+      activity_type: "achievement",
+      metadata: { description: `reached Level ${newLevel}`, level: newLevel }
+    });
+    await adminClient.from("activity_feed").insert(activityRows);
   }
 
   revalidatePath("/dashboard");

@@ -3,11 +3,12 @@ import { Trophy, Medal, User, Flame } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Link from "next/link";
 import LeaderboardTutorialTrigger from "@/components/tutorial/LeaderboardTutorialTrigger";
+import { getLoungeRank } from "@/lib/lounge-ranks";
 
 export const dynamic = "force-dynamic";
 
 export default async function LeaderboardPage() {
-  const { rows: profiles } = await query("SELECT id, full_name, avatar_url, department, total_xp, current_level, current_streak FROM profiles WHERE role = 'employee' ORDER BY total_xp DESC, full_name ASC LIMIT 100");
+  const { rows: profiles } = await query("SELECT id, full_name, avatar_url, department, total_xp, current_level, current_streak, lounge_lp FROM profiles WHERE role = 'employee' ORDER BY lounge_lp DESC, full_name ASC LIMIT 100");
   const { rows: prizes } = await query("SELECT * FROM prizes ORDER BY rank_requirement ASC");
 
   const departmentStats = profiles?.reduce((acc: any, profile) => {
@@ -56,8 +57,8 @@ export default async function LeaderboardPage() {
         <div className="flex items-center gap-3 mb-8">
           <Trophy className="text-yellow-500 w-10 h-10" />
           <div>
-            <h1 className="text-3xl font-bold">Office Games Leaderboard</h1>
-            <p className="text-muted-foreground">30-Day Sprint • Ends in 24 days</p>
+            <h1 className="text-3xl font-black tracking-tight">Team leaderboard</h1>
+            <p className="text-muted-foreground">See who is building momentum across Office Games.</p>
           </div>
         </div>
 
@@ -75,7 +76,7 @@ export default async function LeaderboardPage() {
                 <div className="col-span-2 sm:col-span-1 text-center">#</div>
                 <div className="col-span-5 sm:col-span-6">Player</div>
                 <div className="col-span-2 hidden sm:block text-center">Streak</div>
-                <div className="col-span-3 text-right pr-4">XP</div>
+                <div className="col-span-3 text-right pr-4">Lounge rank</div>
               </div>
               
               <div className="divide-y divide-border">
@@ -98,7 +99,7 @@ export default async function LeaderboardPage() {
                       </div>
                       <div className="flex flex-col">
                         <span className="font-semibold group-hover:text-primary transition-colors">{player.full_name || 'Anonymous'}</span>
-                        <span className="text-xs text-muted-foreground">{player.department || 'Employee'} • Lvl {player.current_level}</span>
+                        <span className="text-xs text-muted-foreground">{player.department || 'Employee'} • {getLoungeRank(player.lounge_lp).name}</span>
                       </div>
                     </div>
 
@@ -108,7 +109,7 @@ export default async function LeaderboardPage() {
                     </div>
 
                     <div className="col-span-5 sm:col-span-3 text-right pr-4 font-bold text-primary group-hover:text-primary/80 transition-colors">
-                      {player.total_xp.toLocaleString()} XP
+                      {getLoungeRank(player.lounge_lp).name} · {getLoungeRank(player.lounge_lp).lp} LP
                     </div>
                   </Link>
                 )) : (

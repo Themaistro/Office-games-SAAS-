@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Megaphone } from "lucide-react";
 import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
+import { useToast } from "@/components/ui/ToastProvider";
 
 export default function LiveAnnouncementForm({ action }: { action: (formData: FormData) => Promise<void> }) {
   const [message, setMessage] = useState("");
@@ -10,6 +11,7 @@ export default function LiveAnnouncementForm({ action }: { action: (formData: Fo
   const [ctaText, setCtaText] = useState("");
   const [ctaLink, setCtaLink] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,7 +26,7 @@ export default function LiveAnnouncementForm({ action }: { action: (formData: Fo
       setCtaLink("");
     } catch (err) {
       console.error(err);
-      alert("Failed to add announcement");
+      toast("Failed to add announcement");
     } finally {
       setIsPending(false);
     }

@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { publishGameEvent } from "@/lib/realtime";
+import { assertNoActiveMultiplayerGame } from "@/lib/game-presence";
 
 const WIDTH = 7;
 const HEIGHT = 6;
@@ -33,13 +35,38 @@ async function player() {
 
 export async function createConnectFourGame() {
   const user = await player();
+  await assertNoActiveMultiplayerGame(user.id);
   const { rows } = await query<{ id: string }>("INSERT INTO connect_four_games (red_player_id) VALUES ($1) RETURNING id", [user.id]);
   if (!rows[0]) throw new Error("Could not create Connect Four game");
   redirect(`/dashboard/connect-four/${rows[0].id}`);
 }
 
+export async function challengeUserToConnectFour(targetUserId: string) {
+  const user = await player();
+  if (!targetUserId || targetUserId === user.id) throw new Error("Invalid challenge target");
+  const { rows: target } = await query("SELECT id FROM profiles WHERE id = $1 AND role = 'employee' AND is_active = true", [targetUserId]);
+  if (!target[0]) throw new Error("That coworker is unavailable");
+  const { rows: pending } = await query<{ id: string }>("SELECT id FROM connect_four_games WHERE status='waiting' AND red_player_id=$1 AND yellow_player_id=$2 LIMIT 1", [user.id, targetUserId]);
+  if (pending[0]) throw new Error("A Connect Four challenge is already waiting for this player.");
+  const { rows } = await query<{ id: string }>("INSERT INTO connect_four_games (red_player_id, yellow_player_id) VALUES ($1, $2) RETURNING id", [user.id, targetUserId]);
+  if (!rows[0]) throw new Error("Could not create Connect Four challenge");
+  await query("INSERT INTO challenge_events (game_id,game_type,actor_id,challenger_id,challenged_id,event_type) VALUES ($1,'connect-four',$2,$2,$3,'created')", [rows[0].id, user.id, targetUserId]);
+  revalidatePath(`/profile/${targetUserId}`);
+  return { id: rows[0].id };
+}
+
+export async function acceptConnectFourChallenge(gameId: string) {
+  const user = await player();
+  await assertNoActiveMultiplayerGame(user.id);
+  const { rowCount } = await query("UPDATE connect_four_games SET status = 'in_progress', updated_at = now() WHERE id = $1 AND yellow_player_id = $2 AND red_player_id IS NOT NULL AND status = 'waiting'", [gameId, user.id]);
+  if (!rowCount) throw new Error("This challenge is no longer available");
+  await query("INSERT INTO challenge_events (game_id,game_type,actor_id,event_type) VALUES ($1,'connect-four',$2,'accepted')", [gameId, user.id]);
+  redirect(`/dashboard/connect-four/${gameId}`);
+}
+
 export async function joinConnectFourGame(gameId: string) {
   const user = await player();
+  await assertNoActiveMultiplayerGame(user.id);
   const { rows: games } = await query<{ red_player_id: string; yellow_player_id: string | null; status: string }>("SELECT red_player_id, yellow_player_id, status FROM connect_four_games WHERE id = $1", [gameId]);
   const game = games[0];
   if (!game || game.status !== "waiting" || game.red_player_id === user.id || game.yellow_player_id) throw new Error("Game is no longer available");
@@ -51,7 +78,8 @@ export async function joinConnectFourGame(gameId: string) {
 
 export async function cancelConnectFourGame(gameId: string) {
   const user = await player();
-  await query("DELETE FROM connect_four_games WHERE id = $1 AND status = 'waiting' AND (red_player_id = $2 OR yellow_player_id = $2)", [gameId, user.id]);
+  const { rowCount } = await query("DELETE FROM connect_four_games WHERE id = $1 AND status = 'waiting' AND (red_player_id = $2 OR yellow_player_id = $2)", [gameId, user.id]);
+  if (rowCount) await query("INSERT INTO challenge_events (game_id,game_type,actor_id,event_type) VALUES ($1,'connect-four',$2,'cancelled')", [gameId, user.id]);
   revalidatePath("/dashboard");
 }
 
@@ -74,6 +102,19 @@ export async function makeConnectFourMove(gameId: string, column: number) {
   const nextTurn = token === "R" ? "Y" : "R";
   const { rowCount } = await query("UPDATE connect_four_games SET board_state = $1, current_turn = $2, status = $3, updated_at = now() WHERE id = $4 AND status = 'in_progress' AND board_state = $5 AND current_turn = $6", [board.join(""), nextTurn, status, gameId, game.board_state, game.current_turn]);
   if (!rowCount) throw new Error("Move rejected because the game changed");
+  await publishGameEvent("connect-four", gameId, { type: "move", senderId: user.id, payload: { board: board.join(""), currentTurn: nextTurn, status } }).catch(() => undefined);
+  if (status !== "in_progress") await query("INSERT INTO challenge_events (game_id,game_type,actor_id,event_type) VALUES ($1,'connect-four',$2,'completed')", [gameId, user.id]);
+  revalidatePath(`/dashboard/connect-four/${gameId}`);
+}
+
+export async function resignConnectFourGame(gameId: string) {
+  const user = await player();
+  const { rows } = await query<{ red_player_id: string; yellow_player_id: string | null; status: string }>("SELECT red_player_id, yellow_player_id, status FROM connect_four_games WHERE id=$1", [gameId]);
+  const game = rows[0];
+  if (!game || game.status !== "in_progress" || ![game.red_player_id, game.yellow_player_id].includes(user.id)) throw new Error("This game cannot be resigned");
+  const result = user.id === game.red_player_id ? "yellow_won" : "red_won";
+  await query("UPDATE connect_four_games SET status=$1, updated_at=now() WHERE id=$2 AND status='in_progress'", [result, gameId]);
+  await query("INSERT INTO challenge_events (game_id,game_type,actor_id,event_type) VALUES ($1,'connect-four',$2,'completed')", [gameId, user.id]);
   revalidatePath(`/dashboard/connect-four/${gameId}`);
 }
 

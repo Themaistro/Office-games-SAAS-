@@ -68,7 +68,14 @@ export default async function AnalyticsPage() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const { rows: sessionQuestions } = await query<{ game_type: string; is_correct: boolean; earned_xp: number }>("SELECT game_type, is_correct, earned_xp FROM session_questions WHERE created_at >= $1", [sevenDaysAgo]);
+  const { rows: sessionQuestions } = await query<{ game_type: string; is_correct: boolean; earned_xp: number }>(
+    `SELECT gt.slug AS game_type, sq.is_completed AS is_correct, sq.earned_xp
+     FROM session_questions sq
+     JOIN questions q ON q.id = sq.question_id
+     JOIN game_types gt ON gt.id = q.game_type_id
+     WHERE sq.created_at >= $1`,
+    [sevenDaysAgo]
+  );
 
   const gameMap: Record<string, { plays: number, correct: number, totalXp: number }> = {};
   sessionQuestions?.forEach(sq => {

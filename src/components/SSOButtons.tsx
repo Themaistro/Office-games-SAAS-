@@ -1,7 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 export default function SSOButtons() {
-  const handleGoogleLogin = () => { window.location.href = "/auth/google"; };
+  const router = useRouter();
+  const handleGoogleLogin = () => router.push("/auth/google");
 
   return (
     <div className="grid grid-cols-1 gap-4 animate-in fade-in duration-1000 delay-500 fill-mode-both">

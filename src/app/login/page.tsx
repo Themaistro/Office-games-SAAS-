@@ -37,7 +37,7 @@ export default async function LoginPage({
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm shadow-sm">
               <Brain size={24} />
             </div>
-            <span className="text-xl font-bold tracking-tight">Daily Brain Arena</span>
+            <span className="text-xl font-bold tracking-tight">Office Games</span>
           </div>
           
           {/* Live Players Indicator */}
@@ -70,7 +70,7 @@ export default async function LoginPage({
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                 <Brain size={24} />
               </div>
-              <span className="text-2xl font-bold tracking-tight text-foreground">Daily Brain Arena</span>
+              <span className="text-2xl font-bold tracking-tight text-foreground">Office Games</span>
             </div>
           </div>
 
@@ -115,9 +115,6 @@ export default async function LoginPage({
                   <label className="text-sm font-semibold text-foreground transition-colors group-focus-within:text-primary" htmlFor="password">
                     Password
                   </label>
-                  <a href="#" className="text-sm font-medium text-primary hover:text-primary/80 transition-colors pointer-events-auto">
-                    Forgot password?
-                  </a>
                 </div>
                 <PasswordInput />
               </div>

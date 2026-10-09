@@ -4,6 +4,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import GlobalRealtimeSync from "@/components/GlobalRealtimeSync";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
+import { getCurrentUser } from "@/lib/auth";
+import ContactsPanel from "@/components/messaging/ContactsPanel";
+import ToastProvider from "@/components/ui/ToastProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,20 +19,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Daily Brain Arena",
-  description: "Internal team games and challenges",
+  title: "Office Games",
+  description: "A healthy daily break for teams to play, connect, and compete.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col pb-16 md:pb-0">
         <PresenceProvider>
           <GlobalRealtimeSync />
-          {children}
+          <ToastProvider>{user && <ContactsPanel userId={user.id} />}{children}</ToastProvider>
         </PresenceProvider>
       </body>
     </html>

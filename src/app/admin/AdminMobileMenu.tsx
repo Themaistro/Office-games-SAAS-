@@ -54,10 +54,10 @@ export default function AdminMobileMenu({ onSignOut }: AdminMobileMenuProps) {
       {isOpen && (
         <>
           <div 
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity" 
+            className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm transition-opacity"
             onClick={() => setIsOpen(false)} 
           />
-          <div className="fixed inset-y-0 left-0 z-50 w-72 bg-card border-r border-border shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
+          <div className="fixed inset-y-0 left-0 z-[160] flex w-72 flex-col border-r border-border bg-card shadow-2xl animate-in slide-in-from-left duration-300">
             <div className="h-16 flex items-center justify-between px-6 border-b border-border">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">

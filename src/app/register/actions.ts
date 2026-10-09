@@ -16,7 +16,7 @@ export async function signup(formData: FormData) {
     redirect("/register?error=Please fill out all required fields.");
   }
 
-  const email = rawEmail.trim();
+  const email = rawEmail.trim().toLowerCase();
   const password = rawPassword;
   const fullName = rawFullName.trim();
   const department = rawDepartment.trim();

@@ -90,15 +90,15 @@ export default async function AdminDashboardPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="mx-auto max-w-7xl space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
-        <p className="text-muted-foreground mt-1">Monitor Daily Brain Arena performance and engagement.</p>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Office Games operations</p><h1 className="mt-2 text-4xl font-black tracking-tight text-foreground">Team momentum</h1>
+        <p className="text-muted-foreground mt-1">Monitor Office Games participation, engagement, and team momentum.</p>
       </div>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col">
+        <div className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">Total Employees</h3>
             <Users size={16} className="text-primary" />

@@ -3,9 +3,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Brain, LogOut, User, Trophy, Flame, LayoutDashboard, Settings, ChevronDown, Shield, Search } from "lucide-react";
+import { Brain, LogOut, User, Trophy, Flame, LayoutDashboard, ChevronDown, Shield, Search, Users } from "lucide-react";
 import NotificationBellClient from "./NotificationBellClient";
 import SearchUsersModal from "./SearchUsersModal";
+import { getLoungeRank, getLoungeRankStyle } from "@/lib/lounge-ranks";
 
 interface NavbarClientProps {
   user: any;
@@ -57,7 +58,9 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
       
       <div className="fixed top-6 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
         {/* Floating Glass Pill */}
-        <nav className="flex items-center gap-2 p-2 rounded-full bg-background/70 backdrop-blur-xl border border-border/60 shadow-2xl pointer-events-auto transition-all max-w-[calc(100vw-2rem)]">
+        {/* Keep notification bubbles viewport-positioned. A backdrop-filter on
+            this ancestor would create a containing block for fixed alerts. */}
+        <nav className="flex items-center gap-2 p-2 rounded-full bg-background/90 border border-border/60 shadow-2xl pointer-events-auto transition-all max-w-[calc(100vw-2rem)]">
           
           {/* Brand Icon */}
           <Link 
@@ -79,12 +82,9 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
                   id={`tour-${link.name.toLowerCase()}`}
                   href={link.href}
                   className={`relative flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-colors group ${
-                    isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {isActive && (
-                    <div className="absolute inset-0 bg-primary rounded-full -z-10 shadow-sm animate-in zoom-in-95 duration-200" />
-                  )}
                   <Icon size={16} className={isActive ? "text-primary-foreground" : "group-hover:scale-110 transition-transform"} />
                   <span className="hidden sm:inline-block">{link.name}</span>
                 </Link>
@@ -108,11 +108,11 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
           {user && <NotificationBellClient userId={user.id} />}
 
           {/* Stats Badge */}
-          {user && profile && profile.role !== "admin" && (
-          <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/40 mr-2 shadow-inner">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-muted-foreground uppercase">Lv</span>
-              <span className="text-sm font-bold">{profile.current_level || 1}</span>
+        {user && profile && profile.role !== "admin" && (
+          <div className="hidden md:flex items-center gap-2 mr-2">
+            <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-inner ${getLoungeRankStyle(getLoungeRank(profile.lounge_lp).name).badge}`} title="Your Office Lounge rank">
+              <span className={`text-sm font-black ${getLoungeRankStyle(getLoungeRank(profile.lounge_lp).name).text}`}>{getLoungeRankStyle(getLoungeRank(profile.lounge_lp).name).mark}</span>
+              <div className="leading-none"><span className={`text-xs font-black ${getLoungeRankStyle(getLoungeRank(profile.lounge_lp).name).text}`}>{getLoungeRank(profile.lounge_lp).name}</span><span className="ml-1 text-[10px] font-bold text-muted-foreground">{getLoungeRank(profile.lounge_lp).lp} LP</span></div>
             </div>
             <div className="w-1 h-1 rounded-full bg-border" />
             <div className="flex items-center gap-1.5 text-orange-500">
@@ -172,6 +172,36 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
         )}
       </nav>
     </div>
+      {user && (
+        <nav
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur md:hidden"
+          aria-label="Mobile navigation"
+        >
+          <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+            {[
+              ...navLinks.filter((link) => link.name !== "Admin").slice(0, 2),
+              { name: "People", href: "/people", icon: Users },
+              { name: "Profile", href: "/profile", icon: User },
+            ].map((link) => {
+              const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+              const Icon = link.icon;
+              return (
+                <Link
+                  key={`mobile-${link.name}`}
+                  href={link.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-[11px] font-bold transition-colors ${
+                    isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <Icon size={18} aria-hidden="true" />
+                  <span>{link.name}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </>
   );
 }

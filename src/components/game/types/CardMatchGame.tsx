@@ -110,8 +110,10 @@ export default function CardMatchGame({ question, onAnswer, isSubmitting, showHi
       // Game Complete!
       if (timerRef.current) clearInterval(timerRef.current);
       const timeTaken = (Date.now() - startTime) / 1000;
-      // You get it wrong if you made more than 10 errors, otherwise correct!
-      const isCorrect = errors <= 15;
+      // Completing every pair before the timer expires is a successful
+      // challenge. Mistakes affect the XP breakdown, but they do not turn a
+      // completed concentration board into a failed answer.
+      const isCorrect = true;
       onAnswer(`Errors: ${errors}`, {
         customIsCorrect: isCorrect,
         isPerfect: errors === 0,

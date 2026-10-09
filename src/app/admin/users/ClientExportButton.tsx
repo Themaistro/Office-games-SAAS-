@@ -2,16 +2,18 @@
 
 import { Download } from "lucide-react";
 import { useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
 
 export default function ClientExportButton({ data }: { data: any[] }) {
   const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
 
   const handleExport = () => {
     setIsExporting(true);
     
     try {
       if (data.length === 0) {
-        alert("No data to export");
+        toast("No data available to export.");
         return;
       }
 
@@ -46,7 +48,7 @@ export default function ClientExportButton({ data }: { data: any[] }) {
       
     } catch (error) {
       console.error("Export failed", error);
-      alert("Failed to export data");
+      toast("Failed to export data.");
     } finally {
       setIsExporting(false);
     }

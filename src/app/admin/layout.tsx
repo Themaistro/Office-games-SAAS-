@@ -40,45 +40,45 @@ export default async function AdminLayout({
               <Brain size={20} />
             </div>
             <span className="text-lg font-bold tracking-tight text-foreground">
-              Admin Arena
+              Office Games Admin
             </span>
           </Link>
         </div>
         
         <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-2 custom-scrollbar">
-          <Link href="/admin" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
+          <Link href="/admin" className="flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary font-medium transition-colors">
             <LayoutDashboard size={18} />
             Overview
           </Link>
-          <Link href="/admin/analytics" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
+          <Link href="/admin/analytics" className="flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary font-medium transition-colors">
             <BarChart size={18} />
             Analytics Dashboard
           </Link>
-          <Link href="/admin/users" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
+          <Link href="/admin/users" className="flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary font-medium transition-colors">
             <Users size={18} />
             Player Roster
           </Link>
-          <Link href="/admin/departments" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
+          <Link href="/admin/departments" className="flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary font-medium transition-colors">
             <LayoutDashboard size={18} />
             Departments
           </Link>
-          <Link href="/admin/announcements" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
+          <Link href="/admin/announcements" className="flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary font-medium transition-colors">
             <HelpCircle size={18} />
             Announcements
           </Link>
-          <Link href="/admin/prizes" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
+          <Link href="/admin/prizes" className="flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary font-medium transition-colors">
             <LayoutDashboard size={18} />
             Prizes
           </Link>
-          <Link href="/admin/questions" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
+          <Link href="/admin/questions" className="flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary font-medium transition-colors">
             <HelpCircle size={18} />
             Custom Questions
           </Link>
-          <Link href="/admin/games" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
+          <Link href="/admin/games" className="flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary font-medium transition-colors">
             <Brain size={18} />
             Games Management
           </Link>
-          <Link href="/admin/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground font-medium transition-colors">
+          <Link href="/admin/settings" className="flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:bg-primary/10 hover:text-primary font-medium transition-colors">
             <Settings size={18} />
             Settings
           </Link>

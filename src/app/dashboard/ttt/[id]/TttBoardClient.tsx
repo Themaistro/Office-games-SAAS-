@@ -2,11 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Circle, X as XIcon, Trophy, User, Flag } from "lucide-react";
+import { ArrowLeft, Loader2, Circle, X as XIcon, Trophy, User, Flag, Eye } from "lucide-react";
 import { makeTttMove, cancelTttGame, resignTttGame } from "../actions";
 import { clsx } from "clsx";
 import Link from "next/link";
 import { useVfx } from "@/hooks/useVfx";
+import { useToast } from "@/components/ui/ToastProvider";
+import * as Ably from "ably";
+import { getGameChannelName } from "@/lib/realtime";
 
 import { createTttRematch } from "../actions";
 
@@ -16,9 +19,12 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
   const [opponentPresent, setOpponentPresent] = useState(false);
   const { triggerConfetti } = useVfx();
   const [game, setGame] = useState<any>(initialGame);
+  const [spectators, setSpectators] = useState<any[]>(initialGame.spectators || []);
   const [loadingAction, setLoadingAction] = useState(false);
+  const [connectionIssue, setConnectionIssue] = useState(false);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     setGame(initialGame);
@@ -33,16 +39,33 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
   useEffect(() => {
     if (["x_won", "o_won", "draw"].includes(game.status)) return;
     const timer = window.setInterval(async () => {
-      const response = await fetch(`/api/ttt/${game.id}`, { cache: "no-store" });
-      if (response.ok) {
+      try {
+        const response = await fetch(`/api/ttt/${game.id}`, { cache: "no-store" });
+        if (!response.ok) { setConnectionIssue(true); return; }
         const next = await response.json();
+        setConnectionIssue(false);
         setGame(next);
+        setSpectators(next.spectators || []);
         setOpponentPresent(Boolean(next.x_player_id && next.o_player_id));
         if (game.status === "waiting" && next.status === "in_progress") router.refresh();
-      }
-    }, 2000);
+      } catch { setConnectionIssue(true); }
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [game.id, game.status, router]);
+
+  useEffect(() => {
+    const key = process.env.NEXT_PUBLIC_ABLY_KEY;
+    if (!key) return;
+    const realtime = new Ably.Realtime({ key, echoMessages: false });
+    const channel = realtime.channels.get(getGameChannelName("ttt", game.id));
+    const handleMessage = (message: Ably.Message) => {
+      const event = message.data as { senderId?: string; payload?: { board?: string; currentTurn?: string; status?: string } };
+      if (event.senderId === currentUserId || event.payload?.board === undefined) return;
+      setGame((current: any) => ({ ...current, board_state: event.payload?.board, current_turn: event.payload?.currentTurn, status: event.payload?.status }));
+    };
+    void channel.subscribe(handleMessage).catch(() => setConnectionIssue(true));
+    return () => { try { channel.unsubscribe(handleMessage); } catch {} try { realtime.close(); } catch {} };
+  }, [game.id, currentUserId]);
 
   const isX = game.x_player_id === currentUserId;
   const isO = game.o_player_id === currentUserId;
@@ -127,7 +150,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
             </div>
           )}
           {player.avatar_url ? (
-            <img src={player.avatar_url} className="w-full h-full object-cover" />
+            <img src={player.avatar_url} alt={`${player.full_name || "Player"} avatar`} className="w-full h-full object-cover" />
           ) : (
             <User size={24} className="text-muted-foreground" />
           )}
@@ -136,7 +159,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
         <div className="relative z-10 text-center">
           <div className="font-black text-lg truncate w-full px-2">{player.full_name || "Unknown"}</div>
           <div className="text-sm font-bold text-muted-foreground flex items-center justify-center gap-1">
-            <Trophy size={14} className="text-primary" /> {player.ttt_elo || 1200}
+            <Trophy size={14} className="text-primary" /> {player.ttt_elo ?? 1200}
           </div>
         </div>
 
@@ -188,7 +211,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
                   router.push('/dashboard');
                 } catch (e: any) {
                   if (e.message === "NEXT_REDIRECT") throw e;
-                  alert("Failed to cancel: " + e.message);
+                  toast("Failed to cancel: " + e.message);
                 }
               }}
               className="px-4 py-2 rounded-full font-bold text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-sm flex items-center gap-2"
@@ -212,6 +235,10 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
         {renderPlayerCard(game.x_player, "X", game.current_turn === "X")}
         {renderPlayerCard(game.o_player, "O", game.current_turn === "O")}
       </div>
+      {connectionIssue && <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-700">Connection is unstable. We’re trying to reconnect to this match…</div>}
+
+      {isSpectator && <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-sm font-bold text-muted-foreground"><Eye className="mr-2 inline" size={16} />You are watching this match.</div>}
+      {spectators.length > 0 && <div className="text-center text-xs font-bold text-muted-foreground"><Eye className="mr-1 inline" size={14} />{spectators.length} spectator{spectators.length === 1 ? "" : "s"} watching</div>}
 
       <div className="relative mx-auto mt-4 sm:mt-8">
         <div className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] grid grid-cols-3 grid-rows-3 gap-3 p-3 bg-secondary/50 rounded-3xl border border-border/60 shadow-xl relative z-10 overflow-hidden">
@@ -239,7 +266,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
 
         {isGameOver && (
           <div className="absolute inset-0 z-20 flex items-center justify-center animate-in fade-in zoom-in duration-500 rounded-3xl bg-background/60 backdrop-blur-md border border-border/50">
-            <div className="bg-card p-8 rounded-3xl shadow-2xl border border-border/80 flex flex-col items-center text-center max-w-[80%] transform transition-transform hover:scale-105">
+            <div role="status" aria-live="polite" className="bg-card p-8 rounded-3xl shadow-2xl border border-border/80 flex flex-col items-center text-center max-w-[80%] transform transition-transform hover:scale-105">
               <Trophy size={48} className={clsx(
                 "mb-4",
                 game.status === "draw" ? "text-muted-foreground" : "text-yellow-500 animate-bounce"
@@ -251,7 +278,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
                 {game.status === "draw" ? "It's a tie! Well played both." : "Elo ratings have been updated."}
               </p>
               <div className="flex gap-3 mt-2 w-full">
-                <Link href="/dashboard" className="flex-1 px-4 py-3 rounded-xl font-bold bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all text-center">
+<Link href="/office-lounge" className="flex-1 px-4 py-3 rounded-xl font-bold bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all text-center">
                   Lobby
                 </Link>
                 {!isSpectator && (
@@ -273,7 +300,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
         )}
       </div>
       {rematchState === "received" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-card p-6 rounded-3xl border shadow-xl max-w-sm w-full mx-4 animate-in zoom-in-95 text-center">
             <h3 className="text-xl font-black mb-2">Rematch Requested!</h3>
             <p className="text-muted-foreground text-sm mb-6">Your opponent wants to play again. Do you accept?</p>
@@ -291,7 +318,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
       )}
 
       {showResignConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-card p-6 rounded-3xl border shadow-xl max-w-sm w-full mx-4 animate-in zoom-in-95">
             <h3 className="text-xl font-black mb-2">Resign Match?</h3>
             <p className="text-muted-foreground text-sm mb-6">Are you sure you want to resign? You will lose Elo points.</p>
@@ -304,7 +331,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
                     setShowResignConfirm(false);
                   } catch (e: any) {
                     if (e.message === "NEXT_REDIRECT") throw e;
-                    alert("Failed to resign: " + e.message);
+                    toast("Failed to resign: " + e.message);
                   }
                 }}
                 className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 rounded-lg font-bold text-sm transition-colors"

@@ -31,7 +31,7 @@ export function useDashboardTutorial() {
           steps: [
             {
               popover: {
-                title: "Welcome to Daily Brain Arena! 🧠",
+                title: "Welcome to Office Games! 🧠",
                 description: "Welcome! Let's take a quick tour to learn the ropes. You can skip this at any time.",
                 nextBtnText: "Start Tour",
               }
@@ -144,7 +144,7 @@ export function useGameTutorial() {
       const driverObj = driver({
         showProgress: true,
         animate: true,
-        allowClose: false,
+        allowClose: true,
         showButtons: ['next', 'previous', 'close'],
         doneBtnText: 'Finish Tour',
         nextBtnText: 'Next',

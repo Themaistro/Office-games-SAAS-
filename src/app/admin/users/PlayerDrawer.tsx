@@ -98,8 +98,8 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
   if (loading) {
     return (
       <>
-        <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" onClick={onClose} />
-        <div className="fixed top-0 right-0 h-full w-full sm:max-w-md bg-background z-50 shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300 border-l border-border flex justify-center items-center">
+        <div className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+        <div className="fixed right-0 top-0 z-[160] flex h-full w-full items-center justify-center overflow-y-auto border-l border-border bg-background shadow-2xl animate-in slide-in-from-right duration-300 sm:max-w-md">
           <Loader2 className="animate-spin text-primary w-8 h-8" />
         </div>
       </>
@@ -108,8 +108,8 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
 
   if (!profile) return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed top-0 right-0 h-full w-full sm:max-w-md bg-background z-50 shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300 border-l border-border flex justify-center items-center">
+      <div className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed right-0 top-0 z-[160] flex h-full w-full items-center justify-center overflow-y-auto border-l border-border bg-background shadow-2xl animate-in slide-in-from-right duration-300 sm:max-w-md">
         <div className="p-4 text-center text-muted-foreground">Player not found.</div>
       </div>
     </>
@@ -131,8 +131,8 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
         offsetClassName="sm:pr-[28rem]"
       />
 
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm transition-opacity" onClick={() => { if (!wipeModal) onClose(); }} />
-      <div className="fixed top-0 right-0 h-full w-full sm:max-w-md bg-background z-50 shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300 border-l border-border flex flex-col pb-24">
+      <div className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm transition-opacity" onClick={() => { if (!wipeModal) onClose(); }} />
+      <div className="fixed right-0 top-0 z-[160] flex h-full w-full flex-col overflow-y-auto border-l border-border bg-background pb-24 shadow-2xl animate-in slide-in-from-right duration-300 sm:max-w-md">
         <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground z-10 transition-colors">
           <X size={20} />
         </button>

@@ -6,6 +6,7 @@ import { Clock, Trophy, AlertTriangle, Home } from "lucide-react";
 import GameEngine from "@/components/game/GameEngine";
 import { startDailySession, fetchSessionQuestions, endSession } from "./actions";
 import { SessionQuestion } from "@/types/game";
+import { useToast } from "@/components/ui/ToastProvider";
 
 export default function PlayPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function PlayPage() {
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
   const [globalTimeLeft, setGlobalTimeLeft] = useState<number | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     async function initSession() {
@@ -21,7 +23,7 @@ export default function PlayPage() {
         const result = await startDailySession();
         if (result.error) {
           if (result.message) {
-            alert(result.message);
+            toast(result.message);
           }
           router.push("/dashboard");
           return;

@@ -2,12 +2,16 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Chess, Square } from "chess.js";
-import { Chessboard } from "react-chessboard";
+import { Chessboard, defaultArrowOptions } from "react-chessboard";
+import type { Arrow } from "react-chessboard";
+import * as Ably from "ably";
+import { getGameChannelName } from "@/lib/realtime";
 import { updateChessGameState, resignChessGame, drawChessGame, declareChessTimeout, cancelChessGame } from "../actions";
-import { Loader2, Flag, Handshake, Send, Eye, User, X as XIcon } from "lucide-react";
+import { Loader2, Flag, Handshake, Send, Eye, User, X as XIcon, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useVfx } from "@/hooks/useVfx";
+import { useToast } from "@/components/ui/ToastProvider";
 
 const darkSquareStyle = { backgroundColor: "#739552" };
 const lightSquareStyle = { backgroundColor: "#ebecd0" };
@@ -18,17 +22,6 @@ const playSound = (type?: string) => {
     audio.play().catch(e => console.warn('Audio play failed:', e));
   } catch (e) {}
 };
-
-const customPieces = ["wP", "wN", "wB", "wR", "wQ", "wK", "bP", "bN", "bB", "bR", "bQ", "bK"].reduce((acc, p) => {
-  acc[p] = ({ squareWidth }: any) => (
-    <img
-      src={`https://images.chesscomfiles.com/chess-themes/pieces/neo/150/${p.toLowerCase()}.png`}
-      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-      alt={p}
-    />
-  );
-  return acc;
-}, {} as Record<string, any>);
 
 export default function ChessBoardClient({ 
   game, 
@@ -42,11 +35,15 @@ export default function ChessBoardClient({
   playerColor: "white" | "black" | "spectator" 
 }) {
   const [chess] = useState(new Chess());
-  const [fen, setFen] = useState(game.fen || chess.fen());
+  const [fen, setFen] = useState(game.fen && game.fen !== "start" ? game.fen : chess.fen());
   const [gameStatus, setGameStatus] = useState(game.status);
+  const [isMounted, setIsMounted] = useState(false);
   const [isOpponentConnected, setIsOpponentConnected] = useState(false);
+  const [connectionIssue, setConnectionIssue] = useState(false);
   const [spectators, setSpectators] = useState<any[]>([]);
   const { triggerConfetti } = useVfx();
+
+  useEffect(() => setIsMounted(true), []);
 
   useEffect(() => {
     if (gameStatus === 'finished' && game.winner_id === currentUserId) {
@@ -76,9 +73,23 @@ export default function ChessBoardClient({
   const [dismissedGameOver, setDismissedGameOver] = useState(false);
 
   const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
+  const [arrows, setArrows] = useState<Arrow[]>([]);
+  const [pendingPromotion, setPendingPromotion] = useState<{ from: string; to: string } | null>(null);
+  const [showNotation, setShowNotation] = useState(true);
 
   const router = useRouter();
+  const { toast } = useToast();
   const channelRef = useRef<{ send: (payload: unknown) => void } | null>(null);
+  const pollInFlightRef = useRef(false);
+  const eventCursorRef = useRef<string | null>(game.updated_at || null);
+
+  const sendChessEvent = useCallback((payload: any) => {
+    const eventType = payload?.event === "chat" ? "chat" : payload?.event === "offer_draw" ? "offer_draw" : payload?.event === "decline_draw" ? "decline_draw" : null;
+    if (!eventType) return;
+    void fetch(`/api/chess/${game.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventType, payload: payload.payload || {} }) });
+  }, [game.id]);
+
+  useEffect(() => { channelRef.current = { send: sendChessEvent }; return () => { channelRef.current = null; }; }, [sendChessEvent]);
 
   // Material Calculation
   const getMaterialAdvantage = (fenString: string) => {
@@ -160,19 +171,82 @@ export default function ChessBoardClient({
   useEffect(() => {
     if (!game.id || ["white_won", "black_won", "draw"].includes(gameStatus)) return;
     const timer = window.setInterval(async () => {
-      const response = await fetch(`/api/chess/${game.id}`, { cache: "no-store" });
-      if (!response.ok) return;
+      if (pollInFlightRef.current) return;
+      pollInFlightRef.current = true;
+      try {
+        const eventQuery = eventCursorRef.current ? `?eventsSince=${encodeURIComponent(eventCursorRef.current)}` : "";
+      const response = await fetch(`/api/chess/${game.id}${eventQuery}`, { cache: "no-store" });
+      if (!response.ok) { setConnectionIssue(true); return; }
       const next = await response.json();
+      setConnectionIssue(false);
+      for (const event of next.events || []) {
+        eventCursorRef.current = event.created_at;
+        if (event.sender_id === currentUserId) continue;
+        if (event.event_type === "chat" && event.payload?.text) setChatMessages((current) => [...current, { sender: event.full_name, text: event.payload.text }].slice(-100));
+        if (event.event_type === "offer_draw") setDrawOfferedBy(event.sender_id === next.white_player_id ? "white" : "black");
+        if (event.event_type === "decline_draw") setDrawOfferedBy(null);
+      }
+      setSpectators(next.spectators || []);
       if (next.status !== gameStatus) { setGameStatus(next.status); router.refresh(); }
-      if (next.white_time_ms !== whiteTimeMs) setWhiteTimeMs(next.white_time_ms);
-      if (next.black_time_ms !== blackTimeMs) setBlackTimeMs(next.black_time_ms);
+      if (typeof next.white_time_ms === "number") setWhiteTimeMs(next.white_time_ms);
+      if (typeof next.black_time_ms === "number") setBlackTimeMs(next.black_time_ms);
       if (next.pgn && next.pgn !== chess.pgn()) { chess.loadPgn(next.pgn); setFen(chess.fen()); }
       setIsOpponentConnected(Boolean(next.white_player_id && next.black_player_id));
-    }, 1500);
+      } catch {
+        setConnectionIssue(true);
+      } finally {
+        pollInFlightRef.current = false;
+      }
+    }, 200);
     return () => window.clearInterval(timer);
-  }, [game.id, gameStatus, router, chess, whiteTimeMs, blackTimeMs]);
+  }, [game.id, gameStatus, router, chess, currentUserId]);
+
+  useEffect(() => {
+    const key = process.env.NEXT_PUBLIC_ABLY_KEY;
+    if (!key || !game.id) return;
+    const realtime = new Ably.Realtime({ key, echoMessages: false });
+    const channel = realtime.channels.get(getGameChannelName("chess", game.id));
+    const handleMessage = (message: Ably.Message) => {
+      const event = message.data as { type?: string; senderId?: string; payload?: Record<string, any> };
+      if (!event || event.senderId === currentUserId) return;
+      if (event.type === "move" && event.payload?.fen) {
+        if (event.payload.pgn && event.payload.pgn !== chess.pgn()) chess.loadPgn(event.payload.pgn as string);
+        setFen(event.payload.fen as string);
+        if (event.payload.status) setGameStatus(event.payload.status as string);
+        if (typeof event.payload.white_time_ms === "number") setWhiteTimeMs(event.payload.white_time_ms);
+        if (typeof event.payload.black_time_ms === "number") setBlackTimeMs(event.payload.black_time_ms);
+      }
+      if (event.type === "chat" && event.payload?.text) setChatMessages((current) => [...current, { sender: "Opponent", text: String(event.payload?.text) }].slice(-100));
+      if (event.type === "offer_draw") setDrawOfferedBy(playerColor === "white" ? "black" : "white");
+      if (event.type === "decline_draw") setDrawOfferedBy(null);
+      if (event.type === "game_finished" && event.payload?.status) setGameStatus(String(event.payload.status));
+    };
+    void channel.subscribe(handleMessage).catch(() => setConnectionIssue(true));
+    return () => {
+      try { channel.unsubscribe(handleMessage); } catch { /* Ably may already be closed during a fast refresh. */ }
+      try { realtime.close(); } catch { /* Ably may already be closed during a fast refresh. */ }
+    };
+  }, [game.id, currentUserId, playerColor, chess]);
 
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
+
+  const choosePromotion = useCallback((promotion: "q" | "r" | "b" | "n") => {
+    if (!pendingPromotion) return;
+    try {
+      const move = chess.move({ from: pendingPromotion.from, to: pendingPromotion.to, promotion });
+      if (!move) return;
+      setFen(chess.fen());
+      setMoveFrom(null);
+      setOptionSquares({});
+      playSound(move.flags.includes("c") ? "capture" : "move");
+      let nextStatus = "in_progress";
+      if (chess.isGameOver()) nextStatus = chess.isCheckmate() ? (chess.turn() === "w" ? "black_won" : "white_won") : "draw";
+      if (nextStatus !== "in_progress") setGameStatus(nextStatus as any);
+      updateChessGameState(game.id, chess.pgn(), chess.fen(), nextStatus, chess.turn());
+    } finally {
+      setPendingPromotion(null);
+    }
+  }, [pendingPromotion, chess, game.id]);
 
   const onDrop = useCallback(({ sourceSquare, targetSquare }: { sourceSquare: string, targetSquare: string | null }) => {
     if (playerColor === "spectator" || gameStatus !== "in_progress") return false;
@@ -181,6 +255,11 @@ export default function ChessBoardClient({
     // Only allow moving own pieces
     if (chess.turn() === "w" && playerColor !== "white") return false;
     if (chess.turn() === "b" && playerColor !== "black") return false;
+    const movingPiece = chess.get(sourceSquare as Square);
+    if (movingPiece?.type === "p" && (targetSquare.endsWith("1") || targetSquare.endsWith("8"))) {
+      setPendingPromotion({ from: sourceSquare, to: targetSquare });
+      return false;
+    }
 
     try {
       const move = chess.move({
@@ -264,10 +343,10 @@ export default function ChessBoardClient({
     if (chessHistory.length > 0) {
       const lastMove = chessHistory[chessHistory.length - 1];
       if (!styles[lastMove.from]) {
-        styles[lastMove.from] = { background: "rgba(255, 255, 0, 0.4)" };
+        styles[lastMove.from] = { background: "rgba(245, 190, 66, 0.42)" };
       }
       if (!styles[lastMove.to]) {
-        styles[lastMove.to] = { background: "rgba(255, 255, 0, 0.4)" };
+        styles[lastMove.to] = { background: "rgba(245, 190, 66, 0.42)" };
       }
     }
 
@@ -321,6 +400,11 @@ export default function ChessBoardClient({
     }
 
     try {
+      const movingPiece = chess.get(moveFrom as Square);
+      if (movingPiece?.type === "p" && (square.endsWith("1") || square.endsWith("8"))) {
+        setPendingPromotion({ from: moveFrom, to: square });
+        return;
+      }
       const move = chess.move({
         from: moveFrom,
         to: square,
@@ -374,7 +458,7 @@ export default function ChessBoardClient({
   const confirmResign = async () => {
     setShowResignConfirm(false);
     const res = await resignChessGame(game.id);
-    if (res && !res.success) alert("Failed to resign: " + res.error);
+    if (res && !res.success) toast("Failed to resign: " + res.error);
   };
 
   const handleOfferDraw = () => {
@@ -389,7 +473,7 @@ export default function ChessBoardClient({
   const handleAcceptDraw = async () => {
     setDrawOfferedBy(null);
     const res = await drawChessGame(game.id);
-    if (res && !res.success) alert("Failed to draw: " + res.error);
+    if (res && !res.success) toast("Failed to draw: " + res.error);
   };
 
   const handleDeclineDraw = () => {
@@ -429,24 +513,24 @@ export default function ChessBoardClient({
     const isLowTime = time <= 60000 && time > 0;
     
     return (
-      <div className="flex items-center justify-between p-3 bg-card border-b border-border">
+      <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm backdrop-blur">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-md bg-muted overflow-hidden flex-shrink-0">
-            {p?.avatar_url && <img src={p.avatar_url} alt="avatar" className="w-full h-full object-cover" />}
+          <div className={`w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 border-2 ${color === "white" ? "border-amber-300 bg-amber-50" : "border-slate-700 bg-slate-900"}`}>
+            {p?.avatar_url ? <img src={p.avatar_url} alt={`${p.full_name || color} avatar`} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-black text-muted-foreground">{color === "white" ? "W" : "B"}</div>}
           </div>
           <div className="flex flex-col">
-            <div className="font-bold text-sm">{p?.full_name || "Waiting..."} <span className="text-muted-foreground font-normal">({p?.chess_elo || 1200})</span></div>
+            <div className="flex items-center gap-2 font-bold text-sm">{p?.full_name || "Waiting..."} <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{color === "white" ? "WHITE" : "BLACK"}</span></div>
             <div className="flex items-center h-4 text-xs font-bold text-green-500">
-              {matAdvantage > 0 ? `+${matAdvantage}` : ""}
+              {matAdvantage > 0 ? `Material +${matAdvantage}` : "Even material"} <span className="ml-2 text-muted-foreground font-medium">ELO {p?.chess_elo ?? 1200}</span>
             </div>
           </div>
         </div>
         <div className={`font-mono text-2xl font-bold px-3 py-1 rounded shadow-sm transition-colors ${
           isLowTime ? "bg-red-500/20 text-red-500 border border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse" :
           gameStatus === "in_progress" && chess.turn() === color.charAt(0) ? "bg-primary/20 text-primary border border-primary/50" : 
-          "bg-muted text-muted-foreground"
+          "bg-muted/80 text-muted-foreground"
         }`}>
-          {formatTime(time)}
+          {isMounted ? formatTime(time) : "--:--"}
         </div>
       </div>
     );
@@ -462,14 +546,16 @@ export default function ChessBoardClient({
   }
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 relative">
+    <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 relative rounded-[2rem] bg-gradient-to-br from-card/50 via-background to-secondary/30 p-2 sm:p-4">
+      {connectionIssue && <div role="status" className="absolute left-4 right-4 top-4 z-20 rounded-xl border border-amber-500/30 bg-amber-500/90 px-4 py-2 text-center text-xs font-black text-amber-950 shadow-lg">Connection unstable — reconnecting to the match…</div>}
       
       {/* Left: Chess Board */}
       <div className="flex-1 max-w-[700px] flex flex-col gap-4">
         {/* Top Player (Opponent) */}
         {renderPlayerHeader(playerColor === 'white' ? 'black' : 'white')}
 
-        <div className="w-full aspect-square rounded-sm overflow-hidden shadow-2xl border-4 border-muted relative">
+        {playerColor === "spectator" && <div className="flex items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-sm font-bold text-violet-600 dark:text-violet-300"><Eye size={16} /> Spectator mode · watch the match live</div>}
+        <div className="w-full aspect-square rounded-2xl overflow-hidden shadow-[0_24px_70px_rgba(15,23,42,0.22)] border-[10px] border-slate-900/90 bg-slate-900 relative ring-1 ring-white/10">
           <Chessboard 
             key={playerColor}
             options={{
@@ -477,6 +563,19 @@ export default function ChessBoardClient({
               boardOrientation: playerColor === "black" ? "black" : "white",
               darkSquareStyle,
               lightSquareStyle,
+              boardStyle: { borderRadius: "0.5rem", overflow: "hidden" },
+              animationDurationInMs: 180,
+              allowDrawingArrows: true,
+              arrows,
+              onArrowsChange: ({ arrows: nextArrows }) => setArrows(nextArrows),
+              clearArrowsOnClick: true,
+              arrowOptions: {
+                ...defaultArrowOptions,
+                colors: { default: "rgba(245, 190, 66, 0.9)", shift: "rgba(96, 165, 250, 0.9)", ctrl: "rgba(248, 113, 113, 0.9)", alt: "rgba(74, 222, 128, 0.9)", meta: "rgba(192, 132, 252, 0.9)" },
+                opacity: 0.9,
+                activeOpacity: 1,
+              },
+              showNotation,
               onPieceDrop: ({ sourceSquare, targetSquare }) => onDrop({ sourceSquare, targetSquare }),
               canDragPiece: () => {
                 if (playerColor === "spectator" || gameStatus !== "in_progress") return false;
@@ -496,18 +595,30 @@ export default function ChessBoardClient({
               },
               onSquareClick: ({ square }) => onSquareClick({ square }),
               squareStyles: computedSquareStyles,
-              pieces: customPieces
             }}
           />
 
+          {pendingPromotion && (
+            <div className="absolute inset-0 z-[170] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm">
+              <div role="dialog" aria-modal="true" aria-label="Choose promotion piece" className="w-full max-w-xs rounded-2xl border border-border bg-card p-5 text-center shadow-2xl">
+                <p className="text-lg font-black">Choose your promotion</p>
+                <p className="mt-1 text-xs font-medium text-muted-foreground">Select the piece your pawn becomes.</p>
+                <div className="mt-4 grid grid-cols-4 gap-2">
+                  {([["q", "♛", "Queen"], ["r", "♜", "Rook"], ["b", "♝", "Bishop"], ["n", "♞", "Knight"]] as const).map(([piece, symbol, label]) => <button key={piece} type="button" onClick={() => choosePromotion(piece)} className="rounded-xl border border-border bg-background p-3 transition hover:border-primary hover:bg-primary/10" aria-label={`Promote to ${label}`}><span className="block text-3xl leading-none">{symbol}</span><span className="mt-1 block text-[10px] font-bold text-muted-foreground">{label}</span></button>)}
+                </div>
+                <button type="button" onClick={() => setPendingPromotion(null)} className="mt-4 text-xs font-bold text-muted-foreground hover:text-foreground">Cancel move</button>
+              </div>
+            </div>
+          )}
+
           {/* Game Over Overlay Modal */}
           {derivedGameOver && !dismissedGameOver && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+            <div className="absolute inset-0 z-[160] flex flex-col items-center justify-center bg-background/80 p-6 text-center backdrop-blur-sm animate-in fade-in duration-300">
               <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl max-w-sm w-full scale-in-90 animate-in zoom-in duration-300 delay-150">
                 <h2 className="text-3xl font-black text-foreground mb-2">{derivedGameOver.title}</h2>
                 <p className="text-muted-foreground font-medium mb-8">{derivedGameOver.reason}</p>
                 <div className="flex flex-col gap-2">
-                  <Link href="/dashboard" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-95 shadow-lg">
+<Link href="/office-lounge" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-95 shadow-lg">
                     Return to Dashboard
                   </Link>
                   <button onClick={() => setDismissedGameOver(true)} className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground py-3 rounded-xl font-bold transition-transform hover:scale-[1.02] active:scale-95 shadow-md">
@@ -520,7 +631,7 @@ export default function ChessBoardClient({
 
           {/* Resign Confirmation Modal */}
           {showResignConfirm && (
-            <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="absolute inset-0 z-[160] flex items-center justify-center bg-background/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
               <div className="bg-card border border-border rounded-xl p-6 shadow-2xl max-w-xs w-full text-center scale-in-95 animate-in zoom-in duration-200">
                 <h3 className="text-xl font-bold mb-2">Resign Game?</h3>
                 <p className="text-sm text-muted-foreground mb-6">Are you sure you want to surrender?</p>
@@ -534,7 +645,7 @@ export default function ChessBoardClient({
 
           {/* Draw Offer Overlay Modal */}
           {drawOfferedBy && drawOfferedBy !== playerColor && gameStatus === "in_progress" && (
-            <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="absolute inset-0 z-[160] flex items-center justify-center bg-background/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
               <div className="bg-card border border-primary/50 rounded-xl p-6 shadow-2xl max-w-xs w-full text-center scale-in-95 animate-in zoom-in duration-200">
                 <h3 className="text-xl font-bold mb-2">Draw Offered</h3>
                 <p className="text-sm text-muted-foreground mb-6">Your opponent has offered a draw.</p>
@@ -552,16 +663,21 @@ export default function ChessBoardClient({
       </div>
 
       {/* Right: Sidebar */}
-      <div className="w-full lg:w-[350px] flex flex-col h-[700px] bg-card border border-border rounded-xl overflow-hidden shadow-lg">
+      <div className="w-full lg:w-[350px] flex flex-col min-h-[420px] lg:h-[700px] bg-card border border-border rounded-xl overflow-hidden shadow-lg">
         
         {/* Status / Controls Tab */}
         <div className="p-4 border-b border-border bg-muted/30">
-          <div className="font-bold text-center mb-3 text-lg">
+          <div className="font-bold text-center mb-3 text-lg" aria-live="polite">
             {gameStatus === "waiting" ? <span className="flex items-center justify-center gap-2 text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Waiting for Opponent</span> : 
              gameStatus === "white_won" ? "White Wins!" : 
              gameStatus === "black_won" ? "Black Wins!" : 
              gameStatus === "draw" ? "Game Drawn" : 
              (chess.turn() === "w" && playerColor === "white") || (chess.turn() === "b" && playerColor === "black") ? "Your Turn" : "Opponent's Turn"}
+          </div>
+          <div className="mb-3 flex justify-end">
+            <button type="button" onClick={() => setShowNotation((visible) => !visible)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground" aria-pressed={showNotation}>
+              <Settings2 size={13} /> {showNotation ? "Hide coordinates" : "Show coordinates"}
+            </button>
           </div>
           
           {gameStatus === "waiting" && playerColor !== "spectator" && (
@@ -573,7 +689,7 @@ export default function ChessBoardClient({
                     router.push('/dashboard');
                   } catch (e: any) {
                     if (e.message === "NEXT_REDIRECT") throw e;
-                    alert("Failed to cancel: " + e.message);
+                    toast("Failed to cancel: " + e.message);
                   }
                 }}
                 className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors"
@@ -594,6 +710,13 @@ export default function ChessBoardClient({
             </div>
           )}
 
+          {gameStatus === "in_progress" && playerColor !== "spectator" && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-[11px] font-bold text-muted-foreground">
+              <span className={`h-2 w-2 rounded-full ${isOpponentConnected ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`} />
+              {isOpponentConnected ? "Opponent connected" : "Waiting for opponent"}
+            </div>
+          )}
+
           {drawOfferedBy && drawOfferedBy === playerColor && gameStatus === "in_progress" && (
             <div className="mt-2 text-center text-xs text-muted-foreground italic animate-pulse">
               Draw offer sent to opponent...
@@ -611,7 +734,7 @@ export default function ChessBoardClient({
               {spectators.map((s, i) => (
                 <div key={i} className="flex items-center gap-1.5 bg-background border border-border px-2 py-1 rounded-full shadow-sm">
                   {s.avatar_url ? (
-                    <img src={s.avatar_url} className="w-4 h-4 rounded-full object-cover" />
+                    <img src={s.avatar_url} alt={`${s.full_name || "Spectator"} avatar`} className="w-4 h-4 rounded-full object-cover" />
                   ) : (
                     <div className="w-4 h-4 rounded-full bg-secondary flex items-center justify-center text-[8px]">
                       <User size={8} />

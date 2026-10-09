@@ -15,6 +15,7 @@ services:
       - ./db/migrations/schema.sql:/docker-entrypoint-initdb.d/010_schema.sql:ro
       - ./db/local/002_identity.sql:/docker-entrypoint-initdb.d/020_identity.sql:ro
       - ./db/local/003_application_tables.sql:/docker-entrypoint-initdb.d/030_application_tables.sql:ro
+      - ./db/migrations/migration.sql:/docker-entrypoint-initdb.d/035_master_banks.sql:ro
       - ./db/migrations/migration2.sql:/docker-entrypoint-initdb.d/040_migration2.sql:ro
       - ./db/migrations/migration3_departments.sql:/docker-entrypoint-initdb.d/050_migration3.sql:ro
       - ./db/migrations/migration4_announcements_tier1.sql:/docker-entrypoint-initdb.d/060_migration4.sql:ro
@@ -22,9 +23,15 @@ services:
       - ./db/migrations/migration6_security_hardening.sql:/docker-entrypoint-initdb.d/080_migration6.sql:ro
       - ./db/migrations/migration7_runtime_schema_reconciliation.sql:/docker-entrypoint-initdb.d/090_migration7.sql:ro
       - ./db/migrations/migration8_question_history.sql:/docker-entrypoint-initdb.d/100_migration8.sql:ro
+      - ./db/migrations/migration9_question_pool_date.sql:/docker-entrypoint-initdb.d/105_migration9_question_pool_date.sql:ro
       - ./db/migrations/migration9_connect_four.sql:/docker-entrypoint-initdb.d/110_migration9.sql:ro
+      - ./db/migrations/migration10_game_spectators.sql:/docker-entrypoint-initdb.d/115_migration10_game_spectators.sql:ro
       - ./db/migrations/fix_rls_policies.sql:/docker-entrypoint-initdb.d/120_fix_rls.sql:ro
       - ./db/migrations/fix_questions_rls.sql:/docker-entrypoint-initdb.d/130_fix_questions_rls.sql:ro
+      - ./db/migrations/migration11_game_rounds.sql:/docker-entrypoint-initdb.d/140_migration11_game_rounds.sql:ro
+      - ./db/migrations/migration12_direct_messages.sql:/docker-entrypoint-initdb.d/150_migration12_direct_messages.sql:ro
+      - ./db/migrations/migration13_challenge_events.sql:/docker-entrypoint-initdb.d/160_migration13_challenge_events.sql:ro
+      - ./db/migrations/migration14_chess_events.sql:/docker-entrypoint-initdb.d/170_migration14_chess_events.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-brain_arena} -d ${POSTGRES_DB:-daily_brain_arena}"]
       interval: 5s

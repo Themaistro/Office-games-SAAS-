@@ -24,6 +24,7 @@ import { submitAnswer } from "@/app/play/actions";
 import { useGameTutorial } from "@/hooks/useTutorials";
 import { useVfx } from "@/hooks/useVfx";
 import clsx from "clsx";
+import GameShell from "./GameShell";
 
 interface GameEngineProps {
   sessionQuestions: SessionQuestion[];
@@ -42,8 +43,52 @@ interface FeedbackState {
   isCorrect: boolean;
   xpEarned: number;
   correctAnswer: string;
+  isPerformance?: boolean;
   breakdown?: ScoreBreakdown;
   isSkipped?: boolean;
+}
+
+function getPerformanceMessage(slug: string, isCorrect: boolean) {
+  const messages: Record<string, [string, string]> = {
+    reaction: ["Great catch!", "You caught the green flash.",],
+    stroop: ["Sharp focus!", "You matched the ink color correctly."],
+    typing: ["Clean typing!", "You completed the passage with good accuracy."],
+    "typing-challenge": ["Clean typing!", "You completed the passage with good accuracy."],
+    sequence: ["Sequence cracked!", "You remembered the pattern."],
+    memory: ["Memory unlocked!", "You recalled the hidden pattern."],
+    sudoku_lite: ["Puzzle solved!", "You completed the grid."],
+    "sudoku-lite": ["Puzzle solved!", "You completed the grid."],
+    "card-match": ["All matched!", "You found the pairs."],
+    card_match: ["All matched!", "You found the pairs."],
+    odd_object: ["Great eye!", "You spotted the odd object."],
+    "odd-object": ["Great eye!", "You spotted the odd object."],
+    mental_math: ["Quick maths!", "You solved the calculation."],
+    "mental-math": ["Quick maths!", "You solved the calculation."],
+    math: ["Number cruncher!", "You found the right result."],
+    logic: ["Logic locked in!", "You solved the reasoning challenge."],
+    word: ["Word wizard!", "You found the right word."],
+    unscramble: ["Word unscrambled!", "You put the letters in order."],
+    "word-unscramble": ["Word unscrambled!", "You put the letters in order."],
+  };
+  const [success, failure] = messages[slug] || ["Nice work!", "You completed the challenge."];
+  if (isCorrect) return { title: success, detail: failure };
+
+  const failures: Record<string, [string, string]> = {
+    reaction: ["You missed the flash", "You were not fast enough. Wait for green and react as quickly as you can."],
+    stroop: ["Focus slipped", "The ink color and word were designed to conflict. Trust the ink color next time."],
+    typing: ["Keep practicing", "The passage was not completed accurately before time ran out."],
+    "typing-challenge": ["Keep practicing", "The passage was not completed accurately before time ran out."],
+    sequence: ["Sequence missed", "The pattern was not completed in the correct order."],
+    memory: ["Memory slipped", "The sequence did not match. Take another moment to lock it in next time."],
+    "card-match": ["Time ran out", "Not every pair was found before the countdown ended."],
+    card_match: ["Time ran out", "Not every pair was found before the countdown ended."],
+    sudoku_lite: ["Grid incomplete", "The Sudoku grid was not solved correctly."],
+    "sudoku-lite": ["Grid incomplete", "The Sudoku grid was not solved correctly."],
+    odd_object: ["Wrong object", "The odd object was not identified before the timer ended."],
+    "odd-object": ["Wrong object", "The odd object was not identified before the timer ended."],
+  };
+  const [title, detail] = failures[slug] || ["Not this time", "The challenge was not completed successfully."];
+  return { title, detail };
 }
 
 export default function GameEngine({ sessionQuestions, onComplete }: GameEngineProps) {
@@ -58,6 +103,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   const [isSessionComplete, setIsSessionComplete] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  const [answerResults, setAnswerResults] = useState<Array<boolean | "skipped" | null>>(() => sessionQuestions.map(() => null));
   
   // Advanced State
   const [currentCombo, setCurrentCombo] = useState(0);
@@ -177,7 +223,13 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       const xpEarned = result.success ? (result.xpEarned || 0) : 0;
       
       const dbCorrectAnswer = result.success ? result.correctAnswer : sq.question.correct_answer;
-      const displayCorrectAnswer = dynamicCorrectAnswer || dbCorrectAnswer || "Completed Successfully";
+      // Only action/performance games should avoid a textual answer. Logic,
+      // word, math, and unscramble games still have a meaningful answer to
+      // teach the player after an incorrect submission.
+      const interactionSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'sequence', 'card-match', 'card_match', 'sudoku_lite', 'sudoku-lite', 'odd_object', 'odd-object', 'memory'];
+      const isInteractionChallenge = interactionSlugs.includes(sq.question.game_type.slug);
+      const hasTextualAnswer = typeof (dynamicCorrectAnswer || dbCorrectAnswer) === "string" && Boolean((dynamicCorrectAnswer || dbCorrectAnswer)?.trim());
+      const displayCorrectAnswer = isInteractionChallenge ? "This challenge is scored from your performance." : dynamicCorrectAnswer || (hasTextualAnswer ? dbCorrectAnswer : "No textual answer is available for this challenge.");
 
       if (isCorrect && !isSkipped) {
         setCurrentCombo(prev => {
@@ -208,10 +260,17 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
         return;
       }
 
+      setAnswerResults((previous) => {
+        const next = [...previous];
+        next[currentIndex] = isSkipped ? "skipped" : isCorrect;
+        return next;
+      });
+
       const feedbackData: FeedbackState = {
         isCorrect: isCorrect || false,
         xpEarned: xpEarned,
         correctAnswer: displayCorrectAnswer,
+        isPerformance: isInteractionChallenge,
         breakdown: result.success ? result.breakdown : undefined,
         isSkipped: isSkipped || false
       };
@@ -315,6 +374,9 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
 
   const renderGame = () => {
     if (feedback) {
+      const performanceGameSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'sequence', 'card-match', 'card_match', 'sudoku_lite', 'sudoku-lite', 'odd_object', 'odd-object', 'memory'];
+      const isPerformanceGame = performanceGameSlugs.includes(currentSessionQuestion.question.game_type.slug);
+      const performanceMessage = isPerformanceGame ? getPerformanceMessage(currentSessionQuestion.question.game_type.slug, feedback.isCorrect) : null;
       return (
         <div className="w-full flex flex-col items-center text-center animate-in zoom-in-95 duration-300 py-4 max-w-sm mx-auto">
           {feedback.isSkipped ? (
@@ -341,10 +403,11 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           <h2 className="text-3xl font-bold mb-2">
             {feedback.isSkipped ? "Skipped!" : (
               feedback.isCorrect 
-                ? (['typing', 'typing-challenge', 'card-match', 'card_match'].includes(currentSessionQuestion.question.game_type.slug) ? "Completed!" : "Correct!") 
-                : "Incorrect"
+                ? (performanceMessage?.title || "Correct!")
+                : "Not this time"
             )}
           </h2>
+          {performanceMessage && <p className="mb-5 max-w-sm text-sm font-medium text-muted-foreground">{performanceMessage.detail}</p>}
           
           {(feedback.isCorrect || feedback.isSkipped) && feedback.breakdown ? (
             <div className="w-full bg-card border border-border rounded-2xl p-5 mb-6 shadow-sm text-sm font-medium">
@@ -388,18 +451,22 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
                 </span>
               </div>
             </div>
-          ) : (
+          ) : !feedback.isPerformance ? (
             <div className="mb-8 w-full bg-card border border-border rounded-2xl p-5 shadow-sm text-sm font-medium">
-              <p className="text-muted-foreground mb-2">The correct answer was:</p>
+              <p className="text-muted-foreground mb-2">
+                {feedback.isPerformance
+                  ? "Performance-based challenge:"
+                  : "The correct answer was:"}
+              </p>
               <div className="bg-muted/50 p-4 rounded-xl border border-border/50 mb-6">
-                <p className="text-xl font-bold break-words">{feedback.correctAnswer}</p>
+                <p className="text-xl font-bold break-words">{feedback.isPerformance ? "Your result was based on speed, accuracy, and completion." : feedback.correctAnswer}</p>
               </div>
               <div className="flex justify-between items-center pt-2 font-black text-xl text-muted-foreground">
                 <span>Total Earned</span>
                 <span>+0 XP</span>
               </div>
             </div>
-          )}
+          ) : null}
           
           <button 
             onClick={handleNextChallenge}
@@ -424,7 +491,9 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       case 'logic':
         return <LogicGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       case 'word':
-        return <MissingLettersGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+        return question.content?.wordWithBlanks
+          ? <MissingLettersGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />
+          : <WordGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} />;
       case 'unscramble':
       case 'word-unscramble':
         return <UnscrambleGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
@@ -452,7 +521,9 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       case 'mental-math':
         return <MentalMathGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       case 'math':
-        return <TargetNumberGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
+        return question.content?.target !== undefined
+          ? <TargetNumberGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />
+          : <TriviaGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
       case 'trivia':
       case 'company_trivia':
         return <TriviaGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;
@@ -475,7 +546,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           </div>
         )}
 
-        <div className="w-full flex justify-between items-start">
+        <div className="w-full flex flex-wrap justify-between items-start gap-4">
           <div className="flex flex-col pt-1">
             <div className="flex items-center gap-2 justify-between w-full mb-1">
               <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -497,10 +568,10 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
             )}
           </div>
           
-          <div className="flex items-center gap-3 mt-2 sm:mt-0">
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-2 mt-2 sm:mt-0">
             <div className="hidden sm:flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1.5 rounded-full font-bold shadow-sm" aria-label={`XP earned ${stats.totalXp}`}>
               <Trophy size={16} />
-              <span>{stats.totalXp} XP</span>
+              <span>{Math.max(0, stats.totalXp)} XP</span>
             </div>
             <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-500 px-3 py-1.5 rounded-full font-bold shadow-sm">
               <Flame size={16} />
@@ -539,16 +610,14 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
 
         {/* New Segmented Progress Bar */}
         <div className="w-full mt-2 relative px-2">
-          <div className="w-full h-4 bg-secondary rounded-full overflow-hidden relative border border-border/50 shadow-inner">
-            <div className="absolute inset-0 w-full h-full flex justify-between z-10 opacity-30">
-              {Array.from({ length: sessionQuestions.length }).map((_, i) => (
-                <div key={i} className="h-full w-[2px] bg-card" />
-              ))}
-            </div>
-            <div 
-              className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out z-0"
-              style={{ width: `${((currentIndex + (feedback ? 1 : 0)) / sessionQuestions.length) * 100}%` }}
-            />
+          <div className="w-full flex gap-1.5" aria-label="Mission answer results">
+            {sessionQuestions.map((_, index) => {
+              const result = index === currentIndex && feedback
+                ? (feedback.isSkipped ? "skipped" : feedback.isCorrect)
+                : answerResults[index];
+              const isCurrent = index === currentIndex && !feedback;
+              return <div key={index} title={result === true ? `Challenge ${index + 1}: correct` : result === false ? `Challenge ${index + 1}: incorrect` : result === "skipped" ? `Challenge ${index + 1}: skipped` : `Challenge ${index + 1}: not answered`} className={clsx("h-3 w-3 shrink-0 rounded-full border transition-all", result === true && "border-emerald-500 bg-emerald-500", result === false && "border-red-500 bg-red-500", result === "skipped" && "border-amber-500 bg-amber-400", result === null && (isCurrent ? "border-primary bg-primary/20 ring-2 ring-primary/20" : "border-border bg-secondary"))} />;
+            })}
           </div>
           <div 
             className="absolute top-1/2 -translate-y-1/2 z-20 transition-all duration-500 ease-out drop-shadow-lg"
@@ -561,8 +630,8 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
         </div>
       </div>
       
-      <div className={`w-full transition-opacity duration-300 ${showLevelUp ? 'opacity-0' : 'opacity-100 animate-in fade-in slide-in-from-right-4'}`}>
-        {renderGame()}
+      <div className="w-full animate-in fade-in slide-in-from-right-4 duration-300">
+        <GameShell>{renderGame()}</GameShell>
       </div>
     </div>
   );

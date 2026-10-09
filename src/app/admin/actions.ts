@@ -14,6 +14,10 @@ export async function toggleGameStatus(gameId: string, currentStatus: boolean) {
 
 export async function updateGameRounds(gameId: string, easy: number, medium: number, hard: number) {
   await assertAdmin();
+  const rounds = [easy, medium, hard];
+  if (!rounds.every((value) => Number.isInteger(value) && value >= 0 && value <= 100)) {
+    throw new Error("Round counts must be whole numbers between 0 and 100");
+  }
   await query("UPDATE game_types SET easy_rounds = $1, medium_rounds = $2, hard_rounds = $3 WHERE id = $4", [easy, medium, hard, gameId]);
   
   revalidatePath("/admin/games");

@@ -6,11 +6,14 @@ import { createChessGame } from "@/app/dashboard/chess/actions";
 import { createTttGame } from "@/app/dashboard/ttt/actions";
 import { createConnectFourGame } from "@/app/dashboard/connect-four/actions";
 import UnifiedLobbiesWidget from "./UnifiedLobbiesWidget";
+import { useToast } from "@/components/ui/ToastProvider";
+import { getLoungeRank } from "@/lib/lounge-ranks";
 
-export default function UnifiedOfficeLounge({ currentUserId }: { currentUserId: string }) {
+export default function UnifiedOfficeLounge({ currentUserId, loungeLp = 0 }: { currentUserId: string; loungeLp?: number }) {
   const [loadingChess, setLoadingChess] = useState(false);
   const [loadingTtt, setLoadingTtt] = useState(false);
   const [loadingConnectFour, setLoadingConnectFour] = useState(false);
+  const { toast } = useToast();
   
   const [showChessOptions, setShowChessOptions] = useState(false);
   const [chessColor, setChessColor] = useState<"white" | "black" | "random">("random");
@@ -23,7 +26,7 @@ export default function UnifiedOfficeLounge({ currentUserId }: { currentUserId: 
     } catch (err: any) {
       if (err.message === "NEXT_REDIRECT") throw err;
       console.error(err);
-      alert(err.message || "Failed to create chess game");
+      toast(err.message || "Failed to create chess game");
       setLoadingChess(false);
     }
   };
@@ -35,7 +38,7 @@ export default function UnifiedOfficeLounge({ currentUserId }: { currentUserId: 
     } catch (err: any) {
       if (err.message === "NEXT_REDIRECT") throw err;
       console.error(err);
-      alert(err.message || "Failed to create TTT game");
+      toast(err.message || "Failed to create TTT game");
       setLoadingTtt(false);
     }
   };
@@ -46,7 +49,7 @@ export default function UnifiedOfficeLounge({ currentUserId }: { currentUserId: 
       await createConnectFourGame();
     } catch (err: any) {
       if (err.message === "NEXT_REDIRECT") throw err;
-      alert(err.message || "Failed to create Connect Four game");
+      toast(err.message || "Failed to create Connect Four game");
       setLoadingConnectFour(false);
     }
   };
@@ -57,7 +60,7 @@ export default function UnifiedOfficeLounge({ currentUserId }: { currentUserId: 
         <div className="bg-primary/20 p-2 rounded-xl">
           <User className="text-primary" size={24} />
         </div>
-        <h3 className="text-2xl font-black tracking-tight">The Office Lounge</h3>
+        <div><h3 className="text-2xl font-black tracking-tight">The Office Lounge</h3><p className="mt-1 text-xs font-black uppercase tracking-wider text-muted-foreground">{getLoungeRank(loungeLp).name} · {getLoungeRank(loungeLp).lp} LP</p></div>
       </div>
 
       {/* Unified Create Game Section */}

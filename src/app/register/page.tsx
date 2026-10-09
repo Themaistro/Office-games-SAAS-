@@ -31,28 +31,28 @@ export default async function RegisterPage({
     : DEFAULT_DEPARTMENTS.map((name) => ({ id: name, name }));
   
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-card p-8 shadow-sm border border-border">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8 rounded-3xl bg-card p-8 shadow-xl shadow-primary/5 border border-border/60">
         <div className="flex flex-col items-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground mb-4 shadow-sm">
             <Brain size={28} />
           </div>
           <h2 className="text-center text-2xl font-bold tracking-tight text-foreground">
-            Join the Arena
+            Join Office Games
           </h2>
           <p className="mt-2 text-center text-sm text-muted-foreground">
-            Create an account to start playing.
+            Create your player profile and join your team.
           </p>
         </div>
 
         <form action={signup} className="mt-8 space-y-6">
           {resolvedParams?.error && (
-            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive text-center">
+            <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive text-center">
               {resolvedParams.error}
             </div>
           )}
           
-          <div className="space-y-4 rounded-md">
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1" htmlFor="full_name">
                 Full Name
@@ -62,7 +62,7 @@ export default async function RegisterPage({
                 name="full_name"
                 type="text"
                 required
-                className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                className="relative block w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm"
                 placeholder="Jane Doe"
               />
             </div>
@@ -76,7 +76,7 @@ export default async function RegisterPage({
                   id="department"
                   name="department"
                   required
-                  className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                  className="relative block w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm"
                 >
                   <option value="">Select...</option>
                   {departmentOptions.map((dept) => (
@@ -96,7 +96,7 @@ export default async function RegisterPage({
                   name="position"
                   type="text"
                   required
-                  className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                  className="relative block w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm"
                   placeholder="e.g. Developer"
                 />
               </div>
@@ -111,7 +111,7 @@ export default async function RegisterPage({
                 name="email"
                 type="email"
                 required
-                className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                className="relative block w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm"
                 placeholder="employee@company.com"
               />
             </div>
@@ -125,7 +125,7 @@ export default async function RegisterPage({
                 type="password"
                 required
                 minLength={6}
-                className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
+                className="relative block w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm"
                 placeholder="At least 6 characters"
               />
             </div>
@@ -133,7 +133,7 @@ export default async function RegisterPage({
 
           <button
             type="submit"
-            className="group relative flex w-full justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-colors shadow-sm"
+            className="group relative flex w-full justify-center rounded-xl bg-primary px-4 py-3.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:-translate-y-0.5"
           >
             Create Account
           </button>
