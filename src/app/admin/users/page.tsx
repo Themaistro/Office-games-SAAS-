@@ -19,7 +19,7 @@ export default async function UsersManagementPage(props: { searchParams: Promise
   const [usersResult, countResult, departmentsResult] = await Promise.all([
     query(`SELECT * FROM profiles WHERE ${where} ORDER BY ${orderColumn} ${orderDirection} NULLS LAST, full_name ASC LIMIT ${PAGE_SIZE} OFFSET ${offset}`, params),
     query<{ count: number }>(`SELECT count(*)::int AS count FROM profiles WHERE ${where}`, params),
-    query<{ id: string; name: string }>("SELECT * FROM departments ORDER BY name ASC"),
+    query<{ id: string; name: string }>("SELECT * FROM departments WHERE is_active = true ORDER BY name ASC"),
   ]);
   const users = usersResult.rows;
   const totalUsers = countResult.rows[0]?.count ?? 0;
