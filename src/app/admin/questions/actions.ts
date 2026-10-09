@@ -37,11 +37,15 @@ export async function addCompanyTrivia(formData: FormData) {
   let finalCorrectAnswer = "";
 
   if (isMC) {
-    if (!opt1 || !opt2 || !opt3 || !opt4 || !correctOptIndex) {
+    const answerIndex = Number(correctOptIndex) - 1;
+    if (!opt1 || !opt2 || !opt3 || !opt4 || !Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex > 3) {
       throw new Error("Options and correct answer are required for multiple choice games.");
     }
-    finalOptions = [opt1, opt2, opt3, opt4];
-    finalCorrectAnswer = finalOptions[parseInt(correctOptIndex) - 1];
+    finalOptions = [opt1.trim(), opt2.trim(), opt3.trim(), opt4.trim()];
+    if (new Set(finalOptions.map((option) => option.toLowerCase())).size !== finalOptions.length) {
+      throw new Error("Multiple choice options must be unique.");
+    }
+    finalCorrectAnswer = finalOptions[answerIndex];
   } else if (isTarget) {
     finalOptions = [];
     finalCorrectAnswer = question; // Target text is its own answer
@@ -94,11 +98,15 @@ export async function editCompanyTrivia(formData: FormData) {
   let finalCorrectAnswer = "";
 
   if (isMC) {
-    if (!opt1 || !opt2 || !opt3 || !opt4 || !correctOptIndex) {
+    const answerIndex = Number(correctOptIndex) - 1;
+    if (!opt1 || !opt2 || !opt3 || !opt4 || !Number.isInteger(answerIndex) || answerIndex < 0 || answerIndex > 3) {
       throw new Error("Options and correct answer are required for multiple choice games.");
     }
-    finalOptions = [opt1, opt2, opt3, opt4];
-    finalCorrectAnswer = finalOptions[parseInt(correctOptIndex) - 1];
+    finalOptions = [opt1.trim(), opt2.trim(), opt3.trim(), opt4.trim()];
+    if (new Set(finalOptions.map((option) => option.toLowerCase())).size !== finalOptions.length) {
+      throw new Error("Multiple choice options must be unique.");
+    }
+    finalCorrectAnswer = finalOptions[answerIndex];
   } else if (isTarget) {
     finalOptions = [];
     finalCorrectAnswer = question;

@@ -15,9 +15,14 @@ export async function updateUserDepartment(formData: FormData) {
   await assertAdmin();
 
   const userId = formData.get("userId") as string;
-  const department = formData.get("department") as string;
+  const department = String(formData.get("department") || "").trim();
 
-  if (userId && department !== null) {
+  if (userId && department) {
+    const { rows: departments } = await query<{ name: string }>(
+      "SELECT name FROM departments WHERE name = $1 AND is_active = true LIMIT 1",
+      [department],
+    );
+    if (!departments[0]) throw new Error("Please select an active department.");
     await query("UPDATE profiles SET department = $1 WHERE id = $2", [department, userId]);
   }
 
@@ -68,6 +73,9 @@ export async function wipePlayerSession(userId: string) {
 
 export async function grantExtraTime(userId: string, extraSeconds: number = 300) {
   await assertAdmin();
+  if (!Number.isFinite(extraSeconds) || extraSeconds <= 0 || extraSeconds > 86400) {
+    throw new Error("Extra time must be between 1 second and 24 hours.");
+  }
   const { rows } = await query<{ id: string; allowed_duration_seconds: number }>("SELECT id, allowed_duration_seconds FROM daily_sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [userId]);
   const latestSession = rows[0];
 
@@ -86,6 +94,12 @@ export async function setPlayerTimeLimits(
   sessionLimitMinutes: number | null
 ) {
   await assertAdmin();
+  if (dailyLimitMinutes !== null && (!Number.isInteger(dailyLimitMinutes) || dailyLimitMinutes < 0 || dailyLimitMinutes > 1440)) {
+    throw new Error("Daily limit must be between 0 and 1440 minutes.");
+  }
+  if (sessionLimitMinutes !== null && (!Number.isInteger(sessionLimitMinutes) || sessionLimitMinutes < 0 || sessionLimitMinutes > 1440)) {
+    throw new Error("Session limit must be between 0 and 1440 minutes.");
+  }
   await query("UPDATE profiles SET daily_time_limit_minutes = $1, session_time_limit_minutes = $2 WHERE id = $3", [dailyLimitMinutes, sessionLimitMinutes, userId]);
 
   revalidatePath("/admin/users");

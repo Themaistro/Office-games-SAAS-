@@ -15,11 +15,12 @@ export async function addPrize(formData: FormData) {
 
   const title = formData.get("title") as string;
   const iconEmoji = formData.get("icon_emoji") as string || "🏆";
-  const rankRequirement = parseInt(formData.get("rank_requirement") as string);
+  const rankRequirement = Number(formData.get("rank_requirement"));
 
-  if (!title || !rankRequirement) {
+  if (!title?.trim() || !Number.isInteger(rankRequirement) || rankRequirement < 1) {
     throw new Error("Title and Rank Requirement are required.");
   }
+  if (title.trim().length > 120) throw new Error("Prize title must be 120 characters or fewer.");
 
   // Delete any existing prize for this rank to ensure only one prize per position
   await query("DELETE FROM prizes WHERE rank_requirement = $1", [rankRequirement]);

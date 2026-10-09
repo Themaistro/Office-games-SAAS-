@@ -14,12 +14,17 @@ export async function addAnnouncement(formData: FormData) {
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   const message = formData.get("message") as string;
-  const type = formData.get("type") as string || "info";
+  const type = String(formData.get("type") || "info");
   const cta_text = formData.get("cta_text") as string | null;
   const cta_link = formData.get("cta_link") as string | null;
 
   if (!message || message.trim() === "") {
     throw new Error("Message is required.");
+  }
+  if (message.trim().length > 500) throw new Error("Announcement must be 500 characters or fewer.");
+  if (!["info", "success", "warning", "error"].includes(type)) throw new Error("Invalid announcement type.");
+  if (cta_link && !/^\/(?!\/)|^https:\/\//i.test(cta_link.trim())) {
+    throw new Error("CTA links must be internal paths or HTTPS URLs.");
   }
 
   // Deactivate old ones if we only want one active at a time? Let's just leave it up to the admin to toggle them.
