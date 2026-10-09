@@ -15,6 +15,19 @@ CREATE TABLE IF NOT EXISTS public.departments (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Keep a fresh local install usable while still making the database the single
+-- source of truth for registration and profile department choices.
+INSERT INTO public.departments (name, is_active, sort_order)
+VALUES
+  ('Administration', true, 10),
+  ('Finance', true, 20),
+  ('Human Resources', true, 30),
+  ('Information Technology', true, 40),
+  ('Marketing', true, 50),
+  ('Operations', true, 60),
+  ('Sales', true, 70)
+ON CONFLICT (name) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS public.announcements (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   message text NOT NULL,
