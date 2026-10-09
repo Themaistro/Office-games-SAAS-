@@ -4,7 +4,6 @@ import Link from "next/link";
 import BouncingBackground from "@/components/BouncingBackground";
 import PasswordInput from "@/components/PasswordInput";
 import SSOButtons from "@/components/SSOButtons";
-import { query } from "@/lib/db";
 
 export default async function LoginPage({
   searchParams,
@@ -13,8 +12,9 @@ export default async function LoginPage({
 }) {
   const resolvedParams = await searchParams;
   
-  const { rows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM users WHERE role <> 'admin'");
-  const playersCount = rows[0]?.count ?? 0;
+  // Keep the public login page independent from optional database statistics.
+  // Authentication itself is handled by the server action below.
+  const playersCount = 0;
   
   return (
     <div className="flex min-h-screen bg-background relative overflow-hidden">
