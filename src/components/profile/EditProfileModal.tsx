@@ -160,10 +160,11 @@ interface EditProfileModalProps {
   currentName: string;
   currentAvatar: string | null;
   currentDepartment?: string;
+  departments?: string[];
   children?: React.ReactNode;
 }
 
-export default function EditProfileModal({ currentName, currentAvatar, currentDepartment, children }: EditProfileModalProps) {
+export default function EditProfileModal({ currentName, currentAvatar, currentDepartment, departments = [], children }: EditProfileModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState(currentName);
   const [avatar, setAvatar] = useState(currentAvatar || AVATAR_CATEGORIES[0].avatars[0]);
@@ -273,15 +274,7 @@ export default function EditProfileModal({ currentName, currentAvatar, currentDe
                   className="w-full px-4 py-3 bg-secondary/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary font-medium text-foreground transition-all appearance-none"
                 >
                   <option value="">Select your department...</option>
-                  <option value="Engineering">Engineering</option>
-                  <option value="Design">Design</option>
-                  <option value="Product">Product</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Sales">Sales</option>
-                  <option value="HR">HR</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Operations">Operations</option>
-                  <option value="Legal">Legal</option>
+                  {departments.map((name) => <option key={name} value={name}>{name}</option>)}
                 </select>
               </div>
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { createSession, createUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 
 export async function signup(formData: FormData) {
   const rawEmail = formData.get("email") as string;
@@ -21,6 +22,14 @@ export async function signup(formData: FormData) {
   const fullName = rawFullName.trim();
   const department = rawDepartment.trim();
   const position = rawPosition.trim();
+
+  const { rows: matchingDepartments } = await query<{ name: string }>(
+    "SELECT name FROM departments WHERE name = $1 AND is_active = true LIMIT 1",
+    [department],
+  );
+  if (!matchingDepartments[0]) {
+    redirect("/register?error=Please select an active department.");
+  }
 
   // 1. Email Validation (Basic RFC 5322 regex check)
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -72,6 +72,9 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     );
   }
 
+  const { data: activeDepartments } = await dbClient.from("departments").select("name").eq("is_active", true).order("sort_order", { ascending: true });
+  const departmentOptions = (activeDepartments || []).map((department: { name: string }) => department.name);
+
   // Fetch Chess Games for stats
   const { data: rawChessGames } = await dbClient
     .from("chess_games")
@@ -313,7 +316,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
           <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${themeColor} opacity-20`} />
           
           <div id="tour-profile-edit">
-            <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url} currentDepartment={profile.department}>
+            <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url} currentDepartment={profile.department} departments={departmentOptions}>
               <div className={`relative w-32 h-32 rounded-full flex items-center justify-center shrink-0 border-4 border-background shadow-2xl overflow-hidden transition-all duration-300 group/avatar ${
               profile.current_level >= 10 ? 'ring-4 ring-yellow-500/50 shadow-yellow-500/50' : 
               profile.current_level >= 5 ? 'ring-4 ring-slate-400/50 shadow-slate-400/50' : ''
@@ -347,7 +350,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
                   <span className="text-sm font-semibold text-muted-foreground">
                     {profile.department ? `${profile.department} Division` : 'No Department'}
                   </span>
-                  <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url}>
+                  <EditProfileModal currentName={profile.full_name} currentAvatar={profile.avatar_url} departments={departmentOptions}>
                     <button className="flex items-center gap-1.5 px-3 py-1 bg-background/50 hover:bg-background border border-border/50 text-xs font-bold rounded-full transition-colors md:ml-2 shadow-sm group">
                       <Edit3 size={12} className="text-muted-foreground group-hover:text-primary transition-colors" />
                       <span>Edit Profile</span>

@@ -15,12 +15,19 @@ export async function addDepartment(formData: FormData) {
 
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  const name = formData.get("name") as string;
-  if (!name || name.trim() === "") {
+  const name = String(formData.get("name") || "").trim().replace(/\s+/g, " ");
+  if (!name) {
     throw new Error("Department name is required.");
   }
+  if (name.length > 80) throw new Error("Department name must be 80 characters or fewer.");
 
-  await query("INSERT INTO departments (name, is_active) VALUES ($1, true)", [name.trim()]);
+  const { rows: duplicateRows } = await query<{ id: string }>(
+    "SELECT id FROM departments WHERE lower(name) = lower($1) LIMIT 1",
+    [name],
+  );
+  if (duplicateRows[0]) throw new Error("That department already exists.");
+
+  await query("INSERT INTO departments (name, is_active) VALUES ($1, true)", [name]);
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
@@ -73,12 +80,19 @@ export async function renameDepartment(id: string, newName: string) {
   const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  const name = newName.trim();
+  const name = newName.trim().replace(/\s+/g, " ");
   if (!name) throw new Error("Department name is required.");
+  if (name.length > 80) throw new Error("Department name must be 80 characters or fewer.");
 
   const { rows: oldDeptRows } = await query<{ name: string }>("SELECT name FROM departments WHERE id = $1", [id]);
   const oldDept = oldDeptRows[0];
   if (!oldDept) throw new Error("Department not found");
+
+  const { rows: duplicateRows } = await query<{ id: string }>(
+    "SELECT id FROM departments WHERE lower(name) = lower($1) AND id <> $2 LIMIT 1",
+    [name, id],
+  );
+  if (duplicateRows[0]) throw new Error("That department already exists.");
 
   await query("UPDATE departments SET name = $1 WHERE id = $2", [name, id]);
 

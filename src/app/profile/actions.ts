@@ -12,6 +12,13 @@ export async function updateProfile(fullName: string, avatarUrl: string, departm
   }
 
   if (department !== undefined) {
+    const { rows: matchingDepartments } = await query<{ name: string }>(
+      "SELECT name FROM departments WHERE name = $1 AND is_active = true LIMIT 1",
+      [department.trim()],
+    );
+    if (!matchingDepartments[0]) {
+      return { error: "Please select an active department." };
+    }
     await query("UPDATE profiles SET full_name = $1, avatar_url = $2, department = $3 WHERE id = $4", [fullName, avatarUrl, department, user.id]);
   } else {
     await query("UPDATE profiles SET full_name = $1, avatar_url = $2 WHERE id = $3", [fullName, avatarUrl, user.id]);
