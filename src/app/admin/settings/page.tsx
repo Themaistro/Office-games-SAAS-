@@ -120,7 +120,8 @@ export default function SettingsPage() {
             <input 
               type="number" 
               name="cooldown_hours" 
-              defaultValue={settings?.cooldown_hours ?? 24}
+              value={settings?.cooldown_hours ?? 24}
+              onChange={(event) => setSettings((current: any) => ({ ...(current ?? {}), cooldown_hours: Number(event.target.value) }))}
               min="0"
               className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
@@ -132,7 +133,8 @@ export default function SettingsPage() {
             <input 
               type="number" 
               name="game_duration_minutes" 
-              defaultValue={settings?.daily_time_limit_minutes ?? 15}
+              value={settings?.daily_time_limit_minutes ?? 15}
+              onChange={(event) => setSettings((current: any) => ({ ...(current ?? {}), daily_time_limit_minutes: Number(event.target.value) }))}
               min="1"
               className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
