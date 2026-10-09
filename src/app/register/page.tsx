@@ -3,13 +3,30 @@ import { Brain } from "lucide-react";
 import Link from "next/link";
 import { query } from "@/lib/db";
 
+const DEFAULT_DEPARTMENTS = [
+  "Administration",
+  "Finance",
+  "Human Resources",
+  "Information Technology",
+  "Marketing",
+  "Operations",
+  "Sales",
+];
+
 export default async function RegisterPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  const { rows: departments } = await query("SELECT * FROM departments WHERE is_active = true ORDER BY sort_order ASC, name ASC");
+  const { rows: departments } = await query<{ id: string; name: string }>(
+    "SELECT id, name FROM departments WHERE is_active = true ORDER BY sort_order ASC, name ASC"
+  );
+  // Keep registration usable on a fresh PostgreSQL install before departments
+  // have been configured by an administrator.
+  const departmentOptions = departments.length > 0
+    ? departments
+    : DEFAULT_DEPARTMENTS.map((name) => ({ id: name, name }));
   
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
@@ -60,7 +77,7 @@ export default async function RegisterPage({
                   className="relative block w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm"
                 >
                   <option value="">Select...</option>
-                  {departments?.map((dept) => (
+                  {departmentOptions.map((dept) => (
                     <option key={dept.id} value={dept.name}>
                       {dept.name}
                     </option>
