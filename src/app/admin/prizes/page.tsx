@@ -1,14 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 import { addPrize, deletePrize } from "./actions";
 import { Trophy, Trash2, Gift } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function PrizesManagementPage() {
-  const supabase = await createClient();
-  
-  const { data: prizes, error } = await supabase
-    .from("prizes")
-    .select("*")
-    .order("rank_requirement", { ascending: true });
+  const { rows: prizes } = await query("SELECT * FROM prizes ORDER BY rank_requirement ASC");
 
   const handleDelete = async (formData: FormData) => {
     "use server";

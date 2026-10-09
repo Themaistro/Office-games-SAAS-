@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Bell, Swords, X as XIcon } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { acceptChallenge } from "@/app/dashboard/chess/actions";
 import { acceptTttChallenge } from "@/app/dashboard/ttt/actions";
@@ -15,44 +14,13 @@ export default function NotificationBellClient({ userId }: NotificationBellProps
   const [challenges, setChallenges] = useState<any[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
   const router = useRouter();
 
   const fetchChallenges = async () => {
     if (!userId) return;
     
-    // Fetch Chess challenges
-    const { data: chessData } = await supabase
-      .from("chess_games")
-      .select("id, created_at, white:profiles!chess_games_white_player_id_fkey(full_name)")
-      .eq("black_player_id", userId)
-      .not("white_player_id", "is", null)
-      .eq("status", "waiting");
-
-    // Fetch TTT challenges
-    const { data: tttData } = await supabase
-      .from("ttt_games")
-      .select("id, created_at, x_player:profiles!ttt_games_x_player_id_fkey(full_name)")
-      .eq("o_player_id", userId)
-      .not("x_player_id", "is", null)
-      .eq("status", "waiting");
-
-    const mappedChess = (chessData || []).map((g: any) => ({
-      id: g.id,
-      type: "chess",
-      challenger: g.white?.full_name || "Someone",
-      createdAt: new Date(g.created_at).getTime()
-    }));
-
-    const mappedTtt = (tttData || []).map((g: any) => ({
-      id: g.id,
-      type: "ttt",
-      challenger: g.x_player?.full_name || "Someone",
-      createdAt: new Date(g.created_at).getTime()
-    }));
-
-    const all = [...mappedChess, ...mappedTtt].sort((a, b) => b.createdAt - a.createdAt);
-    setChallenges(all);
+    const response = await fetch('/api/challenges', { cache: 'no-store' });
+    if (response.ok) setChallenges((await response.json()).map((c: any) => ({ ...c, createdAt: new Date(c.created_at).getTime() })));
   };
 
   useEffect(() => {
@@ -66,23 +34,8 @@ export default function NotificationBellClient({ userId }: NotificationBellProps
       audio.play().catch(e => console.log("Audio blocked by browser", e));
     };
 
-    // Listen for new challenges
-    const chessSub = supabase.channel('chess_challenges')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chess_games', filter: `black_player_id=eq.${userId}` }, handleNewChallenge)
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chess_games', filter: `black_player_id=eq.${userId}` }, fetchChallenges)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chess_games', filter: `black_player_id=eq.${userId}` }, fetchChallenges)
-      .subscribe();
-
-    const tttSub = supabase.channel('ttt_challenges')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ttt_games', filter: `o_player_id=eq.${userId}` }, handleNewChallenge)
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'ttt_games', filter: `o_player_id=eq.${userId}` }, fetchChallenges)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ttt_games', filter: `o_player_id=eq.${userId}` }, fetchChallenges)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(chessSub);
-      supabase.removeChannel(tttSub);
-    };
+    const timer = window.setInterval(fetchChallenges, 5000);
+    return () => window.clearInterval(timer);
   }, [userId]);
 
   // Close dropdown when clicking outside

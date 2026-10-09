@@ -1,7 +1,7 @@
 import { signup } from "./actions";
 import { Brain } from "lucide-react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 
 export default async function RegisterPage({
   searchParams,
@@ -9,14 +9,7 @@ export default async function RegisterPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  const supabase = await createClient();
-  
-  const { data: departments } = await supabase
-    .from("departments")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  const { rows: departments } = await query("SELECT * FROM departments WHERE is_active = true ORDER BY sort_order ASC, name ASC");
   
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">

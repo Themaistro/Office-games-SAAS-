@@ -1,19 +1,15 @@
-import { createClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 import { addDepartment } from "./actions";
 import { Building } from "lucide-react";
 import DepartmentManager from "./DepartmentManager";
 
+export const dynamic = "force-dynamic";
+
 export default async function DepartmentsManagementPage() {
-  const supabase = await createClient();
-  
-  const { data: departmentsData, error } = await supabase
-    .from("departments")
-    .select("*")
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  const { rows: departmentsData } = await query("SELECT * FROM departments ORDER BY sort_order ASC, name ASC");
 
   // Get player counts
-  const { data: profiles } = await supabase.from("profiles").select("department");
+  const { rows: profiles } = await query<{ department: string | null }>("SELECT department FROM profiles");
   
   const departmentCounts: Record<string, number> = {};
   if (profiles) {

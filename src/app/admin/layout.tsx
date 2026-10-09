@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Brain, LayoutDashboard, Users, UserPlus, HelpCircle, Settings, LogOut, BarChart } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { destroySession, getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 
 import AdminMobileMenu from "./AdminMobileMenu";
@@ -10,18 +11,14 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const { rows } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = rows[0];
 
   if (profile?.role !== "admin") {
     redirect("/dashboard");
@@ -29,8 +26,7 @@ export default async function AdminLayout({
 
   const handleSignOut = async () => {
     "use server";
-    const supabase = await createClient();
-    await supabase.auth.signOut();
+    await destroySession();
     redirect("/login");
   };
 

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import bcrypt from "bcryptjs";
+import { createSession, createUser } from "@/lib/auth";
 
 export async function signup(formData: FormData) {
   const rawEmail = formData.get("email") as string;
@@ -41,27 +42,15 @@ export async function signup(formData: FormData) {
   }
 
 
-  const supabase = await createClient();
-
-  const { data: authData, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        department: department,
-        position: position,
-      },
-    },
-  });
-
-  if (error) {
-    redirect("/register?error=" + encodeURIComponent(error.message));
-  }
-
-  if (!authData.session) {
-    // Email confirmation is required
-    redirect("/login?message=" + encodeURIComponent("Account created! Please check your email to verify your account."));
+  try {
+    const passwordHash = await bcrypt.hash(password, 12);
+    const userId = await createUser({ email, passwordHash, fullName, department, position });
+    await createSession(userId);
+  } catch (error) {
+    const message = error instanceof Error && error.message.includes("duplicate")
+      ? "An account with this email already exists."
+      : "Unable to create your account. Please try again.";
+    redirect("/register?error=" + encodeURIComponent(message));
   }
 
   revalidatePath("/", "layout");

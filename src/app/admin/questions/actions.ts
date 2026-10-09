@@ -1,20 +1,17 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function addCompanyTrivia(formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) throw new Error("Unauthorized");
   
   // Verify admin status
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
 
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
@@ -58,38 +55,19 @@ export async function addCompanyTrivia(formData: FormData) {
   const targetDate = targetDateRaw ? targetDateRaw : null;
   const dept = department || "General";
 
-  const { error } = await supabase
-    .from("company_trivia")
-    .insert({
-      game_slug: gameSlug,
-      question,
-      options: finalOptions,
-      correct_answer: finalCorrectAnswer,
-      target_date: targetDate,
-      department: dept,
-      is_active: true
-    });
-
-  if (error) {
-    console.error("Failed to add trivia:", error);
-    throw new Error(error.message);
-  }
+  await query("INSERT INTO company_trivia (game_slug, question, options, correct_answer, target_date, department, is_active) VALUES ($1, $2, $3, $4, $5, $6, true)", [gameSlug, question, JSON.stringify(finalOptions), finalCorrectAnswer, targetDate, dept]);
 
   revalidatePath("/admin/questions");
 }
 
 export async function editCompanyTrivia(formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) throw new Error("Unauthorized");
   
   // Verify admin status
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
 
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
@@ -134,52 +112,35 @@ export async function editCompanyTrivia(formData: FormData) {
   const targetDate = targetDateRaw ? targetDateRaw : null;
   const dept = department || "General";
 
-  const { error } = await supabase
-    .from("company_trivia")
-    .update({
-      game_slug: gameSlug,
-      question,
-      options: finalOptions,
-      correct_answer: finalCorrectAnswer,
-      target_date: targetDate,
-      department: dept
-    })
-    .eq("id", id);
-
-  if (error) {
-    console.error("Failed to edit trivia:", error);
-    throw new Error(error.message);
-  }
+  await query("UPDATE company_trivia SET game_slug = $1, question = $2, options = $3, correct_answer = $4, target_date = $5, department = $6 WHERE id = $7", [gameSlug, question, JSON.stringify(finalOptions), finalCorrectAnswer, targetDate, dept, id]);
 
   revalidatePath("/admin/questions");
 }
 
 export async function deleteTrivia(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
   // Admin only
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  const { error } = await supabase.from("company_trivia").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await query("DELETE FROM company_trivia WHERE id = $1", [id]);
 
   revalidatePath("/admin/questions");
 }
 
 export async function toggleTriviaStatus(id: string, currentStatus: boolean) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
   // Admin only
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  const { error } = await supabase.from("company_trivia").update({ is_active: !currentStatus }).eq("id", id);
-  if (error) throw new Error(error.message);
+  await query("UPDATE company_trivia SET is_active = $1 WHERE id = $2", [!currentStatus, id]);
 
   revalidatePath("/admin/questions");
 }

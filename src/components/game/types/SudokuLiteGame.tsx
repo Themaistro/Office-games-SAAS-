@@ -53,7 +53,7 @@ function generateSudoku(difficulty: 'easy' | 'medium' | 'hard' = 'medium') {
   const bands = [0, 1, 2];
   shuffle(bands);
   const newBoardRows = [];
-  for (let b of bands) {
+  for (const b of bands) {
     newBoardRows.push(board[b * 2], board[b * 2 + 1]);
   }
   board = newBoardRows;
@@ -180,7 +180,7 @@ export default function SudokuLiteGame({ question, onAnswer, isSubmitting, showH
     setHintUsed(true);
 
     // Find an empty cell or an incorrect cell
-    let emptyCells: [number, number][] = [];
+    const emptyCells: [number, number][] = [];
     for (let r = 0; r < 6; r++) {
       for (let c = 0; c < 6; c++) {
         if (board[r][c] === null || board[r][c] !== solution[r][c]) {

@@ -1,23 +1,20 @@
-import { createClient } from "@/lib/supabase/server";
+import { destroySession, getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import NavbarClient from "./NavbarClient";
 
 export default async function Navbar() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   let profile = null;
   if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    profile = data;
+    const { rows } = await query("SELECT * FROM profiles WHERE id = $1", [user.id]);
+    profile = rows[0] ?? null;
   }
 
   const handleSignOut = async () => {
     "use server";
-    const supabaseClient = await createClient();
-    await supabaseClient.auth.signOut();
+    await destroySession();
     redirect("/login");
   };
 

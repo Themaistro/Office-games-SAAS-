@@ -1,15 +1,16 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function addAnnouncement(formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   const message = formData.get("message") as string;
@@ -22,51 +23,35 @@ export async function addAnnouncement(formData: FormData) {
   }
 
   // Deactivate old ones if we only want one active at a time? Let's just leave it up to the admin to toggle them.
-  const { error } = await supabase
-    .from("announcements")
-    .insert({
-      message: message.trim(),
-      type: type,
-      cta_text: cta_text?.trim() || null,
-      cta_link: cta_link?.trim() || null,
-      is_active: true
-    });
-
-  if (error) throw new Error(error.message);
+  await query("INSERT INTO announcements (message, type, cta_text, cta_link, is_active) VALUES ($1, $2, $3, $4, true)", [message.trim(), type, cta_text?.trim() || null, cta_link?.trim() || null]);
 
   revalidatePath("/admin/announcements");
   revalidatePath("/dashboard");
 }
 
 export async function toggleAnnouncementStatus(id: string, isActive: boolean) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  const { error } = await supabase
-    .from("announcements")
-    .update({ is_active: !isActive })
-    .eq("id", id);
-    
-  if (error) throw new Error(error.message);
+  await query("UPDATE announcements SET is_active = $1 WHERE id = $2", [!isActive, id]);
 
   revalidatePath("/admin/announcements");
   revalidatePath("/dashboard");
 }
 
 export async function deleteAnnouncement(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  const { error } = await supabase.from("announcements").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await query("DELETE FROM announcements WHERE id = $1", [id]);
 
   revalidatePath("/admin/announcements");
   revalidatePath("/dashboard");

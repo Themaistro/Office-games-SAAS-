@@ -51,15 +51,19 @@ Daily Brain Arena is a corporate gamification platform designed to offer employe
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ```
 
-## Database Setup (Automated)
+## Database Setup
 
-The project includes an automated setup script that applies all schema migrations, RLS policies, and populates the database with hundreds of starter trivia questions and words.
+Run the SQL files in the Supabase SQL Editor in this order:
 
-1. Ensure your `.env.local` is fully configured.
-2. Run the database setup script:
-   ```bash
-   node db/scripts/setup_db.js
-   ```
+1. `db/migrations/schema.sql`
+2. Existing migrations `migration.sql` through `migration6_security_hardening.sql`
+3. `db/migrations/migration7_runtime_schema_reconciliation.sql`
+4. `db/migrations/migration8_question_history.sql`
+5. `db/migrations/migration9_connect_four.sql`
+
+Then load the required seed files from `db/seeds/`. The latest migrations are
+idempotent, but the original schema and seed files should only be applied to a
+new database or a database that has not already received them.
 
 ## Running Locally
 
@@ -73,10 +77,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 By default, all new users are employees. To create an admin account:
 1. Sign up normally via the UI.
-2. Either manually update your role in the Supabase `profiles` table to `'admin'`, OR run the included helper script:
-   ```bash
-   node db/scripts/make_admin.js your-email@example.com
-   ```
+2. Manually update the user's role in the Supabase `profiles` table to `'admin'`.
 
 ## Deployment to Vercel
 

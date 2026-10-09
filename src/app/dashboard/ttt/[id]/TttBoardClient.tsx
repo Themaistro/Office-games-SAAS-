@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Circle, X as XIcon, Trophy, User, Flag } from "lucide-react";
 import { makeTttMove, cancelTttGame, resignTttGame } from "../actions";
@@ -19,9 +18,7 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
   const [game, setGame] = useState<any>(initialGame);
   const [loadingAction, setLoadingAction] = useState(false);
   const [showResignConfirm, setShowResignConfirm] = useState(false);
-  const supabase = createClient();
   const router = useRouter();
-  const channelRef = React.useRef<any>(null);
 
   useEffect(() => {
     setGame(initialGame);
@@ -34,58 +31,18 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
   }, [game.status, game.winner_id, currentUserId, triggerConfetti]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`ttt_games_${game.id}`, {
-        config: { broadcast: { self: false }, presence: { key: currentUserId } }
-      })
-      .on('broadcast', { event: 'rematch_request' }, () => {
-        setRematchState("received");
-      })
-      .on('broadcast', { event: 'rematch_accepted' }, (payload) => {
-        setRematchState("loading");
-        router.push(`/dashboard/ttt/${payload.payload}`);
-      })
-      .on('broadcast', { event: 'move' }, (payload) => {
-        const index = payload.payload;
-        setGame((prev: any) => {
-          if (prev.board_state[index] !== '-') return prev;
-          const newBoard = prev.board_state.split("");
-          newBoard[index] = prev.current_turn;
-          return {
-            ...prev,
-            board_state: newBoard.join(""),
-            current_turn: prev.current_turn === "X" ? "O" : "X"
-          };
-        });
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ttt_games', filter: `id=eq.${game.id}` }, (payload) => {
-        const newRecord = payload.new;
-        setGame((prev: any) => {
-          if (prev.status === 'waiting' && newRecord.status === 'in_progress') {
-            setTimeout(() => router.refresh(), 0);
-          }
-          return { ...prev, ...newRecord };
-        });
-      })
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const opponentId = game.x_player_id === currentUserId ? game.o_player_id : game.x_player_id;
-        let isPresent = false;
-        for (const key in state) {
-           if (key === opponentId) isPresent = true;
-        }
-        setOpponentPresent(isPresent);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ user_id: currentUserId });
-        }
-      });
-
-    channelRef.current = channel;
-
-    return () => { supabase.removeChannel(channel); };
-  }, [game.id, router]);
+    if (["x_won", "o_won", "draw"].includes(game.status)) return;
+    const timer = window.setInterval(async () => {
+      const response = await fetch(`/api/ttt/${game.id}`, { cache: "no-store" });
+      if (response.ok) {
+        const next = await response.json();
+        setGame(next);
+        setOpponentPresent(Boolean(next.x_player_id && next.o_player_id));
+        if (game.status === "waiting" && next.status === "in_progress") router.refresh();
+      }
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [game.id, game.status, router]);
 
   const isX = game.x_player_id === currentUserId;
   const isO = game.o_player_id === currentUserId;
@@ -101,13 +58,6 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
     const newBoard = game.board_state.split("");
     newBoard[index] = mySymbol;
     setGame({ ...game, board_state: newBoard.join(""), current_turn: mySymbol === "X" ? "O" : "X" });
-
-    // Broadcast move immediately to opponent
-    channelRef.current?.send({
-      type: 'broadcast',
-      event: 'move',
-      payload: index
-    });
 
     setLoadingAction(true);
     try {
@@ -125,22 +75,12 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
 
   const handleRequestRematch = () => {
     setRematchState("requested");
-    channelRef.current?.send({
-      type: 'broadcast',
-      event: 'rematch_request',
-      payload: currentUserId
-    });
   };
 
   const handleAcceptRematch = async () => {
     setRematchState("loading");
     try {
       const createdId = await createTttRematch(game.id);
-      channelRef.current?.send({
-        type: 'broadcast',
-        event: 'rematch_accepted',
-        payload: createdId
-      });
       router.push(`/dashboard/ttt/${createdId}`);
     } catch (e: any) {
       console.error(e);

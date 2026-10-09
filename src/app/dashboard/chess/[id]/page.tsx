@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import ChessBoardClient from "./ChessBoardClient";
 import { ArrowLeft } from "lucide-react";
@@ -10,31 +11,23 @@ export const revalidate = 0;
 export default async function ChessGamePage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const gameId = params.id;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, full_name, avatar_url, chess_elo')
-    .eq('id', user.id)
-    .single();
+  const [{ rows: profiles }, { rows: games }] = await Promise.all([
+    query<any>("SELECT id, full_name, avatar_url, chess_elo FROM profiles WHERE id = $1", [user.id]),
+    query<any>(`SELECT g.*, jsonb_build_object('id', w.id, 'full_name', w.full_name, 'avatar_url', w.avatar_url, 'chess_elo', w.chess_elo) AS white,
+      jsonb_build_object('id', b.id, 'full_name', b.full_name, 'avatar_url', b.avatar_url, 'chess_elo', b.chess_elo) AS black
+      FROM chess_games g LEFT JOIN profiles w ON w.id = g.white_player_id LEFT JOIN profiles b ON b.id = g.black_player_id WHERE g.id = $1`, [gameId]),
+  ]);
+  const profile = profiles[0];
+  const game = games[0];
 
-  const { data: game, error } = await supabase
-    .from("chess_games")
-    .select(`
-      *,
-      white:profiles!chess_games_white_player_id_fkey ( id, full_name, avatar_url, chess_elo ),
-      black:profiles!chess_games_black_player_id_fkey ( id, full_name, avatar_url, chess_elo )
-    `)
-    .eq("id", gameId)
-    .single();
-
-  if (error || !game) {
-    console.error("Error fetching game:", error);
+  if (!game) {
+    console.error("Error fetching game");
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Game Not Found</h1>
@@ -69,11 +62,7 @@ export default async function ChessGamePage(props: { params: Promise<{ id: strin
         playerColor = "black";
       }
 
-      // Need service role to bypass RLS
-      const { createClient: createSupabaseAdmin } = await import('@supabase/supabase-js');
-      const adminClient = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-      
-      await adminClient.from("chess_games").update(updateData).eq("id", gameId);
+      await query("UPDATE chess_games SET status = 'in_progress', white_player_id = COALESCE(white_player_id, $1), black_player_id = COALESCE(black_player_id, $2), updated_at = now(), last_move_timestamp = now() WHERE id = $3 AND status = 'waiting'", [updateData.white_player_id ?? null, updateData.black_player_id ?? null, gameId]);
 
       // Update local game object so child component has the new player
       if (playerColor === "white") {

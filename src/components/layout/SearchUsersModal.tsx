@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Search, X, User, ArrowRight } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
@@ -27,16 +26,8 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
         return;
       }
       setIsSearching(true);
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, full_name, department, avatar_url, role")
-        .ilike("full_name", `%${query}%`)
-        .eq("role", "employee")
-        .order("full_name", { ascending: true })
-        .limit(10);
-      
-      setResults(data || []);
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+      setResults(response.ok ? await response.json() : []);
       setIsSearching(false);
     };
 

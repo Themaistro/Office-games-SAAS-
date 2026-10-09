@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Activity, Trophy, Swords, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
@@ -21,48 +20,19 @@ type FeedItem = {
 
 export default function LiveActivityFeed() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  const supabase = createClient();
-
   useEffect(() => {
     fetchFeed();
-
-    const channel = supabase
-      .channel("public:activity_feed")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_feed" }, (payload) => {
-        // Fetch the user's profile for the new payload, since the raw payload doesn't join
-        fetchProfileForNewItem(payload.new as FeedItem);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const timer = window.setInterval(fetchFeed, 5000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const fetchFeed = async () => {
-    const { data } = await supabase
-      .from("activity_feed")
-      .select(`
-        *,
-        profiles (full_name, avatar_url)
-      `)
-      .order("created_at", { ascending: false })
-      .limit(20);
-      
-    if (data) setFeed(data);
+    const response = await fetch("/api/activity", { cache: "no-store" });
+    if (response.ok) setFeed(await response.json());
   };
 
   const fetchProfileForNewItem = async (item: FeedItem) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("full_name, avatar_url")
-      .eq("id", item.user_id)
-      .single();
-      
-    if (data) {
-      const newItem = { ...item, profiles: data };
-      setFeed((prev) => [newItem, ...prev].slice(0, 20));
-    }
+    setFeed((prev) => [item, ...prev].slice(0, 20));
   };
 
   const getIcon = (type: string) => {

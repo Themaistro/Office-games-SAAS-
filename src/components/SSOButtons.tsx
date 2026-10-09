@@ -1,21 +1,7 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
-
 export default function SSOButtons() {
-  const supabase = createClient();
-
-  const handleGoogleLogin = async () => {
-    // Dynamically get the current URL (works for localhost and production)
-    const redirectUrl = `${window.location.origin}/auth/callback`;
-
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: redirectUrl,
-      },
-    });
-  };
+  const handleGoogleLogin = () => { window.location.href = "/auth/google"; };
 
   return (
     <div className="grid grid-cols-1 gap-4 animate-in fade-in duration-1000 delay-500 fill-mode-both">

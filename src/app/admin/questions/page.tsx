@@ -1,17 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 import { addCompanyTrivia, deleteTrivia, toggleTriviaStatus, editCompanyTrivia } from "./actions";
 import TriviaManager from "./TriviaManager";
 
 export const dynamic = 'force-dynamic';
 
 export default async function QuestionsManagementPage() {
-  const supabase = await createClient();
-  
   // Fetch existing scheduled trivia
-  const { data: trivia, error } = await supabase
-    .from("company_trivia")
-    .select("*")
-    .order("target_date", { ascending: true, nullsFirst: true });
+  const { rows: trivia } = await query("SELECT * FROM company_trivia ORDER BY target_date ASC NULLS FIRST");
 
   // Wrapper functions for actions to match the client component signature
   const handleDelete = async (id: string) => {
@@ -25,17 +20,10 @@ export default async function QuestionsManagementPage() {
   };
 
   // Fetch game types for custom questions
-  const { data: gameTypes } = await supabase
-    .from("game_types")
-    .select("slug, name")
-    .eq("is_active", true);
+  const { rows: gameTypes } = await query<{ slug: string; name: string }>("SELECT slug, name FROM game_types WHERE is_active = true");
 
   // Fetch departments for target filtering
-  const { data: departments } = await supabase
-    .from("departments")
-    .select("name")
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true, nullsFirst: false });
+  const { rows: departments } = await query<{ name: string }>("SELECT name FROM departments WHERE is_active = true ORDER BY sort_order ASC NULLS LAST");
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">

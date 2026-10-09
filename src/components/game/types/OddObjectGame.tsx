@@ -18,8 +18,8 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
   const emojiSize = cols >= 9 ? 'text-xl sm:text-3xl' : cols >= 7 ? 'text-2xl sm:text-4xl' : 'text-3xl sm:text-5xl';
 
   useEffect(() => {
-    let baseEmoji = question?.content?.even || "🍎";
-    let oddEmoji = question?.content?.odd || "🍅";
+    const baseEmoji = question?.content?.even || "🍎";
+    const oddEmoji = question?.content?.odd || "🍅";
 
     const oddIndex = Math.floor(Math.random() * gridSize);
     

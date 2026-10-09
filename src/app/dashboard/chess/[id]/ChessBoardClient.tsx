@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
-import { createClient } from "@/lib/supabase/client";
 import { updateChessGameState, resignChessGame, drawChessGame, declareChessTimeout, cancelChessGame } from "../actions";
 import { Loader2, Flag, Handshake, Send, Eye, User, X as XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -78,9 +77,8 @@ export default function ChessBoardClient({
 
   const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
 
-  const supabase = createClient();
-  const channelRef = useRef<any>(null);
   const router = useRouter();
+  const channelRef = useRef<{ send: (payload: unknown) => void } | null>(null);
 
   // Material Calculation
   const getMaterialAdvantage = (fenString: string) => {
@@ -160,107 +158,19 @@ export default function ChessBoardClient({
   }, [gameStatus, fen, chess]);
 
   useEffect(() => {
-    if (!game.id) return;
-
-    const channel = supabase.channel(`chess_game_${game.id}`, {
-      config: { presence: { key: currentUserId } }
-    });
-
-    channelRef.current = channel;
-
-    channel
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState();
-        
-        let opponentFound = false;
-        const currentSpectators: any[] = [];
-        
-        Object.keys(state).forEach((key) => {
-          const presenceState: any = state[key][0]; // latest presence for this user
-          
-          if (presenceState.user_id !== currentUserId) {
-            if (presenceState.role === "white" || presenceState.role === "black") {
-              opponentFound = true;
-            } else if (presenceState.role === "spectator") {
-              currentSpectators.push(presenceState);
-            }
-          }
-        });
-        
-        setIsOpponentConnected(opponentFound);
-        setSpectators(currentSpectators);
-
-        if (Object.keys(state).length > 1 && gameStatus === "waiting") {
-          router.refresh();
-        }
-      })
-      .on("broadcast", { event: "move" }, (payload) => {
-        const move = payload.payload;
-        try {
-          const res = chess.move(move);
-          if (res) {
-            setFen(chess.fen());
-            playSound();
-            if (chess.isGameOver()) {
-              if (chess.isCheckmate()) setGameStatus(chess.turn() === "w" ? "black_won" : "white_won");
-              else setGameStatus("draw");
-            }
-          }
-        } catch (e) {
-          // Ignore invalid moves (e.g. self-broadcasts)
-        }
-      })
-      .on("broadcast", { event: "offer_draw" }, (payload) => {
-        setDrawOfferedBy(payload.payload.color);
-      })
-      .on("broadcast", { event: "decline_draw" }, () => {
-        setDrawOfferedBy(null);
-      })
-      .on("broadcast", { event: "chat" }, (payload) => {
-        setChatMessages(prev => [...prev, payload.payload]);
-      })
-      .on("postgres_changes", {
-        event: "UPDATE",
-        schema: "public",
-        table: "chess_games",
-        filter: `id=eq.${game.id}`
-      }, (payload) => {
-        const newRecord = payload.new;
-        let needsRefresh = false;
-
-        if (newRecord.status !== gameStatus) {
-          setGameStatus(newRecord.status);
-          needsRefresh = true;
-        }
-
-        if (newRecord.white_time_ms !== whiteTimeMs) setWhiteTimeMs(newRecord.white_time_ms);
-        if (newRecord.black_time_ms !== blackTimeMs) setBlackTimeMs(newRecord.black_time_ms);
-
-        if (newRecord.pgn && newRecord.pgn !== chess.pgn()) {
-          chess.loadPgn(newRecord.pgn);
-          setFen(chess.fen());
-        }
-
-        if (needsRefresh) {
-          router.refresh();
-        }
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ 
-            online_at: new Date().toISOString(),
-            user_id: currentUserId,
-            role: playerColor,
-            full_name: currentUserProfile.full_name,
-            avatar_url: currentUserProfile.avatar_url
-          });
-        }
-      });
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [game.id, currentUserId, supabase]);
+    if (!game.id || ["white_won", "black_won", "draw"].includes(gameStatus)) return;
+    const timer = window.setInterval(async () => {
+      const response = await fetch(`/api/chess/${game.id}`, { cache: "no-store" });
+      if (!response.ok) return;
+      const next = await response.json();
+      if (next.status !== gameStatus) { setGameStatus(next.status); router.refresh(); }
+      if (next.white_time_ms !== whiteTimeMs) setWhiteTimeMs(next.white_time_ms);
+      if (next.black_time_ms !== blackTimeMs) setBlackTimeMs(next.black_time_ms);
+      if (next.pgn && next.pgn !== chess.pgn()) { chess.loadPgn(next.pgn); setFen(chess.fen()); }
+      setIsOpponentConnected(Boolean(next.white_player_id && next.black_player_id));
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [game.id, gameStatus, router, chess, whiteTimeMs, blackTimeMs]);
 
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
 

@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Play, Flame, Shield, Trophy, User } from "lucide-react";
 import Link from "next/link";
@@ -14,19 +15,15 @@ import OfficeWorldJourney from "@/components/dashboard/OfficeWorldJourney";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login");
   }
 
   // Fetch profile data
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+  const { rows: profileRows } = await query("SELECT * FROM profiles WHERE id = $1 LIMIT 1", [user.id]);
+  const profile = profileRows[0] as any;
 
   // If the user is an admin, they should not see the employee dashboard.
   if (profile?.role === "admin") {
@@ -34,72 +31,40 @@ export default async function DashboardPage() {
   }
 
   // Fetch the most recent session for this user
-  const { data: latestSession } = await supabase
-    .from("daily_sessions")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { rows: latestRows } = await query("SELECT * FROM daily_sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [user.id]);
+  const latestSession = latestRows[0] as any;
 
-  const { data: activeGames } = await supabase
-    .from("game_types")
-    .select("id")
-    .eq("is_active", true);
-
-  const { data: announcements } = await supabase
-    .from("announcements")
-    .select("*")
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
+  const { rows: activeGames } = await query("SELECT id FROM game_types WHERE is_active = true");
+  const { rows: announcements } = await query("SELECT * FROM announcements WHERE is_active = true ORDER BY created_at DESC");
 
   // Calculate Rank
   let userRank = "--";
   if (profile) {
-    const { count: higherXpCount } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .neq("role", "admin")
-      .gt("total_xp", profile.total_xp || 0);
+    const { rows: higherRows } = await query("SELECT count(*)::int AS count FROM profiles WHERE role <> 'admin' AND total_xp > $1", [profile.total_xp || 0]);
+    const higherXpCount = higherRows[0]?.count || 0;
       
     let tieBreakerCount = 0;
     if (profile.full_name) {
-      const { count } = await supabase
-        .from("profiles")
-        .select("id", { count: "exact", head: true })
-        .neq("role", "admin")
-        .eq("total_xp", profile.total_xp || 0)
-        .lt("full_name", profile.full_name);
-      tieBreakerCount = count || 0;
+      const { rows: tieRows } = await query("SELECT count(*)::int AS count FROM profiles WHERE role <> 'admin' AND total_xp = $1 AND full_name < $2", [profile.total_xp || 0, profile.full_name]);
+      tieBreakerCount = tieRows[0]?.count || 0;
     }
 
     userRank = ((higherXpCount || 0) + tieBreakerCount + 1).toString();
   }
 
   // Fetch top 5 leaderboard
-  const { data: topProfiles } = await supabase
-    .from("profiles")
-    .select("full_name, total_xp, current_level, email, avatar_url")
-    .neq("role", "admin")
-    .order("total_xp", { ascending: false })
-    .order("full_name", { ascending: true, nullsFirst: false })
-    .limit(5);
+  const { rows: topProfiles } = await query("SELECT full_name, total_xp, current_level, email, avatar_url FROM profiles WHERE role <> 'admin' ORDER BY total_xp DESC, full_name ASC NULLS LAST LIMIT 5");
 
   // Fetch user's recent activity
-  const { data: recentActivity } = await supabase
-    .from("daily_sessions")
-    .select("created_at, total_score, total_xp_earned")
-    .eq("user_id", user.id)
-    .eq("is_completed", true)
-    .order("created_at", { ascending: false })
-    .limit(3);
+  const { rows: recentActivity } = await query("SELECT created_at, total_score, total_xp_earned FROM daily_sessions WHERE user_id = $1 AND is_completed = true ORDER BY created_at DESC LIMIT 3", [user.id]);
 
   // Force dynamic rendering to ensure fresh data
   const isCompleted = latestSession?.is_completed || latestSession?.status === "completed" || latestSession?.status === "expired";
   const isInProgress = latestSession && !isCompleted;
   
   // Fetch system settings for cooldown
-  const { data: settings } = await supabase.from("system_settings").select("cooldown_hours").maybeSingle();
+  const { rows: settingsRows } = await query("SELECT cooldown_hours FROM system_settings LIMIT 1");
+  const settings = settingsRows[0] as any;
   const cooldownHours = settings?.cooldown_hours ?? 24;
 
   let isInCooldown = false;

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Swords, X as XIcon, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { joinChessGame, cancelChessGame } from "@/app/dashboard/chess/actions";
@@ -29,125 +28,20 @@ type OpenGame = {
 export default function UnifiedLobbiesWidget({ currentUserId }: { currentUserId: string }) {
   const [games, setGames] = useState<OpenGame[]>([]);
   const [joiningId, setJoiningId] = useState<string | null>(null);
-  const supabase = createClient();
   const router = useRouter();
 
   useEffect(() => {
     fetchGames();
 
-    const handleGameChange = () => {
-      setTimeout(() => fetchGames(), 500);
-    };
-
-    const chessChannel = supabase
-      .channel('public:chess_games')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_games' }, handleGameChange)
-      .subscribe();
-
-    const tttChannel = supabase
-      .channel('public:ttt_games')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ttt_games' }, handleGameChange)
-      .subscribe();
-
-    const connectFourChannel = supabase
-      .channel('public:connect_four_games')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'connect_four_games' }, handleGameChange)
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(chessChannel);
-      supabase.removeChannel(tttChannel);
-      supabase.removeChannel(connectFourChannel);
-    };
+    const timer = window.setInterval(fetchGames, 3000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const fetchGames = async () => {
-    const { data: chessData } = await supabase
-      .from('chess_games')
-      .select(`
-        id, 
-        white_player_id, 
-        black_player_id,
-        status,
-        created_at, 
-        white_profile:profiles!chess_games_white_player_id_fkey(full_name, avatar_url, chess_elo),
-        black_profile:profiles!chess_games_black_player_id_fkey(full_name, avatar_url, chess_elo)
-      `)
-      .in('status', ['waiting', 'in_progress'])
-      .order('created_at', { ascending: false })
-      .limit(30);
-
-    const { data: tttData } = await supabase
-      .from('ttt_games')
-      .select(`
-        id, 
-        x_player_id, 
-        o_player_id,
-        status,
-        created_at, 
-        x_profile:profiles!ttt_games_x_player_id_fkey(full_name, avatar_url, ttt_elo),
-        o_profile:profiles!ttt_games_o_player_id_fkey(full_name, avatar_url, ttt_elo)
-      `)
-      .in('status', ['waiting', 'in_progress'])
-      .order('created_at', { ascending: false })
-      .limit(30);
-
-    const openGames: OpenGame[] = [];
-
-    if (chessData) {
-      chessData.forEach((g: any) => {
-        const creatorId = g.white_player_id || g.black_player_id;
-        const profile = g.white_profile || g.black_profile;
-        openGames.push({
-          id: g.id,
-          creator_id: creatorId,
-          player1_id: g.white_player_id,
-          player2_id: g.black_player_id,
-          game_type: "chess",
-          created_at: g.created_at,
-          status: g.status,
-          profiles: profile
-        });
-      });
-    }
-
-    if (tttData) {
-      tttData.forEach((g: any) => {
-        const creatorId = g.x_player_id || g.o_player_id;
-        const profile = g.x_profile || g.o_profile;
-        openGames.push({
-          id: g.id,
-          creator_id: creatorId,
-          player1_id: g.x_player_id,
-          player2_id: g.o_player_id,
-          game_type: "ttt",
-          created_at: g.created_at,
-          status: g.status,
-          profiles: profile
-        });
-      });
-    }
-
-    const { data: connectFourData } = await supabase
-      .from('connect_four_games')
-      .select(`id, red_player_id, yellow_player_id, status, created_at, red:profiles!connect_four_games_red_player_id_fkey(full_name, avatar_url), yellow:profiles!connect_four_games_yellow_player_id_fkey(full_name, avatar_url)`)
-      .in('status', ['waiting', 'in_progress'])
-      .order('created_at', { ascending: false })
-      .limit(30);
-
-    connectFourData?.forEach((g: any) => openGames.push({
-      id: g.id,
-      creator_id: g.red_player_id || g.yellow_player_id,
-      player1_id: g.red_player_id,
-      player2_id: g.yellow_player_id,
-      game_type: 'connect-four',
-      created_at: g.created_at,
-      status: g.status,
-      profiles: g.red || g.yellow,
-    }));
-
-    openGames.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    setGames(openGames);
+    const response = await fetch('/api/lobbies', { cache: 'no-store' });
+    const data = response.ok ? await response.json() : [];
+    setGames(data);
+    return;
   };
 
   const handleJoin = async (gameId: string, gameType: "chess" | "ttt" | "connect-four") => {

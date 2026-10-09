@@ -1,7 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 import { toggleGameStatus, updateGameRounds } from "../actions";
 import { Shield } from "lucide-react";
 import GamesClient from "./GamesClient";
+
+export const dynamic = "force-dynamic";
 
 const GAME_CATEGORIES: Record<string, string[]> = {
   "Logic & Problem Solving": ["logic", "sudoku_lite", "odd_object", "sudoku-lite", "odd-object"],
@@ -18,15 +20,11 @@ const getCategory = (slug: string) => {
 };
 
 export default async function AdminGamesPage() {
-  const supabase = await createClient();
-
   // 1. Fetch all games
-  const { data: games } = await supabase.from("game_types").select("*").order("name");
+  const { rows: games } = await query("SELECT * FROM game_types ORDER BY name");
   
   // 2. Fetch question counts
-  const { data: questionCounts } = await supabase
-    .from("questions")
-    .select("game_type_id");
+  const { rows: questionCounts } = await query<{ game_type_id: string }>("SELECT game_type_id FROM questions");
 
   // Calculate counts per game
   const countsMap: Record<string, number> = {};

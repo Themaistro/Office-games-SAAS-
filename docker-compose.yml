@@ -1,25 +1,55 @@
-version: '3.8'
-
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: daily-brain-arena-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-daily_brain_arena}
+      POSTGRES_USER: ${POSTGRES_USER:-brain_arena}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/local/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - ./db/migrations/schema.sql:/docker-entrypoint-initdb.d/010_schema.sql:ro
+      - ./db/local/002_identity.sql:/docker-entrypoint-initdb.d/020_identity.sql:ro
+      - ./db/local/003_application_tables.sql:/docker-entrypoint-initdb.d/030_application_tables.sql:ro
+      - ./db/migrations/migration2.sql:/docker-entrypoint-initdb.d/040_migration2.sql:ro
+      - ./db/migrations/migration3_departments.sql:/docker-entrypoint-initdb.d/050_migration3.sql:ro
+      - ./db/migrations/migration4_announcements_tier1.sql:/docker-entrypoint-initdb.d/060_migration4.sql:ro
+      - ./db/migrations/migration5_company_trivia.sql:/docker-entrypoint-initdb.d/070_migration5.sql:ro
+      - ./db/migrations/migration6_security_hardening.sql:/docker-entrypoint-initdb.d/080_migration6.sql:ro
+      - ./db/migrations/migration7_runtime_schema_reconciliation.sql:/docker-entrypoint-initdb.d/090_migration7.sql:ro
+      - ./db/migrations/migration8_question_history.sql:/docker-entrypoint-initdb.d/100_migration8.sql:ro
+      - ./db/migrations/migration9_connect_four.sql:/docker-entrypoint-initdb.d/110_migration9.sql:ro
+      - ./db/migrations/fix_rls_policies.sql:/docker-entrypoint-initdb.d/120_fix_rls.sql:ro
+      - ./db/migrations/fix_questions_rls.sql:/docker-entrypoint-initdb.d/130_fix_questions_rls.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-brain_arena} -d ${POSTGRES_DB:-daily_brain_arena}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   daily-brain-arena:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        # Note: These MUST be provided during build time for Next.js to bake them into the client bundle
-        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     image: daily-brain-arena:latest
     container_name: daily-brain-arena
     restart: always
     ports:
       - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       # These are used at runtime
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://brain_arena:change-me-local-only@postgres:5432/daily_brain_arena}
       - NODE_ENV=production
     # If using a `.env` file, uncomment the line below:
     # env_file:
     #   - .env
+
+volumes:
+  postgres_data:

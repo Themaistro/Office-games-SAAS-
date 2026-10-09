@@ -1,22 +1,27 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 export async function POST() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (user) {
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    
-    if (profile?.role === "admin") {
-      // 1. Delete incomplete daily sessions
-      await supabase.from("daily_sessions").delete().eq("is_completed", false).eq("user_id", user.id);
-      
-      // 2. Break the current streak since they forfeited
-      await supabase.from("profiles").update({ current_streak: 0 }).eq("id", user.id);
-    } else {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
+
+  if (profile?.role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  // Delete only this administrator's incomplete session and break their streak.
+  try {
+    await query("DELETE FROM daily_sessions WHERE is_completed = false AND user_id = $1", [user.id]);
+    await query("UPDATE profiles SET current_streak = 0 WHERE id = $1", [user.id]);
+  } catch {
+    return NextResponse.json({ error: "Unable to reset session" }, { status: 500 });
   }
   
   // Also redirect them back to the dashboard so they can start a fresh session

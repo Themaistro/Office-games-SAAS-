@@ -1,32 +1,20 @@
 import { Users, Target, Activity, Flame } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 import ParticipationChart from "./ParticipationChart";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
-  const supabase = await createClient();
-  
   // 1. Total Employees
-  const { count: totalEmployees } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .eq("role", "employee");
+  const { rows: employeeCountRows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM profiles WHERE role = 'employee'");
+  const totalEmployees = employeeCountRows[0]?.count ?? 0;
 
   // 2. Highest Streak
-  const { data: topStreakUser } = await supabase
-    .from("profiles")
-    .select("full_name, department, current_streak")
-    .eq("role", "employee")
-    .order("current_streak", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { rows: topStreakRows } = await query("SELECT full_name, department, current_streak FROM profiles WHERE role = 'employee' ORDER BY current_streak DESC LIMIT 1");
+  const topStreakUser = topStreakRows[0] as any;
 
   // 3. Department Aggregation
-  const { data: allProfiles } = await supabase
-    .from("profiles")
-    .select("department, total_xp")
-    .eq("role", "employee")
-    .not("department", "is", null)
-    .limit(10000); // FIX: Increase limit to handle larger organizations
+  const { rows: allProfiles } = await query<{ department: string | null; total_xp: number }>("SELECT department, total_xp FROM profiles WHERE role = 'employee' AND department IS NOT NULL LIMIT 10000");
 
   const deptStats: Record<string, { totalXp: number, count: number }> = {};
   if (allProfiles) {
@@ -49,10 +37,8 @@ export default async function AdminDashboardPage() {
 
   // 4. Daily Participation (Sessions today)
   const today = new Date().toISOString().split('T')[0];
-  const { count: sessionsToday } = await supabase
-    .from("daily_sessions")
-    .select("*", { count: "exact", head: true })
-    .eq("date", today);
+  const { rows: todayRows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM daily_sessions WHERE date = $1", [today]);
+  const sessionsToday = todayRows[0]?.count ?? 0;
     
   let participationRate = totalEmployees && totalEmployees > 0 && sessionsToday !== null 
     ? Math.round((sessionsToday / totalEmployees) * 100) 
@@ -60,10 +46,8 @@ export default async function AdminDashboardPage() {
   if (participationRate > 100) participationRate = 100; // Cap at 100% in case admins play
 
   // 5. Active Games Count
-  const { count: activeGamesCount } = await supabase
-    .from("game_types")
-    .select("*", { count: "exact", head: true })
-    .eq("is_active", true);
+  const { rows: activeGameRows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM game_types WHERE is_active = true");
+  const activeGamesCount = activeGameRows[0]?.count ?? 0;
 
   // 6. Participation Data for Chart (Last 7 days)
   const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -74,10 +58,7 @@ export default async function AdminDashboardPage() {
 
   const startDateStr = last7Days[0].toISOString().split('T')[0];
   
-  const { data: recentSessions } = await supabase
-    .from("daily_sessions")
-    .select("date")
-    .gte("date", startDateStr);
+  const { rows: recentSessions } = await query<{ date: string }>("SELECT date FROM daily_sessions WHERE date >= $1", [startDateStr]);
 
   const sessionsByDate = (recentSessions || []).reduce((acc, curr) => {
     acc[curr.date] = (acc[curr.date] || 0) + 1;

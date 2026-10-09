@@ -1,6 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -25,46 +26,40 @@ function winner(board: string[], token: string) {
 }
 
 async function player() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   return user;
 }
 
 export async function createConnectFourGame() {
   const user = await player();
-  const supabase = await createClient();
-  const { data, error } = await supabase.from("connect_four_games").insert({ red_player_id: user.id }).select("id").single();
-  if (error || !data) {
-    console.error("Connect Four creation failed", error);
-    throw new Error(error?.message || "Could not create Connect Four game");
-  }
-  redirect(`/dashboard/connect-four/${data.id}`);
+  const { rows } = await query<{ id: string }>("INSERT INTO connect_four_games (red_player_id) VALUES ($1) RETURNING id", [user.id]);
+  if (!rows[0]) throw new Error("Could not create Connect Four game");
+  redirect(`/dashboard/connect-four/${rows[0].id}`);
 }
 
 export async function joinConnectFourGame(gameId: string) {
   const user = await player();
-  const supabase = await createClient();
-  const { data: game } = await supabase.from("connect_four_games").select("red_player_id,yellow_player_id,status").eq("id", gameId).single();
+  const { rows: games } = await query<{ red_player_id: string; yellow_player_id: string | null; status: string }>("SELECT red_player_id, yellow_player_id, status FROM connect_four_games WHERE id = $1", [gameId]);
+  const game = games[0];
   if (!game || game.status !== "waiting" || game.red_player_id === user.id || game.yellow_player_id) throw new Error("Game is no longer available");
-  const { data } = await supabase.from("connect_four_games").update({ yellow_player_id: user.id, status: "in_progress", updated_at: new Date().toISOString() }).eq("id", gameId).eq("status", "waiting").is("yellow_player_id", null).select("id");
-  if (!data?.length) throw new Error("Game was just joined by someone else");
+  const { rowCount } = await query("UPDATE connect_four_games SET yellow_player_id = $1, status = 'in_progress', updated_at = now() WHERE id = $2 AND status = 'waiting' AND yellow_player_id IS NULL", [user.id, gameId]);
+  if (!rowCount) throw new Error("Game was just joined by someone else");
   revalidatePath("/dashboard");
   redirect(`/dashboard/connect-four/${gameId}`);
 }
 
 export async function cancelConnectFourGame(gameId: string) {
   const user = await player();
-  const supabase = await createClient();
-  await supabase.from("connect_four_games").delete().eq("id", gameId).eq("status", "waiting").or(`red_player_id.eq.${user.id},yellow_player_id.eq.${user.id}`);
+  await query("DELETE FROM connect_four_games WHERE id = $1 AND status = 'waiting' AND (red_player_id = $2 OR yellow_player_id = $2)", [gameId, user.id]);
   revalidatePath("/dashboard");
 }
 
 export async function makeConnectFourMove(gameId: string, column: number) {
   const user = await player();
   if (!Number.isInteger(column) || column < 0 || column >= WIDTH) throw new Error("Invalid column");
-  const supabase = await createClient();
-  const { data: game } = await supabase.from("connect_four_games").select("*").eq("id", gameId).single();
+  const { rows: games } = await query<any>("SELECT * FROM connect_four_games WHERE id = $1", [gameId]);
+  const game = games[0];
   if (!game || game.status !== "in_progress") throw new Error("Game is not active");
   const token = game.red_player_id === user.id ? "R" : game.yellow_player_id === user.id ? "Y" : null;
   if (!token || token !== game.current_turn) throw new Error("Not your turn");
@@ -77,7 +72,7 @@ export async function makeConnectFourMove(gameId: string, column: number) {
   const isDraw = !isWin && !board.includes("-");
   const status = isWin ? token === "R" ? "red_won" : "yellow_won" : isDraw ? "draw" : "in_progress";
   const nextTurn = token === "R" ? "Y" : "R";
-  const { data: updated } = await supabase.from("connect_four_games").update({ board_state: board.join(""), current_turn: nextTurn, status, updated_at: new Date().toISOString() }).eq("id", gameId).eq("status", "in_progress").eq("board_state", game.board_state).eq("current_turn", game.current_turn).select("id");
-  if (!updated?.length) throw new Error("Move rejected because the game changed");
+  const { rowCount } = await query("UPDATE connect_four_games SET board_state = $1, current_turn = $2, status = $3, updated_at = now() WHERE id = $4 AND status = 'in_progress' AND board_state = $5 AND current_turn = $6", [board.join(""), nextTurn, status, gameId, game.board_state, game.current_turn]);
+  if (!rowCount) throw new Error("Move rejected because the game changed");
   revalidatePath(`/dashboard/connect-four/${gameId}`);
 }

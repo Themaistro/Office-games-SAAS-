@@ -1,20 +1,17 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function addDepartment(formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) throw new Error("Unauthorized");
   
   // Verify admin status
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
 
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
@@ -23,94 +20,71 @@ export async function addDepartment(formData: FormData) {
     throw new Error("Department name is required.");
   }
 
-  const { error } = await supabase
-    .from("departments")
-    .insert({
-      name: name.trim(),
-      is_active: true
-    });
-
-  if (error) {
-    console.error("Failed to add department:", error);
-    throw new Error(error.message);
-  }
+  await query("INSERT INTO departments (name, is_active) VALUES ($1, true)", [name.trim()]);
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
 }
 
 export async function toggleDepartmentStatus(id: string, isActive: boolean) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  const { error } = await supabase
-    .from("departments")
-    .update({ is_active: !isActive })
-    .eq("id", id);
-    
-  if (error) throw new Error(error.message);
+  await query("UPDATE departments SET is_active = $1 WHERE id = $2", [!isActive, id]);
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
 }
 
 export async function deleteDepartment(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   // Safety check: Don't delete if users are in it
-  const { data: dept } = await supabase.from("departments").select("name").eq("id", id).single();
+  const { rows: deptRows } = await query<{ name: string }>("SELECT name FROM departments WHERE id = $1", [id]);
+  const dept = deptRows[0];
   if (!dept) throw new Error("Department not found");
 
-  const { count } = await supabase.from("profiles").select("*", { count: "exact", head: true }).eq("department", dept.name);
+  const { rows: countRows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM profiles WHERE department = $1", [dept.name]);
+  const count = countRows[0]?.count ?? 0;
   if (count && count > 0) {
     throw new Error(`Cannot delete: ${count} players are still assigned to this department.`);
   }
 
-  const { error } = await supabase.from("departments").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await query("DELETE FROM departments WHERE id = $1", [id]);
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
 }
 
 export async function renameDepartment(id: string, newName: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   const name = newName.trim();
   if (!name) throw new Error("Department name is required.");
 
-  const { data: oldDept } = await supabase.from("departments").select("name").eq("id", id).single();
+  const { rows: oldDeptRows } = await query<{ name: string }>("SELECT name FROM departments WHERE id = $1", [id]);
+  const oldDept = oldDeptRows[0];
   if (!oldDept) throw new Error("Department not found");
 
-  const { error } = await supabase
-    .from("departments")
-    .update({ name })
-    .eq("id", id);
-    
-  if (error) throw new Error(error.message);
+  await query("UPDATE departments SET name = $1 WHERE id = $2", [name, id]);
 
   // Cascade the rename to all users who had the old department name
   if (oldDept.name !== name) {
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update({ department: name })
-      .eq("department", oldDept.name);
-      
-    if (profileError) console.error("Failed to update profiles", profileError);
+    await query("UPDATE profiles SET department = $1 WHERE department = $2", [name, oldDept.name]);
   }
 
   revalidatePath("/admin/departments");
@@ -119,15 +93,15 @@ export async function renameDepartment(id: string, newName: string) {
 }
 
 export async function updateDepartmentSortOrder(updates: { id: string, sort_order: number }[]) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   for (const update of updates) {
-    await supabase.from("departments").update({ sort_order: update.sort_order }).eq("id", update.id);
+    await query("UPDATE departments SET sort_order = $1 WHERE id = $2", [update.sort_order, update.id]);
   }
 
   revalidatePath("/admin/departments");

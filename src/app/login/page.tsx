@@ -4,7 +4,7 @@ import Link from "next/link";
 import BouncingBackground from "@/components/BouncingBackground";
 import PasswordInput from "@/components/PasswordInput";
 import SSOButtons from "@/components/SSOButtons";
-import { createClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 
 export default async function LoginPage({
   searchParams,
@@ -13,14 +13,8 @@ export default async function LoginPage({
 }) {
   const resolvedParams = await searchParams;
   
-  // Fetch accurate user count from Supabase
-  const supabase = await createClient();
-  const { count } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-    .neq("role", "admin");
-    
-  const playersCount = count || 0;
+  const { rows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM profiles WHERE role <> 'admin'");
+  const playersCount = rows[0]?.count ?? 0;
   
   return (
     <div className="flex min-h-screen bg-background relative overflow-hidden">

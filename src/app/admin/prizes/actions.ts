@@ -1,15 +1,16 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function addPrize(formData: FormData) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   const title = formData.get("title") as string;
@@ -21,32 +22,22 @@ export async function addPrize(formData: FormData) {
   }
 
   // Delete any existing prize for this rank to ensure only one prize per position
-  await supabase.from("prizes").delete().eq("rank_requirement", rankRequirement);
-
-  const { error } = await supabase
-    .from("prizes")
-    .insert({
-      title: title.trim(),
-      icon_emoji: iconEmoji.trim(),
-      rank_requirement: rankRequirement
-    });
-
-  if (error) throw new Error(error.message);
+  await query("DELETE FROM prizes WHERE rank_requirement = $1", [rankRequirement]);
+  await query("INSERT INTO prizes (title, icon_emoji, rank_requirement) VALUES ($1, $2, $3)", [title.trim(), iconEmoji.trim(), rankRequirement]);
 
   revalidatePath("/admin/prizes");
   revalidatePath("/leaderboard");
 }
 
 export async function deletePrize(id: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  const { error } = await supabase.from("prizes").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await query("DELETE FROM prizes WHERE id = $1", [id]);
 
   revalidatePath("/admin/prizes");
   revalidatePath("/leaderboard");

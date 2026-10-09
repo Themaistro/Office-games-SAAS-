@@ -3,20 +3,22 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Circle, Loader2, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { cancelConnectFourGame, makeConnectFourMove } from "../actions";
 
 export default function ConnectFourClient({ initialGame, currentUserId }: { initialGame: any; currentUserId: string }) {
   const [game, setGame] = useState(initialGame);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
   const me = game.red_player_id === currentUserId ? "R" : game.yellow_player_id === currentUserId ? "Y" : null;
   const myTurn = me === game.current_turn && game.status === "in_progress";
   useEffect(() => {
-    const channel = supabase.channel(`connect_four_${game.id}`).on("postgres_changes", { event: "UPDATE", schema: "public", table: "connect_four_games", filter: `id=eq.${game.id}` }, (payload) => setGame((old: any) => ({ ...old, ...payload.new }))).subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [game.id, supabase]);
+    if (["red_won", "yellow_won", "draw", "cancelled"].includes(game.status)) return;
+    const timer = window.setInterval(async () => {
+      const response = await fetch(`/api/connect-four/${game.id}`, { cache: "no-store" });
+      if (response.ok) setGame(await response.json());
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [game.id, game.status]);
   const move = async (column: number) => { if (!myTurn || busy) return; setBusy(true); try { await makeConnectFourMove(game.id, column); } catch (e) { alert(e instanceof Error ? e.message : "Move failed"); } finally { setBusy(false); } };
   const over = ["red_won", "yellow_won", "draw"].includes(game.status);
   return <main className="max-w-3xl mx-auto py-8 px-4 space-y-6">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Brain, Target, Users, Zap, Trophy, ShieldCheck, ArrowRight, Sparkles } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -8,11 +9,11 @@ export const dynamic = "force-dynamic";
 export default async function LandingPage() {
   let redirectUrl = null;
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
     if (user) {
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      const { rows } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+      const profile = rows[0];
       if (profile?.role === "admin") {
         redirectUrl = "/admin";
       } else {
@@ -20,7 +21,7 @@ export default async function LandingPage() {
       }
     }
   } catch (e) {
-    console.error("Landing page Supabase error:", e);
+    console.error("Landing page database error:", e);
     // Continue to render landing page if db is down
   }
 

@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 
-import { createClient } from "@/lib/supabase/client";
 
 export function useDashboardTutorial() {
   useEffect(() => {
@@ -12,10 +11,8 @@ export function useDashboardTutorial() {
     if (localStorage.getItem("has_seen_dashboard_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("games_played").eq("id", user.id).single();
+      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const data = response.ok ? await response.json() : null;
       if (!data || data.games_played > 0) return;
 
       // Small delay to let DOM render (especially Navbar)
@@ -94,10 +91,8 @@ export function useGameTutorial() {
     if (localStorage.getItem("has_seen_game_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("games_played").eq("id", user.id).single();
+      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const data = response.ok ? await response.json() : null;
       if (!data || data.games_played > 0) return;
 
       const timeoutId = setTimeout(() => {
@@ -174,10 +169,8 @@ export function useProfileTutorial() {
     if (localStorage.getItem("has_seen_profile_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("games_played").eq("id", user.id).single();
+      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const data = response.ok ? await response.json() : null;
       if (!data || data.games_played > 0) return;
 
       const timeoutId = setTimeout(() => {
@@ -238,10 +231,8 @@ export function useLeaderboardTutorial() {
     if (localStorage.getItem("has_seen_leaderboard_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("games_played").eq("id", user.id).single();
+      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const data = response.ok ? await response.json() : null;
       if (!data || data.games_played > 0) return;
 
       const timeoutId = setTimeout(() => {
@@ -293,10 +284,8 @@ export function useChallengeTutorial() {
     if (localStorage.getItem("has_seen_challenge_tutorial_v2")) return;
 
     const checkFirstTime = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from("profiles").select("games_played").eq("id", user.id).single();
+      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const data = response.ok ? await response.json() : null;
       if (!data || data.games_played > 0) return;
 
       const timeoutId = setTimeout(() => {

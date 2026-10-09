@@ -1,16 +1,16 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { BarChart, Users, Target, Swords, Activity, TrendingUp } from "lucide-react";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AnalyticsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") redirect("/dashboard");
+  const { rows: adminProfiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  if (adminProfiles[0]?.role !== "admin") redirect("/dashboard");
 
   // Fetch DAU (Daily Active Users) over the last 30 days
   // Since we can't easily do a pure SQL GROUP BY in Supabase JS without a view or RPC,
@@ -18,10 +18,7 @@ export default async function AnalyticsPage() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
-  const { data: recentSessions } = await supabase
-    .from("daily_sessions")
-    .select("date, user_id")
-    .gte("date", thirtyDaysAgo.toISOString().split('T')[0]);
+  const { rows: recentSessions } = await query<{ date: string; user_id: string }>("SELECT date, user_id FROM daily_sessions WHERE date >= $1", [thirtyDaysAgo.toISOString().split('T')[0]]);
 
   // Group DAU
   const dauMap: Record<string, Set<string>> = {};
@@ -40,10 +37,7 @@ export default async function AnalyticsPage() {
   const todayDAU = dauChart.length > 0 ? dauChart[dauChart.length - 1].count : 0;
   
   // Fetch Department Stats
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("department, total_xp, current_level, role")
-    .eq("role", "employee");
+  const { rows: profiles } = await query<{ department: string | null; total_xp: number; current_level: number; role: string }>("SELECT department, total_xp, current_level, role FROM profiles WHERE role = 'employee'");
 
   const deptMap: Record<string, { users: number, totalXp: number }> = {};
   let totalEmployees = 0;
@@ -65,11 +59,7 @@ export default async function AnalyticsPage() {
     .sort((a, b) => b.avgXp - a.avgXp);
 
   // Fetch Chess Match Count (Last 30 days)
-  const { data: chessGames } = await supabase
-    .from("chess_games")
-    .select("created_at")
-    .in("status", ["white_won", "black_won", "draw"])
-    .gte("created_at", thirtyDaysAgo.toISOString());
+  const { rows: chessGames } = await query("SELECT created_at FROM chess_games WHERE status IN ('white_won', 'black_won', 'draw') AND created_at >= $1", [thirtyDaysAgo]);
 
   const chessMatchCount = chessGames?.length || 0;
 
@@ -78,10 +68,7 @@ export default async function AnalyticsPage() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const { data: sessionQuestions } = await supabase
-    .from("session_questions")
-    .select("game_type, is_correct, earned_xp")
-    .gte("created_at", sevenDaysAgo.toISOString());
+  const { rows: sessionQuestions } = await query<{ game_type: string; is_correct: boolean; earned_xp: number }>("SELECT game_type, is_correct, earned_xp FROM session_questions WHERE created_at >= $1", [sevenDaysAgo]);
 
   const gameMap: Record<string, { plays: number, correct: number, totalXp: number }> = {};
   sessionQuestions?.forEach(sq => {

@@ -1,15 +1,12 @@
-import { createClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 import { addAnnouncement, toggleAnnouncementStatus, deleteAnnouncement } from "./actions";
 import { Trash2, Power, PowerOff } from "lucide-react";
 import LiveAnnouncementForm from "./LiveAnnouncementForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function AnnouncementsManagementPage() {
-  const supabase = await createClient();
-  
-  const { data: announcements, error } = await supabase
-    .from("announcements")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { rows: announcements } = await query("SELECT * FROM announcements ORDER BY created_at DESC");
 
   const handleToggle = async (formData: FormData) => {
     "use server";

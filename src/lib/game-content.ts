@@ -301,7 +301,7 @@ export function generateMissingLetters(masterBank: any[], count: number, difficu
     const blanksCount = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 3 : 5;
     
     // Ensure we don't blank out the space character
-    let validIndices: number[] = [];
+    const validIndices: number[] = [];
     for (let i = 0; i < word.length; i++) {
       if (word[i] !== ' ') validIndices.push(i);
     }
@@ -310,10 +310,10 @@ export function generateMissingLetters(masterBank: any[], count: number, difficu
     const indices = shuffle(validIndices).slice(0, actualBlanks).sort((a,b) => a - b);
     
     let wordWithBlanks = word;
-    let missingLetters = [];
+    const missingLetters = [];
     
     for(let i=0; i<indices.length; i++) {
-      let idx = indices[i];
+      const idx = indices[i];
       missingLetters.push(word[idx]);
       wordWithBlanks = wordWithBlanks.substring(0, idx) + '_' + wordWithBlanks.substring(idx + 1);
     }
@@ -323,7 +323,7 @@ export function generateMissingLetters(masterBank: any[], count: number, difficu
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     
     while(wrongOptions.size < 3) {
-      let optLetters = [];
+      const optLetters = [];
       for(let i=0; i<actualBlanks; i++) {
         optLetters.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
       }
@@ -456,8 +456,8 @@ export const generateSequence = (count: number = 5, difficulty: Difficulty = 'me
         for(let i=0; i<4; i++) seq.push(start * Math.pow(mult, i));
         numAnswer = start * Math.pow(mult, 4);
       } else {
-        let a = Math.floor(Math.random() * 3) + 1;
-        let b = Math.floor(Math.random() * 3) + 2;
+        const a = Math.floor(Math.random() * 3) + 1;
+        const b = Math.floor(Math.random() * 3) + 2;
         seq.push(a, b);
         for(let i=2; i<4; i++) {
           seq.push(seq[i-1] + seq[i-2]);

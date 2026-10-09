@@ -1,55 +1,27 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function toggleGameStatus(gameId: string, currentStatus: boolean) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) throw new Error("Unauthorized");
-  
-  // Verify admin
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Unauthorized");
-
-  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
-  const adminClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  const { error } = await adminClient
-    .from("game_types")
-    .update({ is_active: !currentStatus })
-    .eq("id", gameId);
-
-  if (error) throw error;
+  await assertAdmin();
+  await query("UPDATE game_types SET is_active = $1 WHERE id = $2", [!currentStatus, gameId]);
   
   revalidatePath("/admin/games");
   revalidatePath("/admin");
 }
 
 export async function updateGameRounds(gameId: string, easy: number, medium: number, hard: number) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) throw new Error("Unauthorized");
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Unauthorized");
-
-  const { createClient: createSupabaseClient } = await import('@supabase/supabase-js');
-  const adminClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  const { error } = await adminClient
-    .from("game_types")
-    .update({ easy_rounds: easy, medium_rounds: medium, hard_rounds: hard })
-    .eq("id", gameId);
-
-  if (error) throw error;
+  await assertAdmin();
+  await query("UPDATE game_types SET easy_rounds = $1, medium_rounds = $2, hard_rounds = $3 WHERE id = $4", [easy, medium, hard, gameId]);
   
   revalidatePath("/admin/games");
+}
+
+async function assertAdmin() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+  const { rows } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  if (rows[0]?.role !== "admin") throw new Error("Unauthorized");
 }

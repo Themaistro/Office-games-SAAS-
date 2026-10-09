@@ -1,32 +1,20 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
+import { query } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function updateProfile(fullName: string, avatarUrl: string, department?: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     return { error: "Unauthorized" };
   }
 
-  const payload: any = { 
-    full_name: fullName,
-    avatar_url: avatarUrl 
-  };
-  
   if (department !== undefined) {
-    payload.department = department;
-  }
-
-  const { error } = await supabase
-    .from("profiles")
-    .update(payload)
-    .eq("id", user.id);
-
-  if (error) {
-    return { error: error.message };
+    await query("UPDATE profiles SET full_name = $1, avatar_url = $2, department = $3 WHERE id = $4", [fullName, avatarUrl, department, user.id]);
+  } else {
+    await query("UPDATE profiles SET full_name = $1, avatar_url = $2 WHERE id = $3", [fullName, avatarUrl, user.id]);
   }
 
   revalidatePath("/profile");

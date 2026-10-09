@@ -1,33 +1,14 @@
-import { createClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 import { Trophy, Medal, User, Flame } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Link from "next/link";
 import LeaderboardTutorialTrigger from "@/components/tutorial/LeaderboardTutorialTrigger";
 
+export const dynamic = "force-dynamic";
+
 export default async function LeaderboardPage() {
-  const supabase = await createClient();
-  
-  // 1. Fetch Players Leaderboard
-  const { data: leaderboards } = await supabase
-    .from("profiles")
-    .select("id, full_name, avatar_url, total_xp, current_level, current_streak, department, role")
-
-  const { data: profiles, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, avatar_url, department, total_xp, current_level, current_streak")
-    .eq("role", "employee")
-    .order("total_xp", { ascending: false })
-    .order("full_name", { ascending: true })
-    .limit(100);
-
-  const { data: prizes } = await supabase
-    .from("prizes")
-    .select("*")
-    .order("rank_requirement", { ascending: true });
-
-  if (error) {
-    console.error("Error fetching leaderboard:", error);
-  }
+  const { rows: profiles } = await query("SELECT id, full_name, avatar_url, department, total_xp, current_level, current_streak FROM profiles WHERE role = 'employee' ORDER BY total_xp DESC, full_name ASC LIMIT 100");
+  const { rows: prizes } = await query("SELECT * FROM prizes ORDER BY rank_requirement ASC");
 
   const departmentStats = profiles?.reduce((acc: any, profile) => {
     // Only include active users if is_active exists, but since we don't fetch it here yet,
