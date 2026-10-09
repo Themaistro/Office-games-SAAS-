@@ -22,3 +22,4 @@ export async function updateProfile(fullName: string, avatarUrl: string, departm
   revalidatePath("/leaderboard");
   return { success: true };
 }
+

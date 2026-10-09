@@ -48,3 +48,4 @@ export function useVfx() {
 
   return { triggerConfetti, triggerShake };
 }
+

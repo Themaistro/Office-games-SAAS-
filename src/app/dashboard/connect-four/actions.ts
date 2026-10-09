@@ -76,3 +76,4 @@ export async function makeConnectFourMove(gameId: string, column: number) {
   if (!rowCount) throw new Error("Move rejected because the game changed");
   revalidatePath(`/dashboard/connect-four/${gameId}`);
 }
+

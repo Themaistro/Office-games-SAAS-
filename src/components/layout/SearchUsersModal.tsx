@@ -119,3 +119,4 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
     </div>
   );
 }
+

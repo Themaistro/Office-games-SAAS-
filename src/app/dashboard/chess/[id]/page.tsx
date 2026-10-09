@@ -97,3 +97,4 @@ export default async function ChessGamePage(props: { params: Promise<{ id: strin
     </div>
   );
 }
+

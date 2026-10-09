@@ -42,3 +42,4 @@ CREATE POLICY "Users can update their own session questions"
     WHERE ds.id = session_questions.session_id
       AND ds.user_id = auth.uid()
   ));
+

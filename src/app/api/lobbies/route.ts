@@ -10,3 +10,4 @@ export async function GET() {
   ]);
   return NextResponse.json([...chess.rows, ...ttt.rows, ...connect.rows].map((g: any) => ({ ...g, creator_id: g.white_player_id || g.black_player_id || g.x_player_id || g.o_player_id || g.red_player_id || g.yellow_player_id, player1_id: g.white_player_id || g.x_player_id || g.red_player_id, player2_id: g.black_player_id || g.o_player_id || g.yellow_player_id, profiles: g.profile })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()), { headers: { "Cache-Control": "no-store" } });
 }
+

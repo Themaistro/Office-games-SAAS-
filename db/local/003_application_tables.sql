@@ -1,4 +1,4 @@
--- Base tables that were previously created directly in Supabase and were not
+-- Base tables that were previously created in the hosted database and were not
 -- represented in the repository's migration chain.
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -119,3 +119,4 @@ CREATE INDEX IF NOT EXISTS ttt_games_status_idx ON public.ttt_games(status, upda
 INSERT INTO public.system_settings (cooldown_hours, daily_time_limit_minutes)
 VALUES (24, 15)
 ON CONFLICT DO NOTHING;
+

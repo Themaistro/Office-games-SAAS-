@@ -56,3 +56,4 @@ export async function deleteAnnouncement(id: string) {
   revalidatePath("/admin/announcements");
   revalidatePath("/dashboard");
 }
+

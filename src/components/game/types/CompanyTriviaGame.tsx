@@ -235,3 +235,4 @@ export default function CompanyTriviaGame({ question, onAnswer, isSubmitting, sh
     </motion.div>
   );
 }
+

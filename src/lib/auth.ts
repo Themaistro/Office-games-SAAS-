@@ -60,3 +60,4 @@ export async function createUser(input: { email: string; passwordHash: string; f
     return user.rows[0].id;
   });
 }
+

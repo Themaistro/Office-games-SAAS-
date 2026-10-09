@@ -170,3 +170,4 @@ export default function MentalMathGame({ onAnswer, isSubmitting, showHint }: Gam
     </motion.div>
   );
 }
+

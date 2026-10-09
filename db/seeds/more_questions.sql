@@ -49,3 +49,4 @@ BEGIN
   SELECT id, 'medium', '{"text": "Solve for x: 2x = 10"}', '["2", "4", "5", "8"]', '5', 150, true FROM public.game_types WHERE slug = 'math';
 
 END $$;
+

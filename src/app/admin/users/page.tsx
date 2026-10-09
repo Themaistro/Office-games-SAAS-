@@ -49,3 +49,4 @@ export default async function UsersManagementPage(props: { searchParams: Promise
     </div>
   );
 }
+

@@ -13,3 +13,4 @@ export async function POST() {
   await query("INSERT INTO presence (user_id,last_seen) VALUES ($1,now()) ON CONFLICT (user_id) DO UPDATE SET last_seen=now()", [user.id]);
   return NextResponse.json({ ok: true });
 }
+

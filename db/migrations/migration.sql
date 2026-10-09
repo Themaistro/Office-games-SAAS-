@@ -43,3 +43,4 @@ CREATE POLICY "Allow public read access to master_trivia_bank" ON public.master_
 CREATE POLICY "Allow public read access to master_word_bank" ON public.master_word_bank FOR SELECT USING (true);
 CREATE POLICY "Allow public read access to master_typing_bank" ON public.master_typing_bank FOR SELECT USING (true);
 CREATE POLICY "Allow public read access to master_odd_object_bank" ON public.master_odd_object_bank FOR SELECT USING (true);
+

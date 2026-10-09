@@ -76,3 +76,4 @@ USING (
     AND profiles.role = 'admin'
   )
 );
+

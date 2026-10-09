@@ -175,7 +175,7 @@ create trigger handle_profiles_updated_at
   before update on public.profiles
   for each row execute procedure public.handle_updated_at();
 
--- Function to handle new user creation automatically via Supabase Auth
+-- Function to handle new user creation automatically via the legacy auth schema
 create or replace function public.handle_new_user() 
 returns trigger as $$
 begin
@@ -195,3 +195,4 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+

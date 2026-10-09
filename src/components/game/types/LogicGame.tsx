@@ -214,3 +214,4 @@ export default function LogicGame({ question, onAnswer, isSubmitting, showHint }
     </motion.div>
   );
 }
+

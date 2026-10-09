@@ -28,7 +28,7 @@ export async function signup(formData: FormData) {
     redirect("/register?error=Please provide a valid email address.");
   }
 
-  // 2. Password Strength (Supabase requires at least 6, but we can enforce more rules if desired)
+  // 2. Password Strength (PostgreSQL requires at least 6, but we can enforce more rules if desired)
   if (password.length < 6) {
     redirect("/register?error=Password must be at least 6 characters long.");
   }
@@ -56,3 +56,4 @@ export async function signup(formData: FormData) {
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }
+

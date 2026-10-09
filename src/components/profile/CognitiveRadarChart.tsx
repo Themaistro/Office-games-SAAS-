@@ -53,3 +53,4 @@ export default function CognitiveRadarChart({ data }: RadarChartProps) {
     </div>
   );
 }
+

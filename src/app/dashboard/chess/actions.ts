@@ -5,13 +5,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createChessGame(preferredColor: "white" | "black" | "random" = "random", timeMs: number = 600000) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
 
   // Check for active daily mission
-  const { data: activeMission } = await supabase
+  const { data: activeMission } = await dbClient
     .from('daily_sessions')
     .select('id')
     .eq('user_id', user.id)
@@ -39,8 +39,8 @@ export async function createChessGame(preferredColor: "white" | "black" | "rando
   }
 
   // Prevent orphaned lobbies across both games
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
 
   await adminClient
     .from("chess_games")
@@ -54,7 +54,7 @@ export async function createChessGame(preferredColor: "white" | "black" | "rando
     .eq("status", "waiting")
     .or(`x_player_id.eq.${user.id},o_player_id.eq.${user.id}`);
 
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from("chess_games")
     .insert({
       white_player_id: whitePlayerId,
@@ -76,14 +76,14 @@ export async function createChessGame(preferredColor: "white" | "black" | "rando
 }
 
 export async function challengeUserToChess(targetUserId: string, timeControlMs: number = 600000) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
   if (!targetUserId || targetUserId === user.id) throw new Error("Invalid challenge target");
 
   // Check for active daily mission
-  const { data: activeMission } = await supabase
+  const { data: activeMission } = await dbClient
     .from('daily_sessions')
     .select('id')
     .eq('user_id', user.id)
@@ -95,7 +95,7 @@ export async function challengeUserToChess(targetUserId: string, timeControlMs: 
   }
 
   // Delete any waiting games this user might have created previously
-  await supabase
+  await dbClient
     .from("chess_games")
     .delete()
     .eq("status", "waiting")
@@ -103,7 +103,7 @@ export async function challengeUserToChess(targetUserId: string, timeControlMs: 
 
   // Create a direct challenge — challenger is always white_player_id so the
   // lobby widget can distinguish sender vs receiver without extra DB columns.
-  const { data, error } = await supabase
+  const { data, error } = await dbClient
     .from("chess_games")
     .insert({
       white_player_id: user.id,       // challenger
@@ -127,12 +127,12 @@ export async function challengeUserToChess(targetUserId: string, timeControlMs: 
 }
 
 export async function acceptChallenge(gameId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
   // Check for active daily mission
-  const { data: activeMission } = await supabase
+  const { data: activeMission } = await dbClient
     .from('daily_sessions')
     .select('id')
     .eq('user_id', user.id)
@@ -142,8 +142,8 @@ export async function acceptChallenge(gameId: string) {
     throw new Error("You have an unfinished Daily Mission! Please complete it first.");
   }
 
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
 
   const { error, data } = await adminClient
     .from("chess_games")
@@ -160,12 +160,12 @@ export async function acceptChallenge(gameId: string) {
 }
 
 export async function declineChallenge(gameId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
 
   const { error } = await adminClient
     .from("chess_games")
@@ -180,12 +180,12 @@ export async function declineChallenge(gameId: string) {
 }
 
 export async function cancelChessGame(gameId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
 
-  const { data: game, error: fetchError } = await supabase
+  const { data: game, error: fetchError } = await dbClient
     .from("chess_games")
     .select("*")
     .eq("id", gameId)
@@ -204,8 +204,8 @@ export async function cancelChessGame(gameId: string) {
   }
 
   // Need service role to securely bypass RLS for deletion
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
 
   // Delete the game entirely instead of marking as abandoned to keep history clean
   const { error: deleteError } = await adminClient
@@ -222,13 +222,13 @@ export async function cancelChessGame(gameId: string) {
 }
 
 export async function joinChessGame(gameId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
 
   // Check for active daily mission
-  const { data: activeMission } = await supabase
+  const { data: activeMission } = await dbClient
     .from('daily_sessions')
     .select('id')
     .eq('user_id', user.id)
@@ -239,7 +239,7 @@ export async function joinChessGame(gameId: string) {
     throw new Error("You have an unfinished Daily Mission! Please complete it first.");
   }
 
-  const { data: game, error: fetchError } = await supabase
+  const { data: game, error: fetchError } = await dbClient
     .from("chess_games")
     .select("*")
     .eq("id", gameId)
@@ -268,7 +268,7 @@ export async function joinChessGame(gameId: string) {
   }
 
   // Delete any other waiting games this user might have created before joining someone else's
-  await supabase
+  await dbClient
     .from("chess_games")
     .delete()
     .eq("status", "waiting")
@@ -287,8 +287,8 @@ export async function joinChessGame(gameId: string) {
   }
 
   // Need service role to securely bypass RLS for joining
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
 
   const { error: updateError, data } = await adminClient
     .from("chess_games")
@@ -307,12 +307,12 @@ export async function joinChessGame(gameId: string) {
 }
 
 export async function updateChessGameState(gameId: string, pgn: string, fen: string, status: string, turn: 'w' | 'b') {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
   if (!user) return;
 
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
 
   // Fetch current game state to calculate time securely
   const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
@@ -394,8 +394,8 @@ export async function updateChessGameState(gameId: string, pgn: string, fen: str
 }
 
 export async function declareChessTimeout(gameId: string) {
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
   
   const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
   if (!game || game.status !== "in_progress" || !game.last_move_timestamp) return { success: false };
@@ -439,12 +439,12 @@ export async function declareChessTimeout(gameId: string) {
 
 export async function resignChessGame(gameId: string) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const dbClient = await createClient();
+    const { data: { user } } = await dbClient.auth.getUser();
     if (!user) return { success: false, error: "Unauthorized" };
 
-    const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-    const adminClient = createSupabaseClient();
+    const { createClient: createDbClient } = await import('@/lib/pg-client');
+    const adminClient = createDbClient();
 
     const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
     if (!game) return { success: false, error: "Game not found" };
@@ -468,12 +468,12 @@ export async function resignChessGame(gameId: string) {
 
 export async function drawChessGame(gameId: string) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const dbClient = await createClient();
+    const { data: { user } } = await dbClient.auth.getUser();
     if (!user) return { success: false, error: "Unauthorized" };
 
-    const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-    const adminClient = createSupabaseClient();
+    const { createClient: createDbClient } = await import('@/lib/pg-client');
+    const adminClient = createDbClient();
 
     const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
     if (!game) return { success: false, error: "Game not found" };
@@ -491,11 +491,11 @@ export async function drawChessGame(gameId: string) {
 }
 
 export async function processChessGameEnd(gameId: string, result: 'white_won' | 'black_won' | 'draw') {
-  const supabase = await createClient();
+  const dbClient = await createClient();
   
   // Need service role to securely update elos
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
   
   const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
   if (!game || game.status !== 'in_progress') return; // Already processed or not started
@@ -559,3 +559,4 @@ export async function processChessGameEnd(gameId: string, result: 'white_won' | 
     metadata: { game_id: gameId, result: result }
   });
 }
+

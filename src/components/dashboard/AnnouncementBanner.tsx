@@ -53,3 +53,4 @@ export default function AnnouncementBanner({ announcements }: { announcements: a
     </div>
   );
 }
+

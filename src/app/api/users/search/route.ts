@@ -9,3 +9,4 @@ export async function GET(request: Request) {
   const { rows } = await query("SELECT id, full_name, department, avatar_url, role FROM profiles WHERE role = 'employee' AND full_name ILIKE $1 ORDER BY full_name ASC LIMIT 10", [`%${term}%`]);
   return NextResponse.json(rows, { headers: { "Cache-Control": "no-store" } });
 }
+

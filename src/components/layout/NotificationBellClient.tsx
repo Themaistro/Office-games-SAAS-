@@ -112,3 +112,4 @@ export default function NotificationBellClient({ userId }: NotificationBellProps
     </div>
   );
 }
+

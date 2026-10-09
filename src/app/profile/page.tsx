@@ -17,8 +17,8 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
   const searchParams = await props.searchParams;
   const activeTab = searchParams?.tab || "overview";
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
 
   if (!user) {
     return (
@@ -31,7 +31,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     );
   }
 
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  const { data: profile } = await dbClient.from("profiles").select("*").eq("id", user.id).single();
 
   if (!profile) {
     return (
@@ -45,7 +45,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
   }
 
   // Fetch Chess Games for stats
-  const { data: chessGames } = await supabase
+  const { data: chessGames } = await dbClient
     .from("chess_games")
     .select(`
       *,
@@ -56,7 +56,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     .in('status', ['white_won', 'black_won', 'draw'])
     .order('updated_at', { ascending: false });
 
-  const { data: tttGames } = await supabase
+  const { data: tttGames } = await dbClient
     .from('ttt_games')
     .select(`*, x_player:profiles!ttt_games_x_player_id_fkey(id, full_name, avatar_url), o_player:profiles!ttt_games_o_player_id_fkey(id, full_name, avatar_url)`)
     .or(`x_player_id.eq.${user.id},o_player_id.eq.${user.id}`)
@@ -92,7 +92,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
 
   // Calculate Global Rank
   let userRank = "--";
-  const { count: higherXpCount } = await supabase
+  const { count: higherXpCount } = await dbClient
     .from("profiles")
     .select("id", { count: "exact", head: true })
     .neq("role", "admin")
@@ -100,7 +100,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     
   let tieBreakerCount = 0;
   if (profile.full_name) {
-    const { count } = await supabase
+    const { count } = await dbClient
       .from("profiles")
       .select("id", { count: "exact", head: true })
       .neq("role", "admin")
@@ -118,7 +118,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
   // Calculate Department Rank
   let deptRank = "--";
   if (profile.department && profile.role !== "admin") {
-    const { count: higherDeptXpCount } = await supabase
+    const { count: higherDeptXpCount } = await dbClient
       .from("profiles")
       .select("id", { count: "exact", head: true })
       .eq("department", profile.department)
@@ -127,7 +127,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
       
     let deptTieBreakerCount = 0;
     if (profile.full_name) {
-      const { count } = await supabase
+      const { count } = await dbClient
         .from("profiles")
         .select("id", { count: "exact", head: true })
         .eq("department", profile.department)
@@ -140,7 +140,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
   }
 
   // Fetch Mission History for Sidebar (last 10)
-  const { data: recentHistory } = await supabase
+  const { data: recentHistory } = await dbClient
     .from("daily_sessions")
     .select("date, total_score, total_xp_earned, is_completed")
     .eq("user_id", user.id)
@@ -149,7 +149,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     .limit(10);
 
   // Fetch up to 35 days for the heatmap
-  const { data: heatmapHistory } = await supabase
+  const { data: heatmapHistory } = await dbClient
     .from("daily_sessions")
     .select("date, total_score, total_xp_earned, is_completed")
     .eq("user_id", user.id)
@@ -158,7 +158,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     .limit(35);
 
   // Fetch Game-Specific Stats
-  const { data: userSessions } = await supabase
+  const { data: userSessions } = await dbClient
     .from("daily_sessions")
     .select("id")
     .eq("user_id", user.id)
@@ -168,7 +168,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
   let gameStatsArray: { name: string, plays: number, avgScore: number, accuracy: number }[] = [];
   
   if (sessionIds.length > 0) {
-    const { data: questionsData } = await supabase
+    const { data: questionsData } = await dbClient
       .from("session_questions")
       .select(`
         earned_xp, 
@@ -556,3 +556,4 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     </div>
   );
 }
+

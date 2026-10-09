@@ -13,7 +13,7 @@ export default async function AnalyticsPage() {
   if (adminProfiles[0]?.role !== "admin") redirect("/dashboard");
 
   // Fetch DAU (Daily Active Users) over the last 30 days
-  // Since we can't easily do a pure SQL GROUP BY in Supabase JS without a view or RPC,
+  // Since we can't easily do a pure SQL GROUP BY in PostgreSQL JS without a view or RPC,
   // we'll fetch recent sessions and group them in JS.
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -198,3 +198,4 @@ export default async function AnalyticsPage() {
     </div>
   );
 }
+

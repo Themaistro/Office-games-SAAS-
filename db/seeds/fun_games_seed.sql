@@ -38,3 +38,4 @@ BEGIN
   (stroop_id, 'medium', '{"text": "Color confusion test"}', '[]', '', 150, true);
 
 END $$;
+

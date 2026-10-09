@@ -20,3 +20,4 @@ export default async function Navbar() {
 
   return <NavbarClient user={user} profile={profile} onSignOut={handleSignOut} />;
 }
+

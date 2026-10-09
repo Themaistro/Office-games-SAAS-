@@ -74,3 +74,4 @@ export default function ChallengeMenu({ targetUserId }: { targetUserId: string }
     </div>
   );
 }
+

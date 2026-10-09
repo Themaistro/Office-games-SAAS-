@@ -39,3 +39,4 @@ AS $$
   DELETE FROM public.question_history
   WHERE served_at < timezone('utc'::text, now()) - interval '1 year';
 $$;
+

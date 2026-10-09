@@ -137,3 +137,4 @@ export default function MissingLettersGame({ question, onAnswer, isSubmitting, s
     </div>
   );
 }
+

@@ -123,3 +123,4 @@ export default function LiveAnnouncementForm({ action }: { action: (formData: Fo
     </div>
   );
 }
+

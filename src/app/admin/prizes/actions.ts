@@ -42,3 +42,4 @@ export async function deletePrize(id: string) {
   revalidatePath("/admin/prizes");
   revalidatePath("/leaderboard");
 }
+

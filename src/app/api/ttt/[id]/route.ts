@@ -14,3 +14,4 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!game || (game.x_player_id !== user.id && game.o_player_id !== user.id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(game, { headers: { "Cache-Control": "no-store" } });
 }
+

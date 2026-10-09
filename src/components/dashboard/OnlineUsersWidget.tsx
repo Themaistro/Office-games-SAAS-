@@ -78,3 +78,4 @@ export default function OnlineUsersWidget({ currentUserId, profile }: { currentU
     </div>
   );
 }
+

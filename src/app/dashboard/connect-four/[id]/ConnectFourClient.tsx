@@ -27,3 +27,4 @@ export default function ConnectFourClient({ initialGame, currentUserId }: { init
     {game.status === "waiting" && game.red_player_id === currentUserId && <button onClick={async () => { await cancelConnectFourGame(game.id); router.push("/dashboard"); }} className="w-full rounded-xl bg-destructive py-3 font-bold text-destructive-foreground">Cancel lobby</button>}
   </main>;
 }
+

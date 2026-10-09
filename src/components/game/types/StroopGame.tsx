@@ -125,3 +125,4 @@ export default function StroopGame({ question, onAnswer, isSubmitting }: GamePro
     </div>
   );
 }
+

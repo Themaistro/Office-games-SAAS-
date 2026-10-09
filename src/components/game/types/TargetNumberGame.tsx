@@ -118,3 +118,4 @@ export default function TargetNumberGame({ question, onAnswer, isSubmitting, sho
     </div>
   );
 }
+

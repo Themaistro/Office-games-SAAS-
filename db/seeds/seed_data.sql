@@ -37,3 +37,4 @@ BEGIN
   (memory_id, 'medium', '{"text": "7 1 8 4 5"}', '[]', '71845', 100, true),
   (memory_id, 'hard', '{"text": "3 9 0 2 8 1 5"}', '[]', '3902815', 150, true);
 END $$;
+

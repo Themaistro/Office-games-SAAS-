@@ -141,3 +141,4 @@ export default function ChessStatsCard({ elo, games, currentUserId }: ChessStats
     </div>
   );
 }
+

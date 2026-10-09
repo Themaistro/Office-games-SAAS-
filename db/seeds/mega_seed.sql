@@ -95,3 +95,4 @@ BEGIN
   (memory_id, 'hard', '{"text": "3 9 0 2 8 1 5"}', '[]', '3902815', 150, true);
 
 END $$;
+

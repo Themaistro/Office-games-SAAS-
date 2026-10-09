@@ -74,3 +74,4 @@ export default function ActivityHeatmap({ history }: { history: SessionData[] })
     </div>
   );
 }
+

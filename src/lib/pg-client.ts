@@ -41,3 +41,4 @@ class TableQuery implements PromiseLike<any> {
 
 export function createClient(..._args: unknown[]) { return { auth: { getUser: async () => ({ data: { user: await getCurrentUser() } }) }, from: (table: string) => new TableQuery(table) }; }
 export function createAdminClient(..._args: unknown[]) { return createClient(); }
+

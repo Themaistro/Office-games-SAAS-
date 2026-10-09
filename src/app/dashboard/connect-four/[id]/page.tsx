@@ -16,3 +16,4 @@ export default async function ConnectFourPage({ params }: { params: Promise<{ id
   if (!game || (game.status === "waiting" && game.red_player_id !== user.id && game.yellow_player_id !== user.id)) redirect("/dashboard");
   return <ConnectFourClient initialGame={game} currentUserId={user.id} />;
 }
+

@@ -8,11 +8,12 @@ Connection string:
 postgresql://brain_arena:change-me-local-only@localhost:5433/daily_brain_arena
 ```
 
-This is the first migration step. The application still uses Supabase for
+This is the first migration step. The application uses PostgreSQL for
 authentication, realtime, and current data access until those boundaries are
 migrated deliberately. The existing Supabase schema cannot be applied directly
-yet because it references Supabase Auth's `auth.users` table and identity
+yet because it references the legacy auth schema's `auth.users` table and identity
 functions.
 
 Set `POSTGRES_PASSWORD` and `DATABASE_URL` in a local `.env` file before using
 this outside development. Do not commit that file.
+

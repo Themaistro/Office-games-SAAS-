@@ -11,3 +11,4 @@ UPDATE public.departments
 SET sort_order = numbered.rn
 FROM numbered
 WHERE public.departments.id = numbered.id;
+

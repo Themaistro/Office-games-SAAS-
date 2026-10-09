@@ -49,3 +49,4 @@ export interface GameProps {
 }
 
 export type GameComponentProps = GameProps;
+

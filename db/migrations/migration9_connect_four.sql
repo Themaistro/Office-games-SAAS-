@@ -22,3 +22,4 @@ DROP POLICY IF EXISTS "Players can cancel their Connect Four games" ON public.co
 CREATE POLICY "Players can cancel their Connect Four games" ON public.connect_four_games FOR DELETE TO authenticated
   USING (auth.uid() = red_player_id OR auth.uid() = yellow_player_id);
 CREATE INDEX IF NOT EXISTS connect_four_open_games_idx ON public.connect_four_games(status, created_at DESC);
+

@@ -107,3 +107,4 @@ export async function updateDepartmentSortOrder(updates: { id: string, sort_orde
   revalidatePath("/admin/departments");
   revalidatePath("/register");
 }
+

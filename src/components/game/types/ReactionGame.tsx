@@ -137,3 +137,4 @@ export default function ReactionGame({ question, onAnswer, isSubmitting }: GameP
     </div>
   );
 }
+

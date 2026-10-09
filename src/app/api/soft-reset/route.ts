@@ -32,3 +32,4 @@ export async function POST(request: Request) {
 export async function GET() {
   return NextResponse.json({ error: "Use POST for soft reset" }, { status: 405 });
 }
+

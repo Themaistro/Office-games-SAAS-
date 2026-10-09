@@ -1,5 +1,5 @@
 -- Compatibility layer used only by the local PostgreSQL migration.
--- Authentication is still supplied by Supabase in the running application.
+-- Authentication is supplied by the provider-neutral local session layer.
 CREATE SCHEMA IF NOT EXISTS auth;
 DO $$ BEGIN
   CREATE ROLE authenticated NOLOGIN;
@@ -30,3 +30,4 @@ STABLE
 AS $$ SELECT COALESCE(NULLIF(current_setting('app.current_role', true), ''), 'anon') $$;
 
 \i /docker-entrypoint-initdb.d/010_schema.sql
+

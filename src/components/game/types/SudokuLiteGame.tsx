@@ -400,3 +400,4 @@ export default function SudokuLiteGame({ question, onAnswer, isSubmitting, showH
     </div>
   );
 }
+

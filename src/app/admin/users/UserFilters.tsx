@@ -61,3 +61,4 @@ export default function UserFilters({ departments }: { departments: { name: stri
     </div>
   );
 }
+

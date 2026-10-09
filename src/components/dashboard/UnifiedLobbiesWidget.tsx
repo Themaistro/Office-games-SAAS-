@@ -172,3 +172,4 @@ export default function UnifiedLobbiesWidget({ currentUserId }: { currentUserId:
     </div>
   );
 }
+

@@ -160,3 +160,4 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
     </DragDropContext>
   );
 }
+

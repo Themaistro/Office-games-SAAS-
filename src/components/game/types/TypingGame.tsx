@@ -259,3 +259,4 @@ export default function TypingGame({ question, onAnswer, isSubmitting }: GameCom
     </div>
   );
 }
+

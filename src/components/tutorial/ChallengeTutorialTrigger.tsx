@@ -5,3 +5,4 @@ export default function ChallengeTutorialTrigger() {
   useChallengeTutorial();
   return null;
 }
+

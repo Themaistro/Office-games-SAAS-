@@ -212,3 +212,4 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
     </div>
   );
 }
+

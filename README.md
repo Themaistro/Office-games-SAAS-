@@ -27,9 +27,9 @@ Daily Brain Arena is a corporate gamification platform designed to offer employe
 - **Frontend**: Next.js 16 (App Router), React 19, TypeScript
 - **Styling**: Tailwind CSS v4, custom HSL theme, Framer Motion for tasteful animations
 - **Backend**: Next.js Server Actions & API Routes for secure, server-authoritative logic
-- **Database**: PostgreSQL (via Supabase) with Row Level Security (RLS)
-- **Real-time**: Supabase Realtime Channels (for multiplayer sync and live activity feeds)
-- **Authentication**: Supabase Auth (Email/Password & Google OAuth)
+- **Database**: PostgreSQL with server-authoritative access
+- **Real-time**: PostgreSQL-backed polling and API updates
+- **Authentication**: Provider-neutral PostgreSQL sessions
 - **Hosting**: Optimized for Vercel
 
 ## Installation & Setup
@@ -44,16 +44,15 @@ Daily Brain Arena is a corporate gamification platform designed to offer employe
    npm install
    ```
 3. **Set up Environment Variables**:
-   Copy `.env.example` to `.env.local` and add your Supabase credentials:
+   Copy `.env.example` to `.env.local` and add your PostgreSQL connection:
    ```env
-   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   DATABASE_URL=postgresql://user:password@host:5432/database
+   NEXT_PUBLIC_SITE_URL=http://localhost:3000
    ```
 
 ## Database Setup
 
-Run the SQL files in the Supabase SQL Editor in this order:
+Run the SQL files in PostgreSQL (or use `node scripts/apply-neon-migrations.cjs`) in this order:
 
 1. `db/migrations/schema.sql`
 2. Existing migrations `migration.sql` through `migration6_security_hardening.sql`
@@ -77,11 +76,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 By default, all new users are employees. To create an admin account:
 1. Sign up normally via the UI.
-2. Manually update the user's role in the Supabase `profiles` table to `'admin'`.
+2. Manually update the user's role in the PostgreSQL `profiles` table to `'admin'`.
 
 ## Deployment to Vercel
 
 1. Push your code to your GitHub repository.
 2. Import the project in Vercel.
-3. Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` to your Vercel Environment Variables.
+3. Add `DATABASE_URL` and `NEXT_PUBLIC_SITE_URL` to your Vercel Environment Variables.
 4. Deploy!

@@ -44,3 +44,4 @@ ALTER TABLE public.profiles
 ALTER TABLE public.profiles
   ADD CONSTRAINT profiles_id_users_fkey
   FOREIGN KEY (id) REFERENCES public.users(id) ON DELETE CASCADE;
+

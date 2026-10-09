@@ -5,3 +5,4 @@ export default function DashboardTutorialTrigger() {
   useDashboardTutorial();
   return null;
 }
+

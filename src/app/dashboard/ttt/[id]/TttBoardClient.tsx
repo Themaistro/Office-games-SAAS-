@@ -318,3 +318,4 @@ export default function TttBoardClient({ initialGame, currentUserId, matchupScor
     </div>
   );
 }
+

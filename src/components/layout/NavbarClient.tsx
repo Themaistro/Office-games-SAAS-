@@ -175,3 +175,4 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
     </>
   );
 }
+

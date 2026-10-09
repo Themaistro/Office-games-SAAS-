@@ -99,3 +99,4 @@ async function assertAdmin() {
   if (rows[0]?.role !== "admin") throw new Error("Unauthorized");
   return user;
 }
+

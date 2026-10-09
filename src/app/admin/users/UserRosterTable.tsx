@@ -253,3 +253,4 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
     </div>
   );
 }
+

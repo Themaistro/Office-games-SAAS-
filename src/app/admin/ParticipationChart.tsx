@@ -68,3 +68,4 @@ export default function ParticipationChart({ data }: { data: { date: string; ses
     </div>
   );
 }
+

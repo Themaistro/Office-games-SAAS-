@@ -139,3 +139,4 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
     </div>
   );
 }
+

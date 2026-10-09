@@ -27,3 +27,4 @@ ALTER TABLE public.season_winners ENABLE ROW LEVEL SECURITY;
 
 -- Allow public read access to winners so they can be displayed on a "Past Winners" page
 CREATE POLICY "Allow public read access to season_winners" ON public.season_winners FOR SELECT USING (true);
+

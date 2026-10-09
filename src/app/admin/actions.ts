@@ -25,3 +25,4 @@ async function assertAdmin() {
   const { rows } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
   if (rows[0]?.role !== "admin") throw new Error("Unauthorized");
 }
+

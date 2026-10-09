@@ -199,3 +199,4 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
     </motion.div>
   );
 }
+

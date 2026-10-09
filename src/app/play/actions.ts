@@ -39,13 +39,13 @@ function getDateInTimezone(timezone?: string | null, date = new Date()) {
 }
 
 export async function startDailySession() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
 
   // Fetch the user's department for personalized content filtering
-  const { data: profile } = await supabase
+  const { data: profile } = await dbClient
     .from("profiles")
     .select("department, timezone, daily_time_limit_minutes, session_time_limit_minutes")
     .eq("id", user.id)
@@ -55,7 +55,7 @@ export async function startDailySession() {
   const today = getDateInTimezone(profile?.timezone);
 
   // 1.c Check if they reached their daily time limit
-  const { data: todaysSessions } = await supabase
+  const { data: todaysSessions } = await dbClient
     .from("daily_sessions")
     .select("time_spent_seconds")
     .eq("user_id", user.id)
@@ -72,7 +72,7 @@ export async function startDailySession() {
   }
 
   // 1.d Check if they have an active chess game
-  const { data: activeChess } = await supabase
+  const { data: activeChess } = await dbClient
     .from('chess_games')
     .select('id')
     .in('status', ['waiting', 'in_progress'])
@@ -87,7 +87,7 @@ export async function startDailySession() {
   }
 
   // 1. Check if they have an active (incomplete) session (could be normal or a test session)
-  const { data: activeSessions } = await supabase
+  const { data: activeSessions } = await dbClient
     .from("daily_sessions")
     .select("*")
     .eq("user_id", user.id)
@@ -97,7 +97,7 @@ export async function startDailySession() {
     const activeSession = activeSessions[0];
     
     // Check if this session is broken (0 questions)
-    const { count } = await supabase
+    const { count } = await dbClient
       .from("session_questions")
       .select("*", { count: 'exact', head: true })
       .eq("session_id", activeSession.id);
@@ -106,13 +106,13 @@ export async function startDailySession() {
       return { success: true, session: activeSession };
     } else {
       console.log("Broken session detected, deleting:", activeSession.id);
-      await supabase.from("daily_sessions").delete().eq("id", activeSession.id);
+      await dbClient.from("daily_sessions").delete().eq("id", activeSession.id);
       // Let it fall through to create a new session
     }
   }
 
   // 1.b Check if they already completed a session within the last 24 hours
-  const { data: lastSession } = await supabase
+  const { data: lastSession } = await dbClient
     .from("daily_sessions")
     .select("*")
     .eq("user_id", user.id)
@@ -120,7 +120,7 @@ export async function startDailySession() {
     .limit(1)
     .maybeSingle();
 
-  const { data: settings } = await supabase.from("system_settings").select("*").maybeSingle();
+  const { data: settings } = await dbClient.from("system_settings").select("*").maybeSingle();
 
   if (lastSession && lastSession.is_completed) {
     const cooldownHours = settings?.cooldown_hours ?? 24;
@@ -139,7 +139,7 @@ export async function startDailySession() {
   }
 
   // 2. Fetch active games and ensure today's question pool is generated
-  const { data: activeGames } = await supabase.from("game_types").select("*").eq("is_active", true);
+  const { data: activeGames } = await dbClient.from("game_types").select("*").eq("is_active", true);
   const activeGameIds = activeGames?.map((g) => g.id) || [];
 
   if (activeGameIds.length === 0) {
@@ -155,7 +155,7 @@ export async function startDailySession() {
   const pageSize = 1000;
   
   while (true) {
-    const { data, error: qError } = await supabase
+    const { data, error: qError } = await dbClient
       .from("questions")
       .select("id, game_type_id, difficulty, content, options, base_xp, game_types (id, name, slug, is_active, easy_rounds, medium_rounds, hard_rounds)")
       .gte("created_at", twoHoursAgo)
@@ -188,11 +188,11 @@ export async function startDailySession() {
     
     // Fetch master banks and system settings
     const [{ data: masterTrivia }, { data: masterWords }, { data: masterTyping }, { data: masterOdd }, { data: settings }] = await Promise.all([
-      supabase.from('master_trivia_bank').select('*'),
-      supabase.from('master_word_bank').select('*'),
-      supabase.from('master_typing_bank').select('*'),
-      supabase.from('master_odd_object_bank').select('*'),
-      supabase.from('system_settings').select('*').single()
+      dbClient.from('master_trivia_bank').select('*'),
+      dbClient.from('master_word_bank').select('*'),
+      dbClient.from('master_typing_bank').select('*'),
+      dbClient.from('master_odd_object_bank').select('*'),
+      dbClient.from('system_settings').select('*').single()
     ]);
 
     const currentSeason = settings?.current_season || 1;
@@ -271,8 +271,8 @@ export async function startDailySession() {
 
     if (newQuestions.length > 0) {
       // Use admin client to bypass RLS for inserting questions (since regular users can't create questions)
-      const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-      const adminClient = createSupabaseClient();
+      const { createClient: createDbClient } = await import('@/lib/pg-client');
+      const adminClient = createDbClient();
 
       const { data: insertedQuestions, error: insertError } = await adminClient
         .from("questions")
@@ -296,12 +296,12 @@ export async function startDailySession() {
   // We do this every time to catch any trivia added AFTER the daily generation
   // ==========================================
   try {
-    const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-    const adminClient = createSupabaseClient();
+    const { createClient: createDbClient } = await import('@/lib/pg-client');
+    const adminClient = createDbClient();
     
-    const { data: triviaGameType } = await supabase.from("game_types").select("*").eq("slug", "trivia").single();
+    const { data: triviaGameType } = await dbClient.from("game_types").select("*").eq("slug", "trivia").single();
     
-    const { data: profile } = await supabase.from("profiles").select("department").eq("id", user.id).single();
+    const { data: profile } = await dbClient.from("profiles").select("department").eq("id", user.id).single();
     const userDept = profile?.department || "General";
     
     const existingCompanyTriviaIds = new Set(
@@ -371,7 +371,7 @@ export async function startDailySession() {
           console.log(`Injected ${insertedQs.length} new custom company trivia questions!`);
           todaysQuestions = [...(todaysQuestions || []), ...insertedQs];
         } else if (insertError) {
-          console.error("Supabase insert error for company trivia:", insertError);
+          console.error("PostgreSQL insert error for company trivia:", insertError);
         }
       }
     }
@@ -389,7 +389,7 @@ export async function startDailySession() {
   // is intentionally per game, so a small bank for one game cannot remove
   // that game from the daily mission entirely.
   const historySince = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: historyRows, error: historyError } = await supabase
+  const { data: historyRows, error: historyError } = await dbClient
     .from("question_history")
     .select("question_id")
     .eq("user_id", user.id)
@@ -407,11 +407,11 @@ export async function startDailySession() {
   // If we reached here and there's already a session for today (which means cooldown is 0 for testing),
   // we must delete it to prevent a PostgreSQL unique constraint violation (23505) on (user_id, date).
   // We use adminClient because normal users do not have DELETE permissions via RLS on daily_sessions.
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
   await adminClient.from("daily_sessions").delete().eq("user_id", user.id).eq("date", today);
 
-  const { data: session, error: sessionError } = await supabase
+  const { data: session, error: sessionError } = await dbClient
     .from("daily_sessions")
     .insert({
       user_id: user.id,
@@ -508,7 +508,7 @@ export async function startDailySession() {
       is_completed: false
     }));
 
-    const { error: questionInsertError } = await supabase.from("session_questions").insert(sessionQuestionsData);
+    const { error: questionInsertError } = await dbClient.from("session_questions").insert(sessionQuestionsData);
     if (questionInsertError) {
       await adminClient.from("daily_sessions").delete().eq("id", session.id).eq("user_id", user.id);
       throw questionInsertError;
@@ -531,8 +531,8 @@ export async function startDailySession() {
 }
 
 export async function fetchSessionQuestions(sessionId: string) {
-  const supabase = await createClient();
-  const { data: questions } = await supabase
+  const dbClient = await createClient();
+  const { data: questions } = await dbClient
     .from("session_questions")
     .select(`
       id, session_id, order_index, is_completed, question_id,
@@ -597,12 +597,12 @@ export async function submitAnswer(
     customScoreModifiers?: { mistakes?: number; customSpeedBonus?: number; accuracy?: number; baseScore?: number };
   }
 ) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
   // Fetch the question details
-  const { data: sq } = await supabase
+  const { data: sq } = await dbClient
     .from("session_questions")
     .select(`
       *,
@@ -697,7 +697,7 @@ export async function submitAnswer(
   }
 
   // Update session_questions
-  const { data: completedQuestion, error: completeError } = await supabase
+  const { data: completedQuestion, error: completeError } = await dbClient
     .from("session_questions")
     .update({
       is_completed: true,
@@ -722,11 +722,11 @@ export async function submitAnswer(
 }
 
 export async function endSession(sessionId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
-  const { data: session } = await supabase
+  const { data: session } = await dbClient
     .from("daily_sessions")
     .select("id, user_id, is_completed")
     .eq("id", sessionId)
@@ -736,12 +736,12 @@ export async function endSession(sessionId: string) {
   if (!session) throw new Error("Session not found");
   if (session.is_completed) return { error: "Session already completed" };
 
-  const { data: questions } = await supabase
+  const { data: questions } = await dbClient
     .from("session_questions")
     .select("earned_xp, is_completed")
     .eq("session_id", sessionId);
 
-  const { data: profile } = await supabase
+  const { data: profile } = await dbClient
     .from("profiles")
     .select("total_xp, current_streak, best_streak, games_played")
     .eq("id", user.id)
@@ -759,7 +759,7 @@ export async function endSession(sessionId: string) {
 
   const finalTotalXp = baseTotalXp + streakBonus;
 
-  const { data: completedSession, error: completeSessionError } = await supabase
+  const { data: completedSession, error: completeSessionError } = await dbClient
     .from("daily_sessions")
     .update({
       is_completed: true,
@@ -814,12 +814,12 @@ export async function endSession(sessionId: string) {
 }
 
 export async function resetDailySession() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const dbClient = await createClient();
+  const { data: { user } } = await dbClient.auth.getUser();
 
   if (!user) throw new Error("Unauthorized");
 
-  const { data: resetProfile } = await supabase
+  const { data: resetProfile } = await dbClient
     .from("profiles")
     .select("timezone")
     .eq("id", user.id)
@@ -827,8 +827,8 @@ export async function resetDailySession() {
   const today = getDateInTimezone(resetProfile?.timezone);
   
   // Use service role key to bypass RLS for deletion
-  const { createClient: createSupabaseClient } = await import('@/lib/pg-client');
-  const adminClient = createSupabaseClient();
+  const { createClient: createDbClient } = await import('@/lib/pg-client');
+  const adminClient = createDbClient();
   
   // Fetch the session before we delete it to see if we need to roll back stats
   const { data: sessionToReset } = await adminClient
@@ -861,3 +861,4 @@ export async function resetDailySession() {
   revalidatePath("/play");
   return { success: true };
 }
+

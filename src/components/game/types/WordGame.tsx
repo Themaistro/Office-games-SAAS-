@@ -52,3 +52,4 @@ export default function WordGame({ question, onAnswer, isSubmitting }: GameProps
     </div>
   );
 }
+

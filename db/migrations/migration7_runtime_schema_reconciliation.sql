@@ -43,3 +43,4 @@ CREATE INDEX IF NOT EXISTS daily_sessions_user_completed_idx
 
 CREATE INDEX IF NOT EXISTS session_questions_session_completed_idx
   ON public.session_questions(session_id, is_completed, order_index);
+

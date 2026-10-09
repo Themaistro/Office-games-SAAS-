@@ -144,3 +144,4 @@ export async function toggleTriviaStatus(id: string, currentStatus: boolean) {
 
   revalidatePath("/admin/questions");
 }
+
