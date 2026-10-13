@@ -27,6 +27,7 @@ export interface SessionQuestion {
   question_id: string;
   order_index: number;
   is_completed: boolean;
+  earned_xp?: number;
   question: Question;
 }
 

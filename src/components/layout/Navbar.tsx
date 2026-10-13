@@ -3,7 +3,7 @@ import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import NavbarClient from "./NavbarClient";
 
-export default async function Navbar() {
+export default async function Navbar({ adminView = false }: { adminView?: boolean }) {
   const user = await getCurrentUser();
 
   let profile = null;
@@ -18,6 +18,6 @@ export default async function Navbar() {
     redirect("/login");
   };
 
-  return <NavbarClient user={user} profile={profile} onSignOut={handleSignOut} />;
+  return <NavbarClient user={user} profile={profile} onSignOut={handleSignOut} adminView={adminView} />;
 }
 

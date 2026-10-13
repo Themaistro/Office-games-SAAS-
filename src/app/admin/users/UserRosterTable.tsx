@@ -5,7 +5,8 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import SortableHeader from "./SortableHeader";
 import PlayerDrawer from "./PlayerDrawer";
 import { Search, SearchX, RotateCcw, Power, PowerOff, CheckSquare, Square } from "lucide-react";
-import { resetUserStreak, updateUserDepartment, toggleUserStatus, bulkResetStreaks, bulkDeactivate } from "./actions";
+import { resetUserStreak, toggleUserStatus, bulkResetStreaks, bulkDeactivate } from "./actions";
+import DepartmentAssignmentForm from "./DepartmentAssignmentForm";
 
 function formatRelativeTime(dateString: string | null) {
   if (!dateString) return "Never";
@@ -52,7 +53,9 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
   const handleBulkReset = async () => {
     if (selectedUsers.size === 0) return;
     setIsBulkProcessing(true);
-    await bulkResetStreaks(Array.from(selectedUsers));
+    const res = await bulkResetStreaks(Array.from(selectedUsers));
+    if (res?.error) setErrorMsg(res.error);
+    else router.refresh();
     setSelectedUsers(new Set());
     setIsBulkProcessing(false);
   };
@@ -62,6 +65,7 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
     setIsBulkProcessing(true);
     const res = await bulkDeactivate(Array.from(selectedUsers));
     if (res.error) setErrorMsg(res.error);
+    else router.refresh();
     setSelectedUsers(new Set());
     setIsBulkProcessing(false);
   };
@@ -71,7 +75,7 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
     if (res.error) {
       setErrorMsg(res.error);
       setTimeout(() => setErrorMsg(""), 5000);
-    }
+    } else router.refresh();
   };
 
   return (
@@ -164,22 +168,7 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <form action={updateUserDepartment} className="flex items-center gap-1">
-                          <input type="hidden" name="userId" value={u.id} />
-                          <select 
-                            name="department" 
-                            defaultValue={u.department || ""}
-                            className="text-xs font-medium rounded-full border border-border bg-muted/30 hover:bg-muted/50 px-3 py-1.5 shadow-sm transition-colors cursor-pointer outline-none focus:ring-2 focus:ring-primary/20"
-                          >
-                            <option value="">Unassigned</option>
-                            {departments.map(d => (
-                              <option key={d.id} value={d.name}>{d.name}</option>
-                            ))}
-                          </select>
-                          <button type="submit" className="text-xs text-primary hover:underline px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            Save
-                          </button>
-                        </form>
+                        <DepartmentAssignmentForm userId={u.id} currentDepartment={u.department} departments={departments} />
                       </td>
                       <td className="px-6 py-4 font-bold">{u.current_level || 1}</td>
                       <td className="px-6 py-4 font-medium">{u.total_xp?.toLocaleString() || 0}</td>
@@ -201,16 +190,19 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
                         {formatRelativeTime(lastActiveTime)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <button 
+                            type="button"
                             onClick={() => handleToggleStatus(u.id, isActive)}
-                            className={`p-1.5 rounded transition-colors ${isActive ? 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive' : 'text-destructive hover:bg-primary/10 hover:text-primary'}`}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${isActive ? 'border-destructive/20 text-destructive hover:bg-destructive/10' : 'border-primary/20 text-primary hover:bg-primary/10'}`}
                             title={isActive ? "Suspend User" : "Activate User"}
                           >
                             {isActive ? <PowerOff size={16} /> : <Power size={16} />}
+                            <span className="hidden lg:inline">{isActive ? "Suspend" : "Activate"}</span>
                           </button>
-                          <button onClick={() => setDrawerUserId(u.id)} className="text-muted-foreground hover:text-primary p-1.5" title="View Profile">
-                             <Search size={16} />
+                          <button type="button" onClick={() => setDrawerUserId(u.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary" title="View Profile">
+                            <Search size={16} />
+                             <span className="hidden lg:inline">View profile</span>
                           </button>
                           {drawerUserId === u.id && <PlayerDrawer userId={drawerUserId!} onClose={() => setDrawerUserId(null)} />}
                         </div>

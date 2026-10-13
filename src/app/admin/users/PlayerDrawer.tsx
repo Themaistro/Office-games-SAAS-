@@ -6,10 +6,10 @@ import { useEffect, useState } from "react";
 import { getPlayerDetails, wipePlayerSession, grantExtraTime, setPlayerTimeLimits } from "./actions";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
-function formatSessionDate(dateStr: string) {
-  if (!dateStr) return "";
-  const [year, month, day] = dateStr.split("-");
-  const date = new Date(Number(year), Number(month) - 1, Number(day));
+function formatSessionDate(value: unknown) {
+  if (!value) return "Unknown date";
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) return "Unknown date";
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 

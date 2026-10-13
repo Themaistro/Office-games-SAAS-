@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { GameProps } from '@/types/game';
 import { Target, Clock, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
+import { seededNumber, seededShuffle } from '@/lib/challenge-seed';
 
 export default function OddObjectGame({ question, onAnswer, isSubmitting, showHint }: GameProps) {
   const [grid, setGrid] = useState<{ id: number, isOdd: boolean, emoji: string, isEliminated: boolean }[]>([]);
@@ -21,7 +22,8 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
     const baseEmoji = question?.content?.even || "🍎";
     const oddEmoji = question?.content?.odd || "🍅";
 
-    const oddIndex = Math.floor(Math.random() * gridSize);
+    const challengeSeed = question?.content?.seed || question?.id;
+    const oddIndex = seededNumber(challengeSeed, 'odd-position', gridSize);
     
     const newGrid = Array.from({ length: gridSize }).map((_, i) => {
       const isOdd = i === oddIndex;
@@ -48,13 +50,14 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
     setGrid(prev => {
       const incorrectIdxs = prev.map((item, i) => !item.isOdd && !item.isEliminated ? i : -1).filter(i => i !== -1);
       // Shuffle and take half
-      const toEliminate = incorrectIdxs.sort(() => 0.5 - Math.random()).slice(0, Math.floor(incorrectIdxs.length / 2));
+      const challengeSeed = question?.content?.seed || question?.id;
+      const toEliminate = seededShuffle(incorrectIdxs, challengeSeed, 'hint').slice(0, Math.floor(incorrectIdxs.length / 2));
       
       return prev.map((item, i) => 
         toEliminate.includes(i) ? { ...item, isEliminated: true } : item
       );
     });
-  }, [hintUsed, isSubmitting, failed, grid.length]);
+  }, [hintUsed, isSubmitting, failed, grid.length, question?.content?.seed, question?.id]);
 
   useEffect(() => {
     if (showHint && !hintUsed) {

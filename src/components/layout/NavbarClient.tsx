@@ -12,9 +12,10 @@ interface NavbarClientProps {
   user: any;
   profile: any;
   onSignOut: () => void;
+  adminView?: boolean;
 }
 
-export default function NavbarClient({ user, profile, onSignOut }: NavbarClientProps) {
+export default function NavbarClient({ user, profile, onSignOut, adminView = false }: NavbarClientProps) {
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -43,12 +44,14 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const navLinks = [
+  const navLinks = adminView ? [
+    { name: "Admin Console", href: "/admin", icon: Shield },
+  ] : [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Leaderboard", href: "/leaderboard", icon: Trophy },
   ];
 
-  if (profile?.role === "admin") {
+  if (!adminView && profile?.role === "admin") {
     navLinks.push({ name: "Admin", href: "/admin/games", icon: Shield });
   }
 
@@ -95,7 +98,7 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
           <div className="w-px h-8 bg-border/60 mx-2" />
 
           {/* Search Button */}
-          {user && (
+          {user && !adminView && (
             <button
               onClick={() => setIsSearchOpen(true)}
               className="w-10 h-10 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
@@ -105,7 +108,7 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
             </button>
           )}
 
-          {user && <NotificationBellClient userId={user.id} />}
+          {user && !adminView && <NotificationBellClient userId={user.id} />}
 
           {/* Stats Badge */}
         {user && profile && profile.role !== "admin" && (
@@ -148,12 +151,12 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
                 </div>
                 <div className="p-2 space-y-1">
                   <Link 
-                    href="/profile"
+                    href={adminView ? "/admin" : "/profile"}
                     onClick={() => setIsDropdownOpen(false)}
                     className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors"
                   >
                     <User size={16} />
-                    My Profile
+                    {adminView ? "Admin Console" : "My Profile"}
                   </Link>
                   <button
                     onClick={() => {
@@ -179,9 +182,11 @@ export default function NavbarClient({ user, profile, onSignOut }: NavbarClientP
         >
           <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
             {[
-              ...navLinks.filter((link) => link.name !== "Admin").slice(0, 2),
-              { name: "People", href: "/people", icon: Users },
-              { name: "Profile", href: "/profile", icon: User },
+              ...(adminView ? navLinks : [
+                ...navLinks.filter((link) => link.name !== "Admin").slice(0, 2),
+                { name: "People", href: "/people", icon: Users },
+                { name: "Profile", href: "/profile", icon: User },
+              ]),
             ].map((link) => {
               const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
               const Icon = link.icon;

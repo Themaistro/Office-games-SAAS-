@@ -5,8 +5,9 @@ import { GameComponentProps } from '@/types/game';
 import { Activity, Clock } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion } from 'framer-motion';
+import { seededNumber } from '@/lib/challenge-seed';
 
-export default function MentalMathGame({ onAnswer, isSubmitting, showHint }: GameComponentProps) {
+export default function MentalMathGame({ question, onAnswer, isSubmitting, showHint }: GameComponentProps) {
   const [equation, setEquation] = useState("");
   const [answer, setAnswer] = useState(0);
   const [input, setInput] = useState("");
@@ -20,20 +21,21 @@ export default function MentalMathGame({ onAnswer, isSubmitting, showHint }: Gam
   // Generate Equation
   useEffect(() => {
     const operations = ['+', '-', '*'];
-    const op = operations[Math.floor(Math.random() * operations.length)];
+    const challengeSeed = question?.content?.seed || question?.id;
+    const op = operations[seededNumber(challengeSeed, 'operation', operations.length)];
     
     let a, b, res;
     if (op === '+') {
-      a = Math.floor(Math.random() * 50) + 10;
-      b = Math.floor(Math.random() * 50) + 10;
+      a = seededNumber(challengeSeed, 'a', 50) + 10;
+      b = seededNumber(challengeSeed, 'b', 50) + 10;
       res = a + b;
     } else if (op === '-') {
-      a = Math.floor(Math.random() * 50) + 20;
-      b = Math.floor(Math.random() * 20) + 1;
+      a = seededNumber(challengeSeed, 'a', 50) + 20;
+      b = seededNumber(challengeSeed, 'b', 20) + 1;
       res = a - b;
     } else {
-      a = Math.floor(Math.random() * 10) + 2;
-      b = Math.floor(Math.random() * 10) + 2;
+      a = seededNumber(challengeSeed, 'a', 10) + 2;
+      b = seededNumber(challengeSeed, 'b', 10) + 2;
       res = a * b;
     }
 
@@ -42,7 +44,7 @@ export default function MentalMathGame({ onAnswer, isSubmitting, showHint }: Gam
     
     // Auto-focus input on mount
     if (inputRef.current) inputRef.current.focus();
-  }, []);
+  }, [question?.content?.seed, question?.id]);
 
   const handleWrong = useCallback(() => {
     if (isSubmitting || solved) return;

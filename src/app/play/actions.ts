@@ -3,7 +3,6 @@
 
 import { createAdminClient, createClient } from "@/lib/pg-client";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import {
   generateTrivia,
   generateSudokuLite,
@@ -19,6 +18,99 @@ import {
 } from '@/lib/game-content';
 import { SessionQuestion } from "@/types/game";
 import { query as pgQuery } from "@/lib/db";
+
+type MissionGame = { id: string; slug: string; name: string };
+
+const gameCategory = (slug: string) => {
+  if (["trivia", "coding", "typing", "word", "unscramble", "word-unscramble"].includes(slug)) return "knowledge";
+  if (["memory", "sequence", "card_match", "card-match", "reaction", "stroop"].includes(slug)) return "reflex";
+  if (["logic", "sudoku_lite", "sudoku-lite", "odd_object", "odd-object"].includes(slug)) return "logic";
+  if (["math", "mental_math", "mental-math"].includes(slug)) return "math";
+  return "other";
+};
+
+const stableHash = (value: string) => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+function buildDailyLineup(date: string, games: MissionGame[], count: number, history: string[][]) {
+  const seed = stableHash(`office-games:${date}`);
+  // Keep Trivia in the route when it is enabled. That gives Company Trivia a
+  // compatible home whenever there is an eligible company question, instead
+  // of forcing that content into an unrelated game component.
+  const requiredGame = games.find((game) => game.slug === "trivia");
+  const recentTwoDays = new Set(history.slice(0, 2).flat());
+  const preferredPool = games.filter((game) => !recentTwoDays.has(game.id));
+  const pool = preferredPool.length >= count ? preferredPool : games;
+  let best: { games: MissionGame[]; score: number } | null = null;
+
+  for (let attempt = 0; attempt < 256; attempt += 1) {
+    const ranked = [...pool].sort((left, right) =>
+      stableHash(`${seed}:${attempt}:${left.id}`) - stableHash(`${seed}:${attempt}:${right.id}`)
+    );
+    const selected: MissionGame[] = requiredGame && count > 0 ? [requiredGame] : [];
+    const categories = new Set(selected.map((game) => gameCategory(game.slug)));
+
+    for (const game of ranked) {
+      if (selected.length >= count) break;
+      const category = gameCategory(game.slug);
+      if (!selected.some((selectedGame) => selectedGame.id === game.id) && !categories.has(category)) {
+        selected.push(game);
+        categories.add(category);
+      }
+    }
+    for (const game of ranked) {
+      if (selected.length >= count) break;
+      if (!selected.some((selectedGame) => selectedGame.id === game.id)) selected.push(game);
+    }
+
+    const key = selected.map((game) => game.id).sort().join(",");
+    let score = categories.size * 100;
+    history.forEach((previous, index) => {
+      const overlap = selected.filter((game) => previous.includes(game.id)).length;
+      score -= overlap * Math.max(1, 20 - index);
+      if (previous.slice().sort().join(",") === key) score -= 10000;
+    });
+    if (!best || score > best.score) best = { games: selected, score };
+  }
+  return { seed, games: best?.games || games.slice(0, count) };
+}
+
+async function getDailyMissionGames(date: string, activeGames: MissionGame[], gameCount: number) {
+  const { rows: existingRows } = await pgQuery<{ game_ids: string[] }>(
+    "SELECT game_ids FROM daily_mission_lineups WHERE mission_date = $1",
+    [date]
+  );
+  const activeIds = new Set(activeGames.map((game) => game.id));
+  const existing = existingRows[0]?.game_ids || [];
+  const triviaGame = activeGames.find((game) => game.slug === "trivia");
+  if (
+    existing.length === Math.min(gameCount, activeGames.length) &&
+    existing.every((id) => activeIds.has(id)) &&
+    (!triviaGame || existing.includes(triviaGame.id))
+  ) {
+    return activeGames.filter((game) => existing.includes(game.id));
+  }
+
+  const { rows: historyRows } = await pgQuery<{ game_ids: string[] }>(
+    "SELECT game_ids FROM daily_mission_lineups WHERE mission_date < $1 ORDER BY mission_date DESC LIMIT 60",
+    [date]
+  );
+  const lineup = buildDailyLineup(date, activeGames, Math.min(gameCount, activeGames.length), historyRows.map((row) => row.game_ids));
+  const lineupIds = lineup.games.map((game) => game.id);
+  await pgQuery(
+    `INSERT INTO daily_mission_lineups (mission_date, game_ids, seed)
+     VALUES ($1, $2::uuid[], $3)
+     ON CONFLICT (mission_date) DO UPDATE SET game_ids = EXCLUDED.game_ids, seed = EXCLUDED.seed`,
+    [date, lineupIds, lineup.seed]
+  );
+  return lineup.games;
+}
 
 function getDateInTimezone(timezone?: string | null, date = new Date()) {
   const safeTimezone = timezone || "UTC";
@@ -103,7 +195,7 @@ export async function startDailySession() {
     .from("daily_sessions")
     .select("*")
     .eq("user_id", user.id)
-    .eq("is_completed", false);
+    .eq("status", "in_progress");
 
   if (activeSessions && activeSessions.length > 0) {
     const activeSession = activeSessions[0];
@@ -118,9 +210,26 @@ export async function startDailySession() {
       return { success: true, session: activeSession };
     } else {
       console.log("Broken session detected, deleting:", activeSession.id);
-      await dbClient.from("daily_sessions").delete().eq("id", activeSession.id);
+      const { createClient: createBrokenSessionClient } = await import('@/lib/pg-client');
+      await createBrokenSessionClient().from("daily_sessions").delete().eq("id", activeSession.id).eq("user_id", user.id);
       // Let it fall through to create a new session
     }
+  }
+
+  // A timed-out mission is not a win and must not silently turn into a new
+  // attempt on refresh. A fresh route becomes available on the next day.
+  const { data: expiredToday } = await dbClient
+    .from("daily_sessions")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("date", today)
+    .eq("status", "expired")
+    .maybeSingle();
+  if (expiredToday) {
+    return {
+      error: "mission_expired",
+      message: "Today’s Daily Mission has ended. A fresh route will be ready tomorrow."
+    };
   }
 
   // 1.b Check if they already completed a session within the last 24 hours
@@ -150,9 +259,21 @@ export async function startDailySession() {
     }
   }
 
-  // 2. Fetch active games and ensure today's question pool is generated
+  // 2. Build (or reuse) today's office-wide game route. The lineup is stored
+  // once per calendar day, so refreshing cannot reshuffle a mission and every
+  // player gets the same balanced set of games for that day.
   const { data: activeGames } = await dbClient.from("game_types").select("*").eq("is_active", true);
-  const activeGameIds = activeGames?.map((g) => g.id) || [];
+
+  if (!activeGames || activeGames.length === 0) {
+    return { error: "No active games available right now. Please check back later." };
+  }
+
+  const missionGames = await getDailyMissionGames(
+    today,
+    activeGames as MissionGame[],
+    settings?.daily_game_count ?? 5
+  );
+  const activeGameIds = missionGames.map((game) => game.id);
 
   if (activeGameIds.length === 0) {
     return { error: "No active games available right now. Please check back later." };
@@ -170,6 +291,7 @@ export async function startDailySession() {
       .select("id, game_type_id, difficulty, content, options, base_xp, pool_date")
       .eq("pool_date", today)
       .in("game_type_id", activeGameIds)
+      .eq("is_active", true)
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
     if (qError) {
@@ -189,9 +311,9 @@ export async function startDailySession() {
 
   todaysQuestions = await attachQuestionGameTypes(dbClient, todaysQuestions);
 
-  // Find which active games do NOT have any questions generated today
+  // Find which games in today's route do NOT have any questions generated today.
   const existingGameIds = new Set(todaysQuestions?.map(q => q.game_type_id) || []);
-  const missingGames = activeGames?.filter(g => !existingGameIds.has(g.id)) || [];
+  const missingGames = missionGames.filter(game => !existingGameIds.has(game.id));
 
   // If any active games are missing questions, GENERATE them!
   if (missingGames.length > 0) {
@@ -199,7 +321,7 @@ export async function startDailySession() {
     const newQuestions = [];
     
     // Fetch master banks and system settings
-    const [{ data: masterTrivia }, { data: masterWords }, { data: masterTyping }, { data: masterOdd }, { data: settings }] = await Promise.all([
+    const [{ data: masterTrivia }, { data: masterWords }, { data: masterTyping }, { data: masterOdd }, { data: generationSettings }] = await Promise.all([
       dbClient.from('master_trivia_bank').select('*'),
       dbClient.from('master_word_bank').select('*'),
       dbClient.from('master_typing_bank').select('*'),
@@ -207,8 +329,8 @@ export async function startDailySession() {
       dbClient.from('system_settings').select('*').single()
     ]);
 
-    const currentSeason = settings?.current_season || 1;
-    const seasonStart = settings?.season_start_date ? new Date(settings.season_start_date) : new Date();
+    const currentSeason = generationSettings?.current_season || 1;
+    const seasonStart = generationSettings?.season_start_date ? new Date(generationSettings.season_start_date) : new Date();
     const daysSinceSeasonStart = Math.floor((new Date().getTime() - seasonStart.getTime()) / (1000 * 60 * 60 * 24));
     
     // Offset calculation: (Season Number - 1) * 30 days + Days into current season
@@ -249,9 +371,9 @@ export async function startDailySession() {
         } else if (game.slug === "logic") {
           diffBatch = generateSequence(25, diff);
         } else if (['reaction', 'stroop', 'card_match', 'card-match', 'sequence'].includes(game.slug)) {
-          diffBatch = Array.from({ length: 25 }).map(() => ({
+          diffBatch = Array.from({ length: 25 }).map((_, index) => ({
             correctAnswer: "none",
-            content: {},
+            content: { seed: `${today}:${game.slug}:${diff}:${index}`, sourceKey: `${game.slug}:${today}:${diff}:${index}`, generated: true },
             options: []
           }));
         } else if (game.slug === "coding") {
@@ -259,7 +381,11 @@ export async function startDailySession() {
           const sortedCoding = [...codingTrivia].sort(deterministicSort);
           diffBatch = generateTrivia(sortedCoding, 25, diff, sliceIndex);
         } else {
-          const sortedTrivia = [...(masterTrivia || [])].sort(deterministicSort);
+          // Specialist Coding items belong only to Coding. Keeping the pools
+          // separate avoids a programming question appearing in General Trivia
+          // and preserves the intended content variety across the mission.
+          const generalTrivia = (masterTrivia || []).filter(t => !['IT', 'Engineering', 'Product'].includes(t.department));
+          const sortedTrivia = [...generalTrivia].sort(deterministicSort);
           diffBatch = generateTrivia(sortedTrivia, 50, diff, sliceIndex);
         }
 
@@ -351,23 +477,27 @@ export async function startDailySession() {
       .in("department", ["General", userDept])
       .eq("is_active", true);
 
-    const customTrivia = [...(todayTrivia || [])];
-    
-    if (anytimeTrivia && anytimeTrivia.length > 0) {
-      const randomAnytime = anytimeTrivia[Math.floor(Math.random() * anytimeTrivia.length)];
-      customTrivia.push(randomAnytime);
-    }
-
-    const missingCustomTrivia = customTrivia.filter(t => !existingCompanyTriviaIds.has(t.id));
+    // A mission has one company-trivia bonus. Scheduled items are preferred;
+    // otherwise pick one eligible evergreen item and insert it at a random spot.
+    const candidates = todayTrivia && todayTrivia.length > 0 ? todayTrivia : (anytimeTrivia || []);
+    const existingBonus = todaysQuestions.find((question) => question.content?.isCompanyTrivia);
+    const selectedBonus = existingBonus
+      ? null
+      : candidates[Math.floor(Math.random() * candidates.length)];
+    const missingCustomTrivia = selectedBonus && !existingCompanyTriviaIds.has(selectedBonus.id)
+      ? [selectedBonus]
+      : [];
 
     if (missingCustomTrivia.length > 0) {
       const newCompanyQs = [];
       
-      if (activeGames && activeGames.length > 0) {
+      if (missionGames.length > 0) {
         for (const trivia of missingCustomTrivia) {
-          // Match by game_slug, fallback to trivia, then to the first active game
-          let targetGame = activeGames.find(g => g.slug === trivia.game_slug);
-          if (!targetGame) targetGame = activeGames.find(g => g.slug === 'trivia') || activeGames[0];
+          // A company prompt belongs inside today's route, never as an extra
+          // unplanned game. Prefer its configured game, then Trivia, then the
+          // first game in the route.
+          let targetGame = missionGames.find(game => game.slug === trivia.game_slug);
+          if (!targetGame) targetGame = missionGames.find(game => game.slug === 'trivia') || missionGames[0];
 
           if (targetGame) {
             newCompanyQs.push({
@@ -377,7 +507,8 @@ export async function startDailySession() {
                 question: trivia.question,
                 text: trivia.question, // Support for math/logic games that expect .text
                 isCompanyTrivia: true,
-                companyTriviaId: trivia.id
+                companyTriviaId: trivia.id,
+                sourceKey: `company-trivia:${trivia.id}`
               },
               options: trivia.options.sort(() => 0.5 - Math.random()),
               correct_answer: trivia.correct_answer,
@@ -419,7 +550,7 @@ export async function startDailySession() {
   const historySince = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
   const { data: historyRows, error: historyError } = await dbClient
     .from("question_history")
-    .select("question_id")
+    .select("question_id, content_key")
     .eq("user_id", user.id)
     .gte("served_at", historySince);
 
@@ -429,6 +560,7 @@ export async function startDailySession() {
   }
 
   const seenQuestionIds = new Set((historyRows || []).map((row) => row.question_id));
+  const seenContentKeys = new Set((historyRows || []).map((row) => row.content_key).filter(Boolean));
 
   // 3. We have questions! Let's create the session.
   
@@ -455,7 +587,8 @@ export async function startDailySession() {
   // 4. Group and assign questions
     // Group questions by game_type_id
     const questionsByGame: Record<string, any[]> = {};
-    const cardMatchAdded = false;
+    const companyTriviaQuestions: any[] = [];
+    const capacityErrors: string[] = [];
 
     for (const q of allQuestions) {
       const gameTypes = q.game_types as any;
@@ -466,6 +599,11 @@ export async function startDailySession() {
         // We now allow all trivia questions into the global pool
       }
 
+      if (q.content?.isCompanyTrivia) {
+        companyTriviaQuestions.push(q);
+        continue;
+      }
+
       if (!questionsByGame[q.game_type_id]) {
         questionsByGame[q.game_type_id] = [];
       }
@@ -474,7 +612,10 @@ export async function startDailySession() {
 
     for (const gameId in questionsByGame) {
       const gameQuestions = questionsByGame[gameId];
-      const freshQuestions = gameQuestions.filter(q => !seenQuestionIds.has(q.id));
+      const freshQuestions = gameQuestions.filter((question) => {
+        const contentKey = question.content?.sourceKey || question.content?.seed;
+        return !seenQuestionIds.has(question.id) && (!contentKey || !seenContentKeys.has(contentKey));
+      });
       const eligibleQuestions = freshQuestions.length > 0 ? freshQuestions : gameQuestions;
       const easyQs = eligibleQuestions.filter(q => q.difficulty === 'easy').sort(() => 0.5 - Math.random());
       const medQs = eligibleQuestions.filter(q => q.difficulty === 'medium').sort(() => 0.5 - Math.random());
@@ -487,6 +628,14 @@ export async function startDailySession() {
       const medRounds = gameTypesObj?.medium_rounds ?? 1;
       const hardRounds = gameTypesObj?.hard_rounds ?? 1;
 
+      for (const [label, requested, available] of [
+        ["easy", easyRounds, easyQs.length],
+        ["medium", medRounds, medQs.length],
+        ["hard", hardRounds, hardQs.length],
+      ] as const) {
+        if (requested > available) capacityErrors.push(`${gameTypesObj?.name || "Game"}: needs ${requested} ${label}, has ${available}`);
+      }
+
       questionsByGame[gameId] = [
         ...easyQs.slice(0, easyRounds),
         ...medQs.slice(0, medRounds),
@@ -494,8 +643,12 @@ export async function startDailySession() {
       ].filter(Boolean);
     }
 
+    if (capacityErrors.length > 0) {
+      await adminClient.from("daily_sessions").delete().eq("id", session.id).eq("user_id", user.id);
+      return { error: `Mission settings cannot be fulfilled. ${capacityErrors.join("; ")}` };
+    }
+
     const selectedQuestions: any[] = [];
-    const companyTriviaQuestions: any[] = [];
     
     // Shuffle the order of the games completely randomly for every single session!
     const gameIds = Object.keys(questionsByGame).sort(() => 0.5 - Math.random());
@@ -505,28 +658,21 @@ export async function startDailySession() {
     
     // Group them so the user plays Game A (Easy, Med, Hard), then Game B (Easy, Med, Hard)
     for (const gameId of gameIds) {
-      for (const q of questionsByGame[gameId]) {
-        // If it's a company trivia question, separate it so it doesn't get limited out
-        if (q.content?.isCompanyTrivia) {
-          companyTriviaQuestions.push(q);
-        } else {
-          selectedQuestions.push(q);
-        }
-      }
+      selectedQuestions.push(...questionsByGame[gameId]);
     }
 
-    // Now scan through ALL questions to find any company trivia that was missed because its gameId was sliced out
-    for (const q of allQuestions) {
-      if (q.content?.isCompanyTrivia && !seenQuestionIds.has(q.id) && !companyTriviaQuestions.some(ct => ct.id === q.id)) {
-        companyTriviaQuestions.push(q);
-      }
-    }
-
-    // Randomly disperse the company trivia questions throughout the sequence 
-    // rather than forcing them at the beginning.
-    for (const companyQ of companyTriviaQuestions) {
+    // One company-trivia bonus appears at a random point without consuming a
+    // configured round for Trivia or any other game.
+    const freshCompanyTrivia = companyTriviaQuestions.filter((question) => !seenQuestionIds.has(question.id));
+    const companyQuestion = freshCompanyTrivia[0] || companyTriviaQuestions[0];
+    if (companyQuestion) {
       const randomIndex = Math.floor(Math.random() * (selectedQuestions.length + 1));
-      selectedQuestions.splice(randomIndex, 0, companyQ);
+      selectedQuestions.splice(randomIndex, 0, companyQuestion);
+    }
+
+    if (selectedQuestions.length === 0) {
+      await adminClient.from("daily_sessions").delete().eq("id", session.id).eq("user_id", user.id);
+      return { error: "No playable questions are available right now. Please ask an administrator to check the active game question pools." };
     }
 
     const sessionQuestionsData = selectedQuestions.map((q, index) => ({
@@ -547,6 +693,7 @@ export async function startDailySession() {
         user_id: user.id,
         question_id: q.id,
         session_id: session.id,
+        content_key: q.content?.sourceKey || q.content?.seed || `question:${q.id}`,
       }))
     );
     if (historyInsertError) {
@@ -560,7 +707,7 @@ export async function startDailySession() {
 
 export async function fetchSessionQuestions(sessionId: string) {
   const { rows: questions } = await pgQuery(`
-    SELECT sq.id, sq.session_id, sq.order_index, sq.is_completed, sq.question_id,
+    SELECT sq.id, sq.session_id, sq.order_index, sq.is_completed, sq.earned_xp, sq.question_id,
            q.id AS q_id, q.difficulty, q.content, q.options, q.base_xp, q.correct_answer,
            gt.id AS game_type_id, gt.name AS game_type_name, gt.slug AS game_type_slug,
            gt.description AS game_type_description
@@ -577,6 +724,7 @@ export async function fetchSessionQuestions(sessionId: string) {
       session_id: sq.session_id,
       order_index: sq.order_index,
       is_completed: sq.is_completed,
+      earned_xp: sq.earned_xp,
       question_id: sq.question_id,
       question: {
         id: sq.q_id,
@@ -634,9 +782,13 @@ export async function submitAnswer(
     content: Record<string, unknown> | null;
     game_slug: string;
     user_id: string;
+    session_status: string;
+    session_created_at: string;
+    allowed_duration_seconds: number;
   }>(
     `SELECT sq.id, sq.is_completed, q.correct_answer, q.base_xp, q.content,
-            gt.slug AS game_slug, ds.user_id
+            gt.slug AS game_slug, ds.user_id, ds.status AS session_status,
+            ds.created_at AS session_created_at, ds.allowed_duration_seconds
      FROM session_questions sq
      JOIN questions q ON q.id = sq.question_id
      JOIN game_types gt ON gt.id = q.game_type_id
@@ -654,12 +806,21 @@ export async function submitAnswer(
       content: row.content,
       game_types: { slug: row.game_slug },
     },
-    daily_sessions: { user_id: row.user_id },
+    daily_sessions: {
+      user_id: row.user_id,
+      status: row.session_status,
+      created_at: row.session_created_at,
+      allowed_duration_seconds: row.allowed_duration_seconds,
+    },
   } : null;
 
   if (!sq) throw new Error("Question not found");
   if (sq.daily_sessions.user_id !== user.id) throw new Error("Unauthorized");
   if (sq.is_completed) return { error: "Already answered" };
+  const expiresAt = new Date(sq.daily_sessions.created_at).getTime() + (sq.daily_sessions.allowed_duration_seconds * 1000);
+  if (sq.daily_sessions.status !== "in_progress" || Date.now() >= expiresAt) {
+    return { error: "Mission time has expired" };
+  }
   if (!Number.isFinite(timeSpentSeconds) || timeSpentSeconds < 0 || timeSpentSeconds > 3600) {
     throw new Error("Invalid answer timing");
   }
@@ -773,38 +934,74 @@ export async function submitAnswer(
     success: true, 
     isCorrect, 
     xpEarned, 
-    correctAnswer: sq.questions.correct_answer,
+    correctAnswer: dbCorrect,
     breakdown 
   };
 }
 
-export async function endSession(sessionId: string) {
+export async function endSession(sessionId: string, outcome: "completed" | "expired" = "completed") {
   const dbClient = await createClient();
   const { data: { user } } = await dbClient.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
   const { data: session } = await dbClient
     .from("daily_sessions")
-    .select("id, user_id, is_completed")
+    .select("id, user_id, is_completed, status")
     .eq("id", sessionId)
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (!session) throw new Error("Session not found");
-  if (session.is_completed) return { error: "Session already completed" };
+  if (session.status !== "in_progress") return { error: "Session already closed" };
 
   const { data: questions } = await dbClient
     .from("session_questions")
     .select("earned_xp, is_completed")
     .eq("session_id", sessionId);
 
+  const completedQuestionCount = questions?.filter((question) => question.is_completed).length || 0;
+  const totalQuestionCount = questions?.length || 0;
+  const finishedEveryChallenge = totalQuestionCount > 0 && completedQuestionCount === totalQuestionCount;
+
+  if (outcome === "completed" && !finishedEveryChallenge) {
+    return { error: "Finish every challenge before completing the mission" };
+  }
+
+  // The browser timer is not authoritative: a final answer can arrive at the
+  // same instant as the countdown reaches zero. If every answer is safely in
+  // the database, the timed end is still a genuine completion.
+  if (outcome === "expired" && finishedEveryChallenge) {
+    outcome = "completed";
+  }
+
+  const baseTotalXp = questions?.reduce((sum, q) => sum + (q.earned_xp || 0), 0) || 0;
+  if (outcome === "expired") {
+    const { data: expiredSession, error: expireError } = await dbClient
+      .from("daily_sessions")
+      .update({
+        status: "expired",
+        is_completed: false,
+        total_score: baseTotalXp,
+        total_xp_earned: 0,
+        ended_at: new Date().toISOString()
+      })
+      .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .eq("status", "in_progress")
+      .select("id")
+      .maybeSingle();
+    if (expireError) throw new Error("Could not close expired session");
+    if (!expiredSession) return { error: "Session already closed" };
+    revalidatePath("/daily-mission");
+    revalidatePath("/dashboard");
+    return { success: true, outcome: "expired" };
+  }
+
   const { data: profile } = await dbClient
     .from("profiles")
     .select("total_xp, current_streak, best_streak, games_played")
     .eq("id", user.id)
     .single();
-
-  const baseTotalXp = questions?.reduce((sum, q) => sum + (q.earned_xp || 0), 0) || 0;
 
   let newStreak = 1;
   let streakBonus = 0;
@@ -820,6 +1017,7 @@ export async function endSession(sessionId: string) {
     .from("daily_sessions")
     .update({
       is_completed: true,
+      status: "completed",
       total_score: baseTotalXp,
       total_xp_earned: finalTotalXp,
       ended_at: new Date().toISOString()
@@ -876,7 +1074,8 @@ export async function endSession(sessionId: string) {
   }
 
   revalidatePath("/dashboard");
-  redirect("/dashboard");
+  revalidatePath("/daily-mission");
+  return { success: true, outcome: "completed", totalXp: finalTotalXp };
 }
 
 export async function resetDailySession() {

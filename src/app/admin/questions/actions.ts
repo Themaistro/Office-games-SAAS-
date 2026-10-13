@@ -4,6 +4,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
+const COMPANY_QUESTION_GAME_SLUGS = new Set(["general-trivia", "trivia", "typing", "typing-challenge"]);
+const isValidFutureDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= new Date().toISOString().slice(0, 10);
+
 export async function addCompanyTrivia(formData: FormData) {
   const user = await getCurrentUser();
 
@@ -32,6 +35,10 @@ export async function addCompanyTrivia(formData: FormData) {
   if (!question || !gameSlug) {
     throw new Error("Question and game type are required.");
   }
+  if (!COMPANY_QUESTION_GAME_SLUGS.has(gameSlug)) {
+    throw new Error("Company questions are supported only by Trivia and Typing Challenge.");
+  }
+  if (question.trim().length > 1000) throw new Error("Question text must be 1,000 characters or fewer.");
 
   let finalOptions: string[] = [];
   let finalCorrectAnswer = "";
@@ -57,11 +64,20 @@ export async function addCompanyTrivia(formData: FormData) {
   }
 
   const targetDate = targetDateRaw ? targetDateRaw : null;
+  if (targetDate && !isValidFutureDate(targetDate)) throw new Error("Scheduled questions must use today or a future date.");
   const dept = department || "General";
+
+  if (dept !== "General") {
+    const { rows: departments } = await query<{ id: string }>("SELECT id FROM departments WHERE name = $1 AND is_active = true LIMIT 1", [dept]);
+    if (!departments[0]) throw new Error("Please select an active department.");
+  }
 
   await query("INSERT INTO company_trivia (game_slug, question, options, correct_answer, target_date, department, is_active) VALUES ($1, $2, $3, $4, $5, $6, true)", [gameSlug, question, JSON.stringify(finalOptions), finalCorrectAnswer, targetDate, dept]);
 
   revalidatePath("/admin/questions");
+  revalidatePath("/admin/games");
+  revalidatePath("/play");
+  revalidatePath("/daily-mission");
 }
 
 export async function editCompanyTrivia(formData: FormData) {
@@ -93,6 +109,10 @@ export async function editCompanyTrivia(formData: FormData) {
   if (!id || !question || !gameSlug) {
     throw new Error("Missing required fields.");
   }
+  if (!COMPANY_QUESTION_GAME_SLUGS.has(gameSlug)) {
+    throw new Error("Company questions are supported only by Trivia and Typing Challenge.");
+  }
+  if (question.trim().length > 1000) throw new Error("Question text must be 1,000 characters or fewer.");
 
   let finalOptions: string[] = [];
   let finalCorrectAnswer = "";
@@ -118,11 +138,20 @@ export async function editCompanyTrivia(formData: FormData) {
   }
 
   const targetDate = targetDateRaw ? targetDateRaw : null;
+  if (targetDate && !isValidFutureDate(targetDate)) throw new Error("Scheduled questions must use today or a future date.");
   const dept = department || "General";
+
+  if (dept !== "General") {
+    const { rows: departments } = await query<{ id: string }>("SELECT id FROM departments WHERE name = $1 AND is_active = true LIMIT 1", [dept]);
+    if (!departments[0]) throw new Error("Please select an active department.");
+  }
 
   await query("UPDATE company_trivia SET game_slug = $1, question = $2, options = $3, correct_answer = $4, target_date = $5, department = $6 WHERE id = $7", [gameSlug, question, JSON.stringify(finalOptions), finalCorrectAnswer, targetDate, dept, id]);
 
   revalidatePath("/admin/questions");
+  revalidatePath("/admin/games");
+  revalidatePath("/play");
+  revalidatePath("/daily-mission");
 }
 
 export async function deleteTrivia(id: string) {
@@ -137,6 +166,9 @@ export async function deleteTrivia(id: string) {
   await query("DELETE FROM company_trivia WHERE id = $1", [id]);
 
   revalidatePath("/admin/questions");
+  revalidatePath("/admin/games");
+  revalidatePath("/play");
+  revalidatePath("/daily-mission");
 }
 
 export async function toggleTriviaStatus(id: string, currentStatus: boolean) {
@@ -151,5 +183,8 @@ export async function toggleTriviaStatus(id: string, currentStatus: boolean) {
   await query("UPDATE company_trivia SET is_active = $1 WHERE id = $2", [!currentStatus, id]);
 
   revalidatePath("/admin/questions");
+  revalidatePath("/admin/games");
+  revalidatePath("/play");
+  revalidatePath("/daily-mission");
 }
 

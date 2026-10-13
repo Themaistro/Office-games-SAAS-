@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 export default function SettingsPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [isFactoryResetting, setIsFactoryResetting] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [message, setMessage] = useState("");
   const [settings, setSettings] = useState<any>(null);
   const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; type: 'season' | 'factory' | null }>({ isOpen: false, type: null });
@@ -37,8 +38,8 @@ export default function SettingsPage() {
         setMessage("Platform has been completely factory reset!");
         await loadSettings();
         setConfirmModal({ isOpen: false, type: null });
-      } catch (err: any) {
-        setMessage(`Error: ${err.message}`);
+      } catch (err: unknown) {
+        setMessage(`❌ Error: ${err instanceof Error ? err.message : "Unable to reset the platform."}`);
       } finally {
         setIsFactoryResetting(false);
       }
@@ -50,8 +51,8 @@ export default function SettingsPage() {
         setMessage("Season has been successfully reset. A new competition begins today!");
         await loadSettings();
         setConfirmModal({ isOpen: false, type: null });
-      } catch (err: any) {
-        setMessage(`Error: ${err.message}`);
+      } catch (err: unknown) {
+        setMessage(`❌ Error: ${err instanceof Error ? err.message : "Unable to reset the season."}`);
       } finally {
         setIsResetting(false);
       }
@@ -106,12 +107,15 @@ export default function SettingsPage() {
         <p className="text-sm text-muted-foreground mb-6">Manage global cooldowns and time limits for player sessions.</p>
         
         <form action={async (formData) => {
+          setIsSavingSettings(true);
           try {
             await updateSystemSettings(formData);
-            setMessage("Time settings updated successfully!");
+            setMessage("Daily mission settings updated successfully!");
             await loadSettings();
-          } catch (e: any) {
-            setMessage(`Error: ${e.message}`);
+          } catch (e: unknown) {
+            setMessage(`❌ Error: ${e instanceof Error ? e.message : "Unable to save time settings."}`);
+          } finally {
+            setIsSavingSettings(false);
           }
         }} className="space-y-4 max-w-md">
           
@@ -140,10 +144,24 @@ export default function SettingsPage() {
             />
             <p className="text-xs text-muted-foreground">The time limit players have to complete a daily challenge sprint. Default is 15 minutes.</p>
           </div>
+
+          <div className="space-y-2 pt-2">
+            <label className="text-sm font-semibold">Games in Each Daily Mission</label>
+            <input
+              type="number"
+              name="daily_game_count"
+              value={settings?.daily_game_count ?? 5}
+              onChange={(event) => setSettings((current: any) => ({ ...(current ?? {}), daily_game_count: Number(event.target.value) }))}
+              min="1"
+              max="20"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <p className="text-xs text-muted-foreground">The daily route rotates this many active games. Each game then uses its Easy, Medium, and Hard round counts from Games Management.</p>
+          </div>
           
           <div className="pt-4">
-            <button type="submit" className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold hover:bg-primary/90 transition-colors">
-              Save Time Settings
+            <button type="submit" disabled={isSavingSettings} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-bold hover:bg-primary/90 transition-colors disabled:cursor-wait disabled:opacity-60">
+              {isSavingSettings ? "Saving settings…" : "Save Mission Settings"}
             </button>
           </div>
         </form>

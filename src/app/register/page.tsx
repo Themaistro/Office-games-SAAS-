@@ -1,17 +1,7 @@
 import { signup } from "./actions";
 import { Brain } from "lucide-react";
 import Link from "next/link";
-import { query } from "@/lib/db";
-
-const DEFAULT_DEPARTMENTS = [
-  "Administration",
-  "Finance",
-  "Human Resources",
-  "Information Technology",
-  "Marketing",
-  "Operations",
-  "Sales",
-];
+import { getActiveDepartments } from "@/lib/departments";
 
 export const dynamic = "force-dynamic";
 
@@ -21,14 +11,8 @@ export default async function RegisterPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  const { rows: configuredDepartments } = await query<{ id: string; name: string; is_active: boolean }>(
-    "SELECT id, name, is_active FROM departments ORDER BY sort_order ASC, name ASC"
-  );
-  // Keep registration usable on a fresh PostgreSQL install before departments
-  // have been configured by an administrator.
-  const departmentOptions = configuredDepartments.length > 0
-    ? configuredDepartments.filter((department) => department.is_active)
-    : DEFAULT_DEPARTMENTS.map((name) => ({ id: name, name }));
+  const configuredDepartments = await getActiveDepartments();
+  const departmentOptions = configuredDepartments;
   
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">

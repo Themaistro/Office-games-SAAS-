@@ -14,20 +14,25 @@ ALTER TABLE public.session_questions
   ADD COLUMN IF NOT EXISTS earned_xp INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS time_spent_seconds INTEGER NOT NULL DEFAULT 0;
 
--- Backfill the compatibility flag from the canonical status column.
+-- `is_completed` means a player finished the whole mission successfully.
+-- An expired mission is closed, but it is never a completed mission.
 UPDATE public.daily_sessions
-SET is_completed = (status IN ('completed', 'expired'))
-WHERE is_completed IS DISTINCT FROM (status IN ('completed', 'expired'));
+SET is_completed = (status = 'completed')
+WHERE is_completed IS DISTINCT FROM (status = 'completed');
 
 CREATE OR REPLACE FUNCTION public.sync_daily_session_completion()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  IF NEW.is_completed THEN
-    NEW.status := CASE WHEN NEW.status = 'expired' THEN 'expired' ELSE 'completed' END;
-  ELSIF NEW.status IN ('completed', 'expired') THEN
+  IF NEW.status = 'expired' THEN
+    NEW.is_completed := false;
+  ELSIF NEW.is_completed OR NEW.status = 'completed' THEN
     NEW.is_completed := true;
+    NEW.status := 'completed';
+  ELSE
+    NEW.is_completed := false;
+    NEW.status := 'in_progress';
   END IF;
   RETURN NEW;
 END;

@@ -1,17 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Megaphone } from "lucide-react";
 import AnnouncementBanner from "@/components/dashboard/AnnouncementBanner";
+import type { Announcement } from "@/components/dashboard/AnnouncementBanner";
 import { useToast } from "@/components/ui/ToastProvider";
+
+type AnnouncementType = NonNullable<Announcement["type"]>;
 
 export default function LiveAnnouncementForm({ action }: { action: (formData: FormData) => Promise<void> }) {
   const [message, setMessage] = useState("");
-  const [type, setType] = useState("info");
+  const [type, setType] = useState<AnnouncementType>("info");
   const [ctaText, setCtaText] = useState("");
   const [ctaLink, setCtaLink] = useState("");
   const [isPending, setIsPending] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,16 +29,17 @@ export default function LiveAnnouncementForm({ action }: { action: (formData: Fo
       setType("info");
       setCtaText("");
       setCtaLink("");
+      router.refresh();
     } catch (err) {
       console.error(err);
-      toast("Failed to add announcement");
+      toast(err instanceof Error ? err.message : "Failed to add announcement");
     } finally {
       setIsPending(false);
     }
   };
 
   // Mock announcement for live preview
-  const previewAnnouncement = {
+  const previewAnnouncement: Announcement = {
     message: message || "Type your message above to see a preview here...",
     type,
     cta_text: ctaText,
@@ -67,13 +73,13 @@ export default function LiveAnnouncementForm({ action }: { action: (formData: Fo
             <select
               name="type"
               value={type}
-              onChange={(e) => setType(e.target.value)}
+              onChange={(e) => setType(e.target.value as AnnouncementType)}
               className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
             >
               <option value="info">Info (Blue)</option>
               <option value="success">Success (Green)</option>
               <option value="warning">Warning (Orange)</option>
-              <option value="urgent">Urgent (Red)</option>
+              <option value="error">Urgent (Red)</option>
             </select>
           </div>
 
@@ -92,12 +98,12 @@ export default function LiveAnnouncementForm({ action }: { action: (formData: Fo
             <div>
               <label className="block text-sm font-medium mb-1">CTA Button URL (Optional)</label>
               <input 
-                type="url"
+                type="text"
                 name="cta_link"
                 value={ctaLink}
                 onChange={(e) => setCtaLink(e.target.value)}
                 className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                placeholder="https://..."
+                placeholder="/daily-mission or https://..."
               />
             </div>
           </div>

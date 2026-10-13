@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { getActiveDepartments } from "@/lib/departments";
 import { addCompanyTrivia, deleteTrivia, toggleTriviaStatus, editCompanyTrivia } from "./actions";
 import TriviaManager from "./TriviaManager";
 
@@ -23,7 +24,7 @@ export default async function QuestionsManagementPage() {
   const { rows: gameTypes } = await query<{ slug: string; name: string }>("SELECT slug, name FROM game_types WHERE is_active = true");
 
   // Fetch departments for target filtering
-  const { rows: departments } = await query<{ name: string }>("SELECT name FROM departments WHERE is_active = true ORDER BY sort_order ASC NULLS LAST");
+  const departments = await getActiveDepartments();
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">

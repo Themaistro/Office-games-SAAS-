@@ -7,7 +7,25 @@ import { createHash, randomBytes } from "node:crypto";
 type InviteResult = { email: string; status: "invited" | "skipped" | "failed"; reason?: string };
 
 function parseCsvLine(line: string) {
-  return line.split(",").map((value) => value.trim().replace(/^"|"$/g, ""));
+  const values: string[] = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const character = line[index];
+    if (character === '"' && line[index + 1] === '"' && quoted) {
+      value += '"';
+      index += 1;
+    } else if (character === '"') {
+      quoted = !quoted;
+    } else if (character === "," && !quoted) {
+      values.push(value.trim());
+      value = "";
+    } else {
+      value += character;
+    }
+  }
+  values.push(value.trim());
+  return values;
 }
 
 export async function inviteRoster(file: File): Promise<{ results: InviteResult[]; error?: string }> {
@@ -20,7 +38,7 @@ export async function inviteRoster(file: File): Promise<{ results: InviteResult[
 
   const lines = (await file.text()).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (lines.length < 2) return { results: [], error: "CSV must include a header and at least one employee." };
-  const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase());
+  const headers = parseCsvLine(lines[0]).map((header) => header.trim().toLowerCase());
   const emailIndex = headers.indexOf("email");
   const nameIndex = headers.indexOf("full_name");
   if (emailIndex < 0 || nameIndex < 0) return { results: [], error: "CSV needs email and full_name headers." };
@@ -35,6 +53,10 @@ export async function inviteRoster(file: File): Promise<{ results: InviteResult[
     const fullName = values[nameIndex]?.slice(0, 80);
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       results.push({ email: email || "unknown", status: "failed", reason: "Invalid email" });
+      continue;
+    }
+    if (!fullName?.trim()) {
+      results.push({ email, status: "failed", reason: "Full name is required" });
       continue;
     }
     if (corporateDomain && email.split("@")[1] !== corporateDomain) {

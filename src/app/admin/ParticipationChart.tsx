@@ -3,7 +3,7 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Custom tooltip for a premium look
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value?: number }>; label?: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-card border border-border shadow-md rounded-xl p-3 flex flex-col gap-1">
@@ -25,6 +25,16 @@ export default function ParticipationChart({ data }: { data: { date: string; ses
     return (
       <div className="h-64 flex items-center justify-center bg-muted/50 rounded-lg border border-dashed border-border text-muted-foreground">
         No participation data available for the last 7 days.
+      </div>
+    );
+  }
+
+  if (data.every((point) => point.sessions === 0)) {
+    return (
+      <div className="mt-4 flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 text-center">
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary"><ActivityIcon /></div>
+        <p className="text-sm font-bold text-foreground">No participation recorded yet</p>
+        <p className="mt-1 max-w-xs text-xs text-muted-foreground">Your chart will come alive as players start their daily missions.</p>
       </div>
     );
   }
@@ -67,5 +77,9 @@ export default function ParticipationChart({ data }: { data: { date: string; ses
       </ResponsiveContainer>
     </div>
   );
+}
+
+function ActivityIcon() {
+  return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 12h4l2-7 4 14 2-7h6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 

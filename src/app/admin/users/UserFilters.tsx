@@ -19,6 +19,7 @@ export default function UserFilters({ departments }: { departments: { name: stri
 
     if (newDept) params.set("department", newDept);
     else params.delete("department");
+    params.delete("page");
 
     startTransition(() => {
       router.push(`?${params.toString()}`);

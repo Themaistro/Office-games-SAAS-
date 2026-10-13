@@ -1,12 +1,21 @@
 "use client";
 
-export default function AnnouncementBanner({ announcements }: { announcements: any[] }) {
+export type Announcement = {
+  id?: string;
+  message: string;
+  type?: "info" | "success" | "warning" | "error" | "urgent";
+  cta_text?: string | null;
+  cta_link?: string | null;
+};
+
+export default function AnnouncementBanner({ announcements }: { announcements: Announcement[] }) {
   if (!announcements || announcements.length === 0) return null;
 
   const typeStyles: Record<string, { wrapper: string, icon: string }> = {
     info: { wrapper: "bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-400", icon: "ℹ️" },
     success: { wrapper: "bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400", icon: "🎉" },
     warning: { wrapper: "bg-orange-500/10 border-orange-500/20 text-orange-700 dark:text-orange-400", icon: "⚠️" },
+    error: { wrapper: "bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400", icon: "🚨" },
     urgent: { wrapper: "bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400", icon: "🚨" }
   };
 
@@ -29,21 +38,22 @@ export default function AnnouncementBanner({ announcements }: { announcements: a
           style={{ animationDuration: `${duration}s` }}
         >
           {announcements.map((ann, idx) => {
-            const style = typeStyles[ann.type] || typeStyles.info;
+            const style = typeStyles[ann.type || "info"] || typeStyles.info;
             return (
               <div key={ann.id || idx} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full ${style.wrapper} border shadow-sm`}>
                 <span className="text-sm">{style.icon}</span>
                 <span className="font-semibold text-sm">{ann.message}</span>
-                {ann.cta_text && ann.cta_link && (
-                  <a 
+                {ann.cta_text && ann.cta_link && (() => {
+                  const isExternal = /^https:\/\//i.test(ann.cta_link);
+                  return <a
                     href={ann.cta_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    target={isExternal ? "_blank" : undefined}
+                    rel={isExternal ? "noopener noreferrer" : undefined}
                     className="ml-2 shrink-0 text-[10px] font-bold uppercase tracking-wider bg-background hover:bg-background/80 px-2.5 py-1 rounded-full transition-colors shadow-sm text-foreground border border-border/50"
                   >
                     {ann.cta_text}
-                  </a>
-                )}
+                  </a>;
+                })()}
               </div>
             );
           })}

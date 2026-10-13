@@ -1,22 +1,30 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { MessageCircle, Search, UserRound, Users, X } from "lucide-react";
 import DirectMessagePopup from "./DirectMessagePopup";
 
 type Person = { user_id: string; full_name: string; avatar_url?: string | null; is_online: boolean; activity?: string; unread_count: number; online_at?: string | null };
 
 export default function ContactsPanel({ userId }: { userId: string }) {
+  const pathname = usePathname();
+  const isAdminRoute = pathname.startsWith("/admin");
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [chat, setChat] = useState<Person | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
-  useEffect(() => { const load = async () => { setLoading(true); try { const response = await fetch("/api/people", { cache: "no-store" }); if (response.ok) setPeople(await response.json()); } finally { setLoading(false); } }; load(); const timer = window.setInterval(load, 30000); const handleConversationOpened = () => setRefreshToken((value) => value + 1); window.addEventListener("office-games:conversation-opened", handleConversationOpened); return () => { window.clearInterval(timer); window.removeEventListener("office-games:conversation-opened", handleConversationOpened); }; }, [refreshToken]);
+  useEffect(() => { if (isAdminRoute) return; const load = async () => { setLoading(true); try { const response = await fetch("/api/people", { cache: "no-store" }); if (response.ok) setPeople(await response.json()); } finally { setLoading(false); } }; load(); const timer = window.setInterval(load, 30000); const handleConversationOpened = () => setRefreshToken((value) => value + 1); window.addEventListener("office-games:conversation-opened", handleConversationOpened); return () => { window.clearInterval(timer); window.removeEventListener("office-games:conversation-opened", handleConversationOpened); }; }, [isAdminRoute, refreshToken]);
   const filtered = useMemo(() => people.filter((person) => person.full_name.toLowerCase().includes(search.toLowerCase())), [people, search]);
   const online = filtered.filter((person) => person.is_online);
   const unreadTotal = people.reduce((total, person) => total + (person.unread_count || 0), 0);
+  // The admin workspace has its own sidebar and operational navigation.
+  // Contacts are a player-facing feature; keeping the floating launcher out
+  // of admin routes prevents it from covering admin account actions.
+  if (isAdminRoute) return null;
+
   return <>
     {!chat && <button onClick={() => setOpen(!open)} aria-label="Open contacts" className="fixed bottom-6 right-6 z-[90] flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl ring-4 ring-primary/10 hover:scale-105 transition-transform">
       <Users size={22} />{unreadTotal > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-background bg-destructive px-1 text-[10px] font-black text-destructive-foreground">{unreadTotal > 9 ? "9+" : unreadTotal}</span>}<span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-primary ${online.length ? "bg-emerald-400" : "bg-slate-400"}`} />

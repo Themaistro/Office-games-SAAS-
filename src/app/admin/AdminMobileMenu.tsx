@@ -63,9 +63,7 @@ export default function AdminMobileMenu({ onSignOut }: AdminMobileMenuProps) {
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
                   <Brain size={20} />
                 </div>
-                <span className="text-lg font-bold tracking-tight text-foreground">
-                  Admin Arena
-                </span>
+                <span className="leading-none"><span className="text-lg font-black tracking-tight text-foreground">Office <span className="text-primary">Games</span></span><span className="mt-1 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-[0.18em] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Admin console</span></span>
               </div>
               <button 
                 onClick={() => setIsOpen(false)}

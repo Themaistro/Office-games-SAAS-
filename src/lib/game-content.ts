@@ -167,6 +167,16 @@ const TYPING_QUOTES = {
 };
 
 export const generateTypingChallenge = (masterBank: any[], count: number = 5, difficulty: Difficulty = 'medium', dayOfYear: number = 1) => {
+  const bank = masterBank.filter((entry) => entry.difficulty === difficulty);
+  const sourcedPrompts = getSlice(bank.length > 0 ? bank : masterBank, count, dayOfYear)
+    .filter((entry) => entry.prompt_text);
+  if (sourcedPrompts.length > 0) {
+    return sourcedPrompts.map((entry) => ({
+      correctAnswer: "type-exactly",
+      content: { text: entry.prompt_text, language: 'en', sourceKey: `typing:${entry.id}` },
+      options: []
+    }));
+  }
   const quotes = shuffle([...(TYPING_QUOTES[difficulty] || TYPING_QUOTES.medium)]);
   const challenges = [];
   
@@ -363,7 +373,7 @@ export const generateWordUnscramble = (masterBank: any[], count: number = 5, dif
     
     return {
       correctAnswer: word,
-      content: { scrambled },
+      content: { scrambled, sourceKey: `word:${w.id}` },
       options: shuffle([word, ...decoys])
     };
   });
@@ -622,7 +632,8 @@ export const generateTrivia = (masterBank: any[], count: number = 20, difficulty
       correctAnswer: t.answer,
       content: { 
         question: t.question,
-        department: t.department 
+        department: t.department,
+        sourceKey: `trivia:${t.id}`
       },
       options: shuffle([t.answer, ...decoys])
     };

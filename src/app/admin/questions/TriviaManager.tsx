@@ -21,6 +21,7 @@ export default function TriviaManager({
   toggleAction: (id: string, status: boolean) => Promise<void>
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingGameSlug, setEditingGameSlug] = useState<string>("trivia");
   
   const compatibleGameSlugs = ['general-trivia', 'trivia', 'typing', 'typing-challenge'];
   const filteredGameTypes = gameTypes.filter(g => compatibleGameSlugs.includes(g.slug));
@@ -176,7 +177,8 @@ export default function TriviaManager({
                                   type="radio" 
                                   name="gameSlug" 
                                   value={gt.slug} 
-                                  defaultChecked={(t.game_slug || "trivia") === gt.slug} 
+                                  checked={editingGameSlug === gt.slug}
+                                  onChange={() => setEditingGameSlug(gt.slug)}
                                   className="peer sr-only" 
                                 />
                                 <div className="text-center p-2 rounded-lg border-2 border-border text-xs text-muted-foreground peer-checked:border-primary peer-checked:bg-primary/10 peer-checked:text-primary peer-checked:font-bold transition-all hover:bg-muted">
@@ -187,7 +189,7 @@ export default function TriviaManager({
                           </div>
                         </div>
                         {(() => {
-                          const currentSlug = t.game_slug || "trivia";
+                          const currentSlug = editingGameSlug;
                           const isMC = ['general-trivia', 'trivia'].includes(currentSlug);
                           const isTarget = ['typing', 'typing-challenge'].includes(currentSlug);
                           const isPzl = false;
@@ -266,7 +268,7 @@ export default function TriviaManager({
                         </div>
 
                         <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                          <button type="button" onClick={() => setEditingId(null)} className="px-4 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors">
+                          <button type="button" onClick={() => { setEditingId(null); setEditingGameSlug("trivia"); }} className="px-4 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors">
                             Cancel
                           </button>
                           <button type="submit" className="px-4 py-2 text-sm font-bold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
@@ -323,7 +325,7 @@ export default function TriviaManager({
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      <button onClick={() => setEditingId(t.id)} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" title="Edit Question">
+                      <button onClick={() => { setEditingId(t.id); setEditingGameSlug(t.game_slug || "trivia"); }} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" title="Edit Question">
                         <Edit2 size={18} />
                       </button>
                       <button onClick={async () => {

@@ -4,6 +4,7 @@ import { GameProps } from "@/types/game";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { Palette } from "lucide-react";
+import { seededNumber, seededShuffle } from "@/lib/challenge-seed";
 
 const COLORS = [
   { name: "RED", hex: "#EF4444", tailwind: "text-red-500" },
@@ -30,31 +31,32 @@ export default function StroopGame({ question, onAnswer, isSubmitting }: GamePro
 
   useEffect(() => {
     // Generate a mismatch on mount
-    const wIdx = Math.floor(Math.random() * COLORS.length);
-    let cIdx = Math.floor(Math.random() * COLORS.length);
+    const challengeSeed = question?.content?.seed || question?.id;
+    const wIdx = seededNumber(challengeSeed, "word", COLORS.length);
+    let cIdx = seededNumber(challengeSeed, "font", COLORS.length);
     // Ensure they don't match for maximum confusion
     while (cIdx === wIdx) {
-      cIdx = Math.floor(Math.random() * COLORS.length);
+      cIdx = (cIdx + 1) % COLORS.length;
     }
     setWordIdx(wIdx);
     setColorIdx(cIdx);
 
     const correctColor = COLORS[cIdx];
-    const otherColors = COLORS.filter(c => c.name !== correctColor.name).sort(() => 0.5 - Math.random());
+    const otherColors = seededShuffle(COLORS.filter(c => c.name !== correctColor.name), challengeSeed, "choices");
     const numDecoys = difficulty === 'easy' ? 3 : (difficulty === 'medium' ? 5 : 7);
     const selectedDecoys = otherColors.slice(0, numDecoys);
-    const finalChoices = [correctColor, ...selectedDecoys].sort(() => 0.5 - Math.random());
+    const finalChoices = seededShuffle([correctColor, ...selectedDecoys], challengeSeed, "final-choices");
     
     // Assign a random confusing display color to each button!
     const confusingChoices = finalChoices.map(choice => {
       // Pick a random color for the button text that is NOT the choice's actual name
       const availableClasses = COLORS.filter(c => c.name !== choice.name).map(c => c.tailwind);
-      const displayColorClass = availableClasses[Math.floor(Math.random() * availableClasses.length)];
+      const displayColorClass = availableClasses[seededNumber(challengeSeed, `label:${choice.name}`, availableClasses.length)];
       return { ...choice, displayColorClass };
     });
     
     setChoices(confusingChoices);
-  }, []);
+  }, [question?.id, difficulty]);
 
   // Timer countdown
   useEffect(() => {

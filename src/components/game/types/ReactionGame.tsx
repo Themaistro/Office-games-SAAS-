@@ -4,6 +4,7 @@ import { GameProps } from "@/types/game";
 import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
 import { Zap } from "lucide-react";
+import { seededNumber } from "@/lib/challenge-seed";
 
 export default function ReactionGame({ question, onAnswer, isSubmitting }: GameProps) {
   const [gameState, setGameState] = useState<'idle' | 'flashing' | 'go' | 'early' | 'done' | 'timeout'>('idle');
@@ -27,10 +28,11 @@ export default function ReactionGame({ question, onAnswer, isSubmitting }: GameP
     if (decoysLeft > 0) {
       setGameState('flashing');
       const colors = ["bg-red-500", "bg-yellow-500", "bg-purple-500", "bg-cyan-500", "bg-orange-500", "bg-pink-500", "bg-blue-500"];
-      setCurrentColor(colors[Math.floor(Math.random() * colors.length)]);
+      const challengeSeed = question?.content?.seed || question?.id;
+      setCurrentColor(colors[seededNumber(challengeSeed, `decoy-color:${decoysLeft}`, colors.length)]);
       
       // Each decoy flashes for 400ms to 800ms
-      const flashDuration = Math.floor(Math.random() * 400) + 400;
+      const flashDuration = seededNumber(challengeSeed, `decoy-duration:${decoysLeft}`, 401) + 400;
       
       timerRef.current = setTimeout(() => {
         // Very brief empty pause between flashes? Or just immediate? 
@@ -60,7 +62,8 @@ export default function ReactionGame({ question, onAnswer, isSubmitting }: GameP
 
   const startGame = () => {
     // 2 to 6 decoy flashes before green appears
-    const decoyCount = Math.floor(Math.random() * 5) + 2; 
+    const challengeSeed = question?.content?.seed || question?.id;
+    const decoyCount = seededNumber(challengeSeed, 'decoy-count', 5) + 2;
     scheduleNextFlash(decoyCount);
   };
 

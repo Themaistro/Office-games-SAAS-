@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { createClient } from "@/lib/pg-client";
 import Navbar from "@/components/layout/Navbar";
-import { User, Flame, Trophy, Target, CalendarDays, Award, Star, Lock, Activity, ChevronRight } from "lucide-react";
+import { User, Flame, Trophy, Target, CalendarDays, Award, Star, Lock, Activity, ChevronRight, Eye } from "lucide-react";
 import Link from "next/link";
 import { clsx } from "clsx";
 import EditProfileModal from "@/components/profile/EditProfileModal";
@@ -62,6 +62,9 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
       </div>
     );
   }
+
+  const { data: viewerProfile } = await dbClient.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  const isAdminView = user.id !== profileId && viewerProfile?.role === "admin";
 
   const { data: profile } = await dbClient.from("profiles").select("*").eq("id", profileId).single();
 
@@ -201,7 +204,7 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
   if (sessionIds.length > 0) {
     const { data: questionsData } = await dbClient
       .from("session_questions")
-      .select("earned_xp, is_correct, question_id")
+      .select("earned_xp, is_completed, question_id")
       .in("session_id", sessionIds);
       
     if (questionsData) {
@@ -218,7 +221,7 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
         }
         statsMap[gameName].plays += 1;
         statsMap[gameName].totalScore += (q.earned_xp || 0);
-        if (q.is_correct) statsMap[gameName].correctCount += 1;
+        if ((q.earned_xp || 0) > 0) statsMap[gameName].correctCount += 1;
       });
       
       gameStatsArray = Object.entries(statsMap).map(([name, stats]) => ({
@@ -309,8 +312,17 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
+      <Navbar adminView={isAdminView} />
       <main className="flex-1 container mx-auto px-4 pt-28 pb-8 max-w-5xl">
+        {user.id !== profile.id && viewerProfile?.role === "admin" && (
+          <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+            <Eye size={18} aria-hidden="true" />
+            <div><p className="font-bold">Admin viewing mode</p><p className="text-xs text-primary/80">You are viewing this player&apos;s public profile as an administrator.</p></div>
+            </div>
+            <Link href="/admin/users" className="inline-flex w-fit items-center rounded-lg border border-primary/20 bg-background/70 px-3 py-1.5 text-xs font-bold text-primary hover:bg-background">Return to Player Roster</Link>
+          </div>
+        )}
         
         {/* Profile Header (Glassmorphic) */}
         <div className={`relative bg-card border ${borderColor} rounded-[2rem] p-8 sm:p-10 mb-8 flex flex-col md:flex-row gap-8 items-center md:items-start shadow-lg shadow-primary/5 group transition-all duration-500 ${glowEffect}`}>
@@ -352,7 +364,7 @@ export default async function PublicProfilePage(props: { params: Promise<{ id: s
                   <span className="font-bold text-muted-foreground">Global Rank</span>
                   <span className="font-black text-xl text-foreground">{userRank === "Admin" ? "Admin" : `#${userRank}`}</span>
                 </div>
-                {user.id !== profile.id && (
+                {user.id !== profile.id && !isAdminView && (
                   <div className="flex w-full flex-wrap items-center justify-center gap-2 md:justify-end">
                     <ChallengeTutorialTrigger />
                     <div className="w-40"><ChallengeMenu targetUserId={profile.id} /></div>

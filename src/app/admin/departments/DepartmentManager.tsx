@@ -23,7 +23,7 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
   const { toast } = useToast();
 
-  const handleDragEnd = async (result: any) => {
+  const handleDragEnd = async (result: { destination?: { index: number } | null; source: { index: number } }) => {
     if (!result.destination) return;
 
     const items = Array.from(departments);
@@ -39,12 +39,21 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
       sort_order: index
     }));
 
-    await updateDepartmentSortOrder(updates);
+    try {
+      await updateDepartmentSortOrder(updates);
+    } catch (error) {
+      setDepartments(initialDepartments);
+      toast(error instanceof Error ? error.message : "Unable to save department order.");
+    }
   };
 
   const handleToggle = async (id: string, isActive: boolean) => {
-    await toggleDepartmentStatus(id, isActive);
-    setDepartments(departments.map(d => d.id === id ? { ...d, is_active: !isActive } : d));
+    try {
+      await toggleDepartmentStatus(id, isActive);
+      setDepartments((current) => current.map(d => d.id === id ? { ...d, is_active: !isActive } : d));
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Unable to update the department.");
+    }
   };
 
   const handleDelete = async (dept: Department) => {
@@ -61,8 +70,8 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
     try {
       await deleteDepartment(deleteTarget.id);
       setDepartments((current) => current.filter((d) => d.id !== deleteTarget.id));
-    } catch (e: any) {
-      toast(e.message || "Unable to delete the department.");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Unable to delete the department.");
     } finally {
       setDeleteTarget(null);
     }
@@ -80,8 +89,8 @@ export default function DepartmentManager({ initialDepartments }: { initialDepar
       await renameDepartment(id, editName);
       setDepartments(departments.map(d => d.id === id ? { ...d, name: editName.trim() } : d));
       setEditingId(null);
-    } catch (e: any) {
-      toast(e.message || "Unable to rename the department.");
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Unable to rename the department.");
     } finally {
       setIsSaving(false);
     }

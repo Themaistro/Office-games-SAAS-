@@ -74,14 +74,20 @@ export default function PlayPage() {
   // Watch for timer reaching 0 to trigger endSession safely outside render
   useEffect(() => {
     if (globalTimeLeft === 0 && !finishing && session?.id) {
-      handleEndSession(session.id);
+      handleEndSession(session.id, "expired");
     }
   }, [globalTimeLeft, finishing, session?.id]);
 
-  const handleEndSession = async (sessionId: string) => {
+  const handleEndSession = async (sessionId: string, outcome: "completed" | "expired" = "completed") => {
     if (finishing) return;
     setFinishing(true);
-    await endSession(sessionId);
+    const result = await endSession(sessionId, outcome);
+    if (result?.error) {
+      setFinishing(false);
+      toast(result.error);
+      return;
+    }
+    router.replace("/daily-mission");
   };
 
 
@@ -131,7 +137,7 @@ export default function PlayPage() {
         {questions.length > 0 ? (
           <GameEngine 
             sessionQuestions={questions} 
-            onComplete={() => handleEndSession(session.id)} 
+            onComplete={() => handleEndSession(session.id, "completed")}
           />
         ) : (
           <div className="text-muted-foreground">No questions assigned to this session.</div>

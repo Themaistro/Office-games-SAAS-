@@ -94,7 +94,9 @@ export default function TypingGame({ question, onAnswer, isSubmitting }: GameCom
     const { accuracy, isPerfect } = calculateScore(finalInput);
     
     onAnswer(finalInput || "[Timeout]", { 
-      customIsCorrect: accuracy > 0, 
+      // A partial attempt can earn proportional XP, but players only clear
+      // the challenge when most of the passage is accurate.
+      customIsCorrect: accuracy >= 0.8,
       customTimeSpent: timeSpent, 
       isPerfect,
       customScoreModifiers: {

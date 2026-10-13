@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Power, Database, Settings2, Save, X } from "lucide-react";
 
 interface Game {
@@ -13,18 +14,29 @@ interface Game {
   easy_rounds?: number;
   medium_rounds?: number;
   hard_rounds?: number;
+  sourceByDifficulty?: Record<string, number>;
 }
 
 interface GamesClientProps {
   initialGroupedGames: Record<string, Game[]>;
   toggleAction: (gameId: string, currentStatus: boolean) => Promise<void>;
   updateRoundsAction: (gameId: string, easy: number, medium: number, hard: number) => Promise<void>;
+  missionPreview: {
+    dailyGameCount: number;
+    activeGameCount: number;
+    todaysGames: Game[];
+    companyTriviaAvailable: boolean;
+    allActiveGames: Game[];
+  };
 }
 
-export default function GamesClient({ initialGroupedGames, toggleAction, updateRoundsAction }: GamesClientProps) {
+export default function GamesClient({ initialGroupedGames, toggleAction, updateRoundsAction, missionPreview }: GamesClientProps) {
   const [groupedGames, setGroupedGames] = useState(initialGroupedGames);
   const [editingGameId, setEditingGameId] = useState<string | null>(null);
   const [editRounds, setEditRounds] = useState({ easy: 1, medium: 1, hard: 1 });
+  const [savingGameId, setSavingGameId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   // Keep state in sync with server props when revalidatePath runs
   useEffect(() => {
@@ -32,6 +44,9 @@ export default function GamesClient({ initialGroupedGames, toggleAction, updateR
   }, [initialGroupedGames]);
 
   const handleToggle = async (gameId: string, category: string, currentStatus: boolean) => {
+    if (savingGameId) return;
+    setError(null);
+    setSavingGameId(gameId);
     // Optimistic UI update
     setGroupedGames(prev => {
       const newGroups = { ...prev };
@@ -43,10 +58,14 @@ export default function GamesClient({ initialGroupedGames, toggleAction, updateR
 
     try {
       await toggleAction(gameId, currentStatus);
+      router.refresh();
     } catch (err) {
       console.error("Failed to toggle game status:", err);
+      setError(err instanceof Error ? err.message : "The game status could not be updated. Please try again.");
       // Revert on failure
       setGroupedGames(initialGroupedGames);
+    } finally {
+      setSavingGameId(null);
     }
   };
 
@@ -60,6 +79,9 @@ export default function GamesClient({ initialGroupedGames, toggleAction, updateR
   };
 
   const saveRounds = async (gameId: string, category: string) => {
+    if (savingGameId) return;
+    setError(null);
+    setSavingGameId(gameId);
     setEditingGameId(null);
     setGroupedGames(prev => {
       const newGroups = { ...prev };
@@ -70,14 +92,53 @@ export default function GamesClient({ initialGroupedGames, toggleAction, updateR
     });
     try {
       await updateRoundsAction(gameId, editRounds.easy, editRounds.medium, editRounds.hard);
+      router.refresh();
     } catch (err) {
       console.error("Failed to update rounds:", err);
+      setError(err instanceof Error ? err.message : "The round configuration could not be saved. Please try again.");
       setGroupedGames(initialGroupedGames);
+    } finally {
+      setSavingGameId(null);
     }
   };
 
+  const previewGames = missionPreview.todaysGames.length > 0 ? missionPreview.todaysGames : missionPreview.allActiveGames.slice(0, missionPreview.dailyGameCount);
+  const previewRounds = previewGames.reduce((total, game) => total + (game.easy_rounds ?? 1) + (game.medium_rounds ?? 1) + (game.hard_rounds ?? 1), 0);
+  const healthWarnings = missionPreview.allActiveGames.flatMap((game) => {
+    const requested = { easy: game.easy_rounds ?? 1, medium: game.medium_rounds ?? 1, hard: game.hard_rounds ?? 1 };
+    return (Object.entries(requested) as ["easy" | "medium" | "hard", number][])
+      .filter(([difficulty, rounds]) => rounds > 0 && (game.sourceByDifficulty?.[difficulty] ?? 0) === 0)
+      .map(([difficulty]) => `${game.name} has no ${difficulty} source content.`);
+  });
+
   return (
     <div className="space-y-8">
+      {error && (
+        <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive">
+          {error}
+        </div>
+      )}
+      <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Daily mission preview</p>
+          <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">{missionPreview.todaysGames.length > 0 ? "Today’s route" : "Next route preview"}</h2>
+              <p className="text-sm text-muted-foreground">{previewGames.length} of {missionPreview.activeGameCount} active games · {previewRounds} configured rounds{missionPreview.companyTriviaAvailable ? " + possible Company Trivia" : ""}</p>
+            </div>
+            <span className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-black text-primary">Mission size: {missionPreview.dailyGameCount}</span>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {previewGames.map((game) => <span key={game.id} className="rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-xs font-bold">{game.name}</span>)}
+          </div>
+          {missionPreview.todaysGames.length === 0 && <p className="mt-3 text-xs text-muted-foreground">The final route is calculated when the first mission starts, using the rotation rules and recent route history.</p>}
+        </div>
+        <div className={`rounded-2xl border p-5 shadow-sm ${healthWarnings.length ? "border-amber-500/30 bg-amber-500/[0.06]" : "border-emerald-500/25 bg-emerald-500/[0.05]"}`}>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Content health</p>
+          <h2 className="mt-2 text-xl font-bold">{healthWarnings.length ? `${healthWarnings.length} item${healthWarnings.length === 1 ? "" : "s"} to review` : "Mission-ready"}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{healthWarnings.length ? healthWarnings.slice(0, 2).join(" ") : "Every enabled difficulty currently has a playable content source."}</p>
+        </div>
+      </section>
       {Object.entries(groupedGames).map(([category, catGames]) => (
         <div key={category} className="space-y-4">
           <h2 className="text-xl font-bold border-b border-border pb-2">{category}</h2>
@@ -126,7 +187,7 @@ export default function GamesClient({ initialGroupedGames, toggleAction, updateR
                       {game.is_active ? 'ACTIVE' : 'DISABLED'}
                     </span>
                     
-                    <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium" title="Available Questions in Pool">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium" title="Available source content for this game">
                       <Database size={12} className="opacity-70" />
                       {game.questionCount.toLocaleString()} qs
                     </span>
@@ -135,20 +196,21 @@ export default function GamesClient({ initialGroupedGames, toggleAction, updateR
                   <div className="flex items-center gap-2">
                     {editingGameId === game.id ? (
                       <>
-                        <button onClick={() => setEditingGameId(null)} className="p-2 rounded-lg transition-colors bg-muted text-muted-foreground hover:bg-muted/80">
+                        <button disabled={Boolean(savingGameId)} onClick={() => setEditingGameId(null)} className="p-2 rounded-lg transition-colors bg-muted text-muted-foreground hover:bg-muted/80 disabled:opacity-50">
                           <X size={18} />
                         </button>
-                        <button onClick={() => saveRounds(game.id, category)} className="p-2 rounded-lg transition-colors bg-primary/10 text-primary hover:bg-primary/20">
+                        <button disabled={Boolean(savingGameId)} onClick={() => saveRounds(game.id, category)} className="p-2 rounded-lg transition-colors bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50">
                           <Save size={18} />
                         </button>
                       </>
                     ) : (
                       <>
-                        <button onClick={() => startEditing(game)} className="p-2 rounded-lg transition-colors bg-muted text-muted-foreground hover:bg-muted/80" title="Configure Rounds">
+                        <button disabled={Boolean(savingGameId)} onClick={() => startEditing(game)} className="p-2 rounded-lg transition-colors bg-muted text-muted-foreground hover:bg-muted/80 disabled:opacity-50" title="Configure Rounds">
                           <Settings2 size={18} />
                         </button>
                         <button 
                           onClick={() => handleToggle(game.id, category, game.is_active)}
+                          disabled={Boolean(savingGameId)}
                           className={`p-2 rounded-lg transition-colors ${game.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
                           title={game.is_active ? "Disable Game" : "Enable Game"}
                         >

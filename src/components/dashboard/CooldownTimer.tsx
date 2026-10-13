@@ -7,16 +7,16 @@ import { useRouter } from "next/navigation";
 
 interface CooldownTimerProps {
   createdAt: string;
+  cooldownHours: number;
 }
 
-export default function CooldownTimer({ createdAt }: CooldownTimerProps) {
+export default function CooldownTimer({ createdAt, cooldownHours }: CooldownTimerProps) {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   
   useEffect(() => {
     const createdAtTime = new Date(createdAt).getTime();
-    const twentyFourHoursMs = 24 * 60 * 60 * 1000;
-    const unlockTime = createdAtTime + twentyFourHoursMs;
+    const unlockTime = createdAtTime + cooldownHours * 60 * 60 * 1000;
 
     const calculateTimeLeft = () => {
       const now = Date.now();
@@ -45,7 +45,7 @@ export default function CooldownTimer({ createdAt }: CooldownTimerProps) {
           className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-bold text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
         >
           <Play fill="currentColor" size={20} />
-          START NEXT CHALLENGE
+          Start a new mission
         </Link>
       </div>
     );
@@ -56,9 +56,9 @@ export default function CooldownTimer({ createdAt }: CooldownTimerProps) {
   const seconds = timeLeft % 60;
 
   return (
-    <div className="flex flex-col items-center gap-4 mt-6">
-      <div className="inline-flex items-center gap-3 bg-card border border-border px-6 py-4 rounded-xl shadow-sm">
-        <Clock className="text-muted-foreground animate-pulse" size={24} />
+    <div className="mt-6 flex flex-col gap-3">
+      <div className="inline-flex w-fit items-center gap-3 rounded-2xl border border-primary/15 bg-primary/5 px-5 py-3">
+        <Clock className="text-primary" size={21} />
         <div className="flex flex-col">
           <span className="text-xs font-medium text-muted-foreground uppercase">Next Challenge Unlocks In</span>
           <span className="text-2xl font-mono font-bold">
@@ -68,7 +68,7 @@ export default function CooldownTimer({ createdAt }: CooldownTimerProps) {
           </span>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground">You must wait 24 hours between challenges.</p>
+      <p className="text-sm text-muted-foreground">Your next Daily Mission unlocks when this timer ends. The Office Lounge is open anytime.</p>
     </div>
   );
 }

@@ -31,6 +31,9 @@ export async function addDepartment(formData: FormData) {
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
+  revalidatePath("/profile");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/questions");
 }
 
 export async function toggleDepartmentStatus(id: string, isActive: boolean) {
@@ -45,6 +48,9 @@ export async function toggleDepartmentStatus(id: string, isActive: boolean) {
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
+  revalidatePath("/profile");
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/questions");
 }
 
 export async function deleteDepartment(id: string) {
@@ -66,10 +72,18 @@ export async function deleteDepartment(id: string) {
     throw new Error(`Cannot delete: ${count} players are still assigned to this department.`);
   }
 
+  const { rows: triviaRows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM company_trivia WHERE department = $1", [dept.name]);
+  const triviaCount = triviaRows[0]?.count ?? 0;
+  if (triviaCount > 0) {
+    throw new Error(`Cannot delete: ${triviaCount} questions are targeted to this department. Reassign them first.`);
+  }
+
   await query("DELETE FROM departments WHERE id = $1", [id]);
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
+  revalidatePath("/profile");
+  revalidatePath("/admin/users");
 }
 
 export async function renameDepartment(id: string, newName: string) {
@@ -99,11 +113,14 @@ export async function renameDepartment(id: string, newName: string) {
   // Cascade the rename to all users who had the old department name
   if (oldDept.name !== name) {
     await query("UPDATE profiles SET department = $1 WHERE department = $2", [name, oldDept.name]);
+    await query("UPDATE company_trivia SET department = $1 WHERE department = $2", [name, oldDept.name]);
   }
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
+  revalidatePath("/profile");
   revalidatePath("/admin/users");
+  revalidatePath("/admin/questions");
 }
 
 export async function updateDepartmentSortOrder(updates: { id: string, sort_order: number }[]) {

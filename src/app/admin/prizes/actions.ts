@@ -17,14 +17,13 @@ export async function addPrize(formData: FormData) {
   const iconEmoji = formData.get("icon_emoji") as string || "🏆";
   const rankRequirement = Number(formData.get("rank_requirement"));
 
-  if (!title?.trim() || !Number.isInteger(rankRequirement) || rankRequirement < 1) {
+  if (!title?.trim() || !Number.isInteger(rankRequirement) || rankRequirement < 1 || rankRequirement > 100) {
     throw new Error("Title and Rank Requirement are required.");
   }
   if (title.trim().length > 120) throw new Error("Prize title must be 120 characters or fewer.");
+  if (!/\p{Extended_Pictographic}/u.test(iconEmoji.trim()) || iconEmoji.trim().length > 16) throw new Error("Choose one emoji icon for the prize.");
 
-  // Delete any existing prize for this rank to ensure only one prize per position
-  await query("DELETE FROM prizes WHERE rank_requirement = $1", [rankRequirement]);
-  await query("INSERT INTO prizes (title, icon_emoji, rank_requirement) VALUES ($1, $2, $3)", [title.trim(), iconEmoji.trim(), rankRequirement]);
+  await query("INSERT INTO prizes (title, icon_emoji, rank_requirement) VALUES ($1, $2, $3) ON CONFLICT (rank_requirement) DO UPDATE SET title = EXCLUDED.title, icon_emoji = EXCLUDED.icon_emoji", [title.trim(), iconEmoji.trim(), rankRequirement]);
 
   revalidatePath("/admin/prizes");
   revalidatePath("/leaderboard");

@@ -11,6 +11,16 @@ export default function OnboardingPage() {
   const [result, setResult] = useState<{ invited: number; failed: number; skipped: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const downloadTemplate = () => {
+    const blob = new Blob(["email,full_name\nname@yourcompany.com,Alex Morgan\n"], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "office-games-roster-template.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -100,7 +110,7 @@ export default function OnboardingPage() {
                 <p className="text-sm text-muted-foreground max-w-sm mb-6">
                   {file 
                     ? `${(file.size / 1024).toFixed(1)} KB`
-                    : 'File must contain headers: email, full_name, team_name.'}
+                  : 'File must contain these headers: email, full_name.'}
                 </p>
                 
                 {file ? (
@@ -159,7 +169,7 @@ export default function OnboardingPage() {
             <p className="text-sm text-muted-foreground mb-4">
               Download our template to ensure your employee data is formatted correctly before uploading.
             </p>
-            <button className="w-full py-2 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/80 transition-colors">
+            <button type="button" onClick={downloadTemplate} className="w-full py-2 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/80 transition-colors">
               Download Template
             </button>
           </div>

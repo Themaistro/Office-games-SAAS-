@@ -1,4 +1,5 @@
-import { Users, Target, Activity, Flame } from "lucide-react";
+import Link from "next/link";
+import { Users, Target, Activity, Flame, ArrowUpRight, Sparkles } from "lucide-react";
 import { query } from "@/lib/db";
 import ParticipationChart from "./ParticipationChart";
 
@@ -91,14 +92,15 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Office Games operations</p><h1 className="mt-2 text-4xl font-black tracking-tight text-foreground">Team momentum</h1>
-        <p className="text-muted-foreground mt-1">Monitor Office Games participation, engagement, and team momentum.</p>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div><div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-primary"><Sparkles size={13} /> Operations center</div><h1 className="text-4xl font-black tracking-tight text-foreground">Team momentum</h1>
+        <p className="mt-2 max-w-2xl text-muted-foreground">A clear view of participation, player health, and the game experience across your office.</p></div>
+        <div className="flex gap-2"><Link href="/admin/users" className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold transition-colors hover:border-primary/30 hover:text-primary">Manage players <ArrowUpRight size={15} /></Link><Link href="/admin/announcements" className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:-translate-y-0.5">Post update <ArrowUpRight size={15} /></Link></div>
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card border border-border/60 p-6 rounded-2xl shadow-sm flex flex-col">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col rounded-2xl border border-border/70 bg-card p-6 shadow-sm shadow-black/[0.02]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">Total Employees</h3>
             <Users size={16} className="text-primary" />
@@ -109,7 +111,7 @@ export default async function AdminDashboardPage() {
           </span>
         </div>
         
-        <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col">
+        <div className="flex flex-col rounded-2xl border border-border/70 bg-card p-6 shadow-sm shadow-black/[0.02]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">Daily Participation</h3>
             <Activity size={16} className="text-blue-500" />
@@ -123,7 +125,7 @@ export default async function AdminDashboardPage() {
           </span>
         </div>
         
-        <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col">
+        <div className="flex flex-col rounded-2xl border border-border/70 bg-card p-6 shadow-sm shadow-black/[0.02]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">Active Games</h3>
             <Target size={16} className="text-accent" />
@@ -134,7 +136,7 @@ export default async function AdminDashboardPage() {
           </span>
         </div>
         
-        <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col">
+        <div className="flex flex-col rounded-2xl border border-border/70 bg-card p-6 shadow-sm shadow-black/[0.02]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-muted-foreground">Highest Streak</h3>
             <Flame size={16} className="text-orange-500" />
@@ -147,13 +149,13 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Charts/Content Area Placeholder */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
-          <h3 className="font-bold mb-4">Participation Over Time</h3>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Engagement</p><h3 className="mt-1 font-black">Participation over time</h3></div><Activity size={18} className="text-primary" /></div>
           <ParticipationChart data={chartData} />
         </div>
-        <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
-          <h3 className="font-bold mb-4">Top Performing Departments (By Avg XP)</h3>
+        <div className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-primary">Team health</p><h3 className="mt-1 font-black">Top departments</h3></div><Users size={18} className="text-primary" /></div>
           <div className="space-y-4">
             {departmentLeaderboard.length > 0 ? departmentLeaderboard.map((team) => (
               <div key={team.name} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border">

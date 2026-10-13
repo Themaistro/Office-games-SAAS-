@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SessionQuestion } from "@/types/game";
 import LogicGame from "./types/LogicGame";
 import TriviaGame from "./types/TriviaGame";
@@ -18,7 +18,7 @@ import MentalMathGame from "./types/MentalMathGame";
 import TargetNumberGame from "./types/TargetNumberGame";
 import CompanyTriviaGame from "./types/CompanyTriviaGame";
 import MissingLettersGame from "./types/MissingLettersGame";
-import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap, Star, SkipForward, Brain } from "lucide-react";
+import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap, Star, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { submitAnswer } from "@/app/play/actions";
 import { useGameTutorial } from "@/hooks/useTutorials";
@@ -103,7 +103,12 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   const [isSessionComplete, setIsSessionComplete] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
-  const [answerResults, setAnswerResults] = useState<Array<boolean | "skipped" | null>>(() => sessionQuestions.map(() => null));
+  const [answerResults, setAnswerResults] = useState<Array<boolean | "skipped" | null>>(() => sessionQuestions.map((question) => {
+    if (!question.is_completed) return null;
+    if ((question.earned_xp ?? 0) < 0) return "skipped";
+    return (question.earned_xp ?? 0) > 0;
+  }));
+  const submissionLock = useRef(false);
   
   // Advanced State
   const [currentCombo, setCurrentCombo] = useState(0);
@@ -177,7 +182,8 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     optionsOrIsCorrect?: boolean | { customIsCorrect?: boolean, customTimeSpent?: number, isPerfect?: boolean, isSkipped?: boolean, customScoreModifiers?: any, dynamicCorrectAnswer?: string }, 
     legacyTimeSpent?: number
   ) => {
-    if (isSubmitting) return;
+    if (isSubmitting || submissionLock.current) return;
+    submissionLock.current = true;
     setIsSubmitting(true);
     
     let customIsCorrect: boolean | undefined;
@@ -216,6 +222,18 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
         customScoreModifiers
       });
       
+      if (!result.success) {
+        setFeedback({
+          isCorrect: false,
+          xpEarned: 0,
+          correctAnswer: result.error || "We couldn't save that answer. Please try again.",
+          isSkipped: false,
+        });
+        submissionLock.current = false;
+        setIsSubmitting(false);
+        return;
+      }
+
       // Correctness is always decided by the server. Game-specific clients may
       // send telemetry (for example typing accuracy or card-match mistakes),
       // but must never be able to override the scored result shown to players.
@@ -249,17 +267,6 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       
       setStats(newStats);
       
-      if (!result.success) {
-        setFeedback({
-          isCorrect: false,
-          xpEarned: 0,
-          correctAnswer: result.error || "We couldn't save that answer. Please try again.",
-          isSkipped: false,
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
       setAnswerResults((previous) => {
         const next = [...previous];
         next[currentIndex] = isSkipped ? "skipped" : isCorrect;
@@ -278,9 +285,11 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
         triggerShake("game-engine-container");
       }
       setFeedback(feedbackData);
+      submissionLock.current = false;
       setIsSubmitting(false);
     } catch (e) {
       console.error(e);
+      submissionLock.current = false;
       setIsSubmitting(false);
     }
   };
@@ -608,25 +617,25 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
           </div>
         </div>
 
-        {/* New Segmented Progress Bar */}
-        <div className="w-full mt-2 relative px-2">
-          <div className="w-full flex gap-1.5" aria-label="Mission answer results">
+        {/* Mission progress */}
+        <div className="mt-2 w-full rounded-2xl border border-border/60 bg-gradient-to-r from-secondary/50 via-background to-primary/[0.035] px-4 py-3.5 sm:px-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">Mission path</span><span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black text-primary">{currentIndex + 1} / {sessionQuestions.length}</span></div>
+            <span className="text-[10px] font-bold text-muted-foreground">{sessionQuestions.length - currentIndex - (feedback ? 1 : 0)} remaining</span>
+          </div>
+          <div className="mt-3 flex w-full gap-1.5" aria-label="Mission answer results">
             {sessionQuestions.map((_, index) => {
               const result = index === currentIndex && feedback
                 ? (feedback.isSkipped ? "skipped" : feedback.isCorrect)
                 : answerResults[index];
               const isCurrent = index === currentIndex && !feedback;
-              return <div key={index} title={result === true ? `Challenge ${index + 1}: correct` : result === false ? `Challenge ${index + 1}: incorrect` : result === "skipped" ? `Challenge ${index + 1}: skipped` : `Challenge ${index + 1}: not answered`} className={clsx("h-3 w-3 shrink-0 rounded-full border transition-all", result === true && "border-emerald-500 bg-emerald-500", result === false && "border-red-500 bg-red-500", result === "skipped" && "border-amber-500 bg-amber-400", result === null && (isCurrent ? "border-primary bg-primary/20 ring-2 ring-primary/20" : "border-border bg-secondary"))} />;
+              return <div key={index} className="group relative min-w-0 flex-1" title={result === true ? `Challenge ${index + 1}: correct` : result === false ? `Challenge ${index + 1}: incorrect` : result === "skipped" ? `Challenge ${index + 1}: skipped` : `Challenge ${index + 1}: not answered`}>
+                <div className={clsx("h-2.5 min-w-1 rounded-full transition-all duration-300", result === true && "bg-emerald-500", result === false && "bg-red-500", result === "skipped" && "bg-amber-400", result === null && (isCurrent ? "bg-primary shadow-[0_0_0_3px_rgba(79,70,229,0.13)]" : "bg-border/80"))} />
+                {isCurrent && <span className="absolute left-1/2 top-4 -translate-x-1/2 whitespace-nowrap text-[9px] font-black uppercase tracking-wider text-primary">Now</span>}
+              </div>;
             })}
           </div>
-          <div 
-            className="absolute top-1/2 -translate-y-1/2 z-20 transition-all duration-500 ease-out drop-shadow-lg"
-            style={{ left: `calc(${((currentIndex + (feedback ? 1 : 0)) / sessionQuestions.length) * 100}% - 10px)` }}
-          >
-            <div className="bg-card p-1.5 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.1)] border border-primary/20">
-              <Brain size={22} className="text-primary animate-pulse" />
-            </div>
-          </div>
+          <div className="mt-4 flex items-center gap-3 text-[10px] font-bold text-muted-foreground"><span className="flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Correct</span><span className="flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-red-500" />Wrong</span><span className="flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-amber-400" />Skipped</span></div>
         </div>
       </div>
       

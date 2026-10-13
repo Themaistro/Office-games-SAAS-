@@ -20,18 +20,19 @@ export default function ClientExportButton({ data }: { data: any[] }) {
       // Convert JSON to CSV
       const headers = ["Name", "Email", "Department", "Position", "Level", "Total XP", "Streak", "Games Played", "Joined"];
       
+      const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
       const csvRows = [
         headers.join(","),
         ...data.map(row => [
-          `"${row.full_name || ''}"`,
-          `"${row.email || ''}"`,
-          `"${row.department || ''}"`,
-          `"${row.position || ''}"`,
-          row.current_level || 1,
-          row.total_xp || 0,
-          row.current_streak || 0,
-          row.games_played || 0,
-          `"${new Date(row.created_at).toLocaleDateString()}"`
+          escapeCsv(row.full_name),
+          escapeCsv(row.email),
+          escapeCsv(row.department),
+          escapeCsv(row.position),
+          escapeCsv(row.current_level || 1),
+          escapeCsv(row.total_xp || 0),
+          escapeCsv(row.current_streak || 0),
+          escapeCsv(row.games_played || 0),
+          escapeCsv(row.created_at ? new Date(row.created_at).toLocaleDateString() : "")
         ].join(","))
       ];
 

@@ -10,6 +10,8 @@ import CognitiveRadarChart from "@/components/profile/CognitiveRadarChart";
 import ChessStatsCard from "@/components/profile/ChessStatsCard";
 import TttStatsCard from "@/components/profile/TttStatsCard";
 import ProfileTutorialTrigger from "@/components/tutorial/ProfileTutorialTrigger";
+import { query } from "@/lib/db";
+import { getActiveDepartments } from "@/lib/departments";
 
 export const dynamic = "force-dynamic";
 
@@ -72,8 +74,8 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
     );
   }
 
-  const { data: activeDepartments } = await dbClient.from("departments").select("name").eq("is_active", true).order("sort_order", { ascending: true });
-  const departmentOptions = (activeDepartments || []).map((department: { name: string }) => department.name);
+  const activeDepartments = await getActiveDepartments();
+  const departmentOptions = activeDepartments.map((department) => department.name);
 
   // Fetch Chess Games for stats
   const { data: rawChessGames } = await dbClient
@@ -200,7 +202,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
   if (sessionIds.length > 0) {
     const { data: questionsData } = await dbClient
       .from("session_questions")
-      .select("earned_xp, is_correct, question_id")
+      .select("earned_xp, is_completed, question_id")
       .in("session_id", sessionIds);
       
     if (questionsData) {
@@ -217,7 +219,7 @@ export default async function ProfilePage(props: { searchParams?: Promise<{ tab?
         }
         statsMap[gameName].plays += 1;
         statsMap[gameName].totalScore += (q.earned_xp || 0);
-        if (q.is_correct) statsMap[gameName].correctCount += 1;
+        if ((q.earned_xp || 0) > 0) statsMap[gameName].correctCount += 1;
       });
       
       gameStatsArray = Object.entries(statsMap).map(([name, stats]) => ({
