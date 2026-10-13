@@ -61,20 +61,17 @@ not configured.
 
 ## Database Setup
 
-Run the SQL files in PostgreSQL (or use `node scripts/apply-neon-migrations.cjs`) in this order:
+For a complete database, use the checked-in migration runner:
 
-1. `db/migrations/schema.sql`
-2. Existing migrations `migration.sql` through `migration6_security_hardening.sql`
-3. `db/migrations/migration7_runtime_schema_reconciliation.sql`
-4. `db/migrations/migration8_question_history.sql`
-5. `db/migrations/migration9_question_pool_date.sql`
-6. `db/migrations/migration9_connect_four.sql`
-7. `db/migrations/migration10_game_spectators.sql`
-8. `db/migrations/migration11_game_rounds.sql`
+```bash
+node scripts/apply-neon-migrations.cjs
+```
 
-Then load the required seed files from `db/seeds/`. The latest migrations are
-idempotent, but the original schema and seed files should only be applied to a
-new database or a database that has not already received them.
+It applies the complete, ordered schema, identity, application, migration, and
+seed chain through the current release. This is the supported approach for a
+new environment and for bringing an existing environment up to date. The
+migrations are idempotent; the base schema and seed files are still intended
+for a new database or one that has not already received them.
 
 ## Running Locally
 
