@@ -178,9 +178,9 @@ export default function SettingsPage() {
           
           <div className="border-b border-border pb-6 flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold">Wipe Leaderboard & Start New Season</h3>
+              <h3 className="text-base font-bold">Archive Results & Start a New Season</h3>
               <p className="text-muted-foreground text-sm mt-1 mb-4 max-w-xl">
-                This action will reset every employee's Total XP, Level, and Current Streak back to zero. It will also archive the Top 3 players, permanently delete all historical daily sessions, and flush the daily question pool. Only do this at the beginning of a new competition month!
+                Archive the current player standings and top three players, then begin the next season. Lifetime XP, levels, streaks, ranks, missions, questions, messages, and match history are preserved.
               </p>
             </div>
             <button 
@@ -228,7 +228,7 @@ export default function SettingsPage() {
               <p className="text-sm text-foreground">
                 You are about to execute a highly destructive action. 
                 {confirmModal.type === 'season' 
-                  ? " This will archive all winners and reset all employee XP to zero." 
+                  ? " This archives the standings and starts the next season. Player progress and history are preserved."
                   : " This will permanently wipe ALL data, users, sessions, and history. It CANNOT be undone."}
               </p>
               

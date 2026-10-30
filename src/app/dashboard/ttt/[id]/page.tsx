@@ -15,8 +15,8 @@ export default async function TttGamePage({ params }: { params: Promise<{ id: st
 
   // Fetch the game and verify the user is a participant
   const { rows: games } = await query<any>(`SELECT g.*,
-    jsonb_build_object('id', x.id, 'full_name', x.full_name, 'avatar_url', x.avatar_url, 'ttt_elo', x.ttt_elo) AS x_player,
-    jsonb_build_object('id', o.id, 'full_name', o.full_name, 'avatar_url', o.avatar_url, 'ttt_elo', o.ttt_elo) AS o_player
+    jsonb_build_object('id', x.id, 'full_name', x.full_name, 'avatar_url', x.avatar_url, 'lounge_lp', x.lounge_lp, 'ttt_elo', x.ttt_elo) AS x_player,
+    jsonb_build_object('id', o.id, 'full_name', o.full_name, 'avatar_url', o.avatar_url, 'lounge_lp', o.lounge_lp, 'ttt_elo', o.ttt_elo) AS o_player
     FROM ttt_games g LEFT JOIN profiles x ON x.id = g.x_player_id LEFT JOIN profiles o ON o.id = g.o_player_id WHERE g.id = $1`, [id]);
   const game = games[0];
 
@@ -55,7 +55,7 @@ export default async function TttGamePage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl">
+    <div>
       <TttBoardClient 
         initialGame={game} 
         currentUserId={user.id} 

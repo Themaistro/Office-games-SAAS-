@@ -10,15 +10,20 @@ export const dynamic = "force-dynamic";
 export default async function DailyMissionPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  const { rows: profiles } = await query("SELECT role FROM profiles WHERE id = $1 LIMIT 1", [user.id]);
+  const { rows: profiles } = await query("SELECT role, timezone FROM profiles WHERE id = $1 LIMIT 1", [user.id]);
   if (profiles[0]?.role === "admin") redirect("/admin");
   const { rows } = await query("SELECT * FROM daily_sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [user.id]);
   const { rows: settingsRows } = await query<{ cooldown_hours: number }>("SELECT cooldown_hours FROM system_settings WHERE id = 1");
   const session = rows[0] as Record<string, any> | undefined;
-  const completed = Boolean(session?.is_completed && session.status === "completed");
-  const expired = Boolean(session && session.status === "expired");
-  const inProgress = Boolean(session && session.status === "in_progress");
   const cooldownHours = settingsRows[0]?.cooldown_hours ?? 24;
+  let timezone = profiles[0]?.timezone || "UTC";
+  try { new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(); } catch { timezone = "UTC"; }
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const sameDay = session?.date instanceof Date ? session.date.toISOString().slice(0, 10) === today : String(session?.date).slice(0, 10) === today;
+  const deadlinePassed = Boolean(session && Date.now() >= new Date(session.created_at).getTime() + Number(session.allowed_duration_seconds) * 1000);
+  const completed = Boolean(session?.is_completed && session.status === "completed" && Date.now() < new Date(session.created_at).getTime() + cooldownHours * 3600000);
+  const expired = Boolean(sameDay && session && (session.status === "expired" || (session.status === "in_progress" && deadlinePassed)));
+  const inProgress = Boolean(session?.status === "in_progress" && !deadlinePassed);
   return <div className="container mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
     <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary"><ArrowLeft size={16}/> Back to your choices</Link>
     <section className="mt-6 overflow-hidden rounded-3xl border border-border/60 bg-card shadow-sm">

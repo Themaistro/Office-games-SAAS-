@@ -84,13 +84,13 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
     }
   }, [timeLeft, failed, isSubmitting, onAnswer]);
 
-  const handleSelect = (isOdd: boolean) => {
+  const handleSelect = (isOdd: boolean, index: number) => {
     if (isSubmitting || failed) return;
     
     if (isOdd) {
       const timeTaken = (Date.now() - startTime) / 1000;
       const isPerfect = timeTaken < 3; // Perfect if found under 3 seconds
-      onAnswer("Found It!", { customIsCorrect: true, isPerfect }, timeTaken);
+      onAnswer(String(index), { customIsCorrect: true, isPerfect }, timeTaken);
     } else {
       setFailed(true);
       const timeTaken = (Date.now() - startTime) / 1000;
@@ -123,7 +123,7 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
           <button
             key={item.id}
             disabled={isSubmitting || failed || item.isEliminated}
-            onClick={() => handleSelect(item.isOdd)}
+            onClick={() => handleSelect(item.isOdd, item.id)}
             className={clsx(
               "rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer select-none",
               emojiSize,

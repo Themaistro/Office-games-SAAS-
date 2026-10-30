@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { acceptChallenge } from "@/app/dashboard/chess/actions";
 import { acceptTttChallenge } from "@/app/dashboard/ttt/actions";
 import { acceptConnectFourChallenge } from "@/app/dashboard/connect-four/actions";
+import { acceptPartyInvitation } from '@/app/dashboard/party/actions';
 import DirectMessagePopup from "@/components/messaging/DirectMessagePopup";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -40,8 +41,8 @@ export default function NotificationBellClient({ userId, showBell = true }: Noti
   const fetchChallenges = async () => {
     if (!userId) return;
     
-    const response = await fetch('/api/challenges', { cache: 'no-store' });
-    if (response.ok) {
+    const response = await fetch('/api/challenges', { cache: 'no-store' }).catch(()=>null);
+    if (response?.ok) {
       const nextChallenges = (await response.json()).map((c: any) => ({ ...c, createdAt: new Date(c.created_at).getTime() })).filter((challenge: any, index: number, list: any[]) => list.findIndex((item) => item.id === challenge.id) === index);
       if (nextChallenges[0] && (!hasLoadedChallengesRef.current || nextChallenges.length > challengeCountRef.current)) {
         setChallengeAlert((current: any | null) => {
@@ -61,8 +62,8 @@ export default function NotificationBellClient({ userId, showBell = true }: Noti
   };
 
   const fetchMessages = async () => {
-    const response = await fetch('/api/messages', { cache: 'no-store' });
-    if (response.ok) {
+    const response = await fetch('/api/messages', { cache: 'no-store' }).catch(()=>null);
+    if (response?.ok) {
       const result = await response.json();
       const nextMessages = result.messages || [];
       const nextUnread = result.unreadCount || 0;
@@ -80,8 +81,8 @@ export default function NotificationBellClient({ userId, showBell = true }: Noti
   };
 
   const fetchNotificationHistory = async () => {
-    const response = await fetch("/api/notifications", { cache: "no-store" });
-    if (response.ok) setNotificationHistory((await response.json()).history || []);
+    const response = await fetch("/api/notifications", { cache: "no-store" }).catch(()=>null);
+    if (response?.ok) setNotificationHistory((await response.json()).history || []);
   };
 
   useEffect(() => {
@@ -135,7 +136,7 @@ export default function NotificationBellClient({ userId, showBell = true }: Noti
   const handleAccept = async (challenge: any) => {
     const path = window.location.pathname;
     const inDailyMission = path === "/play" || path.startsWith("/daily-mission");
-    const inLiveMatch = path.includes("/dashboard/chess/") || path.includes("/dashboard/ttt/") || path.includes("/dashboard/connect-four/");
+    const inLiveMatch = path.includes("/dashboard/chess/") || path.includes("/dashboard/ttt/") || path.includes("/dashboard/connect-four/") || path.includes('/dashboard/party/');
     if (inDailyMission || inLiveMatch) {
       setChallengeConfirmation({ challenge, inDailyMission, inLiveMatch });
       return;
@@ -143,14 +144,16 @@ export default function NotificationBellClient({ userId, showBell = true }: Noti
     await acceptChallengeNow(challenge);
   };
 
-  const acceptChallengeNow = async (challenge: any) => {
+  const acceptChallengeNow = async (challenge: any, replaceActive = false) => {
     try {
-      if (challenge.type === "chess") {
-        await acceptChallenge(challenge.id);
+      if(challenge.type==='party') {
+        await acceptPartyInvitation(challenge.id, replaceActive);
+      } else if (challenge.type === "chess") {
+        await acceptChallenge(challenge.id, replaceActive);
       } else if (challenge.type === "ttt") {
-        await acceptTttChallenge(challenge.id);
+        await acceptTttChallenge(challenge.id, replaceActive);
       } else {
-        await acceptConnectFourChallenge(challenge.id);
+        await acceptConnectFourChallenge(challenge.id, replaceActive);
       }
     } catch (err: any) {
       if (err.message === "NEXT_REDIRECT") throw err;
@@ -159,9 +162,12 @@ export default function NotificationBellClient({ userId, showBell = true }: Noti
   };
 
   const handleDecline = async (challenge: any) => {
-    await fetch("/api/challenges", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: challenge.id, type: challenge.type }) });
-    setChallengeAlert(null);
-    fetchChallenges();
+    try {
+      const response=await fetch("/api/challenges", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: challenge.id, type: challenge.type }) });
+      if(!response.ok)throw new Error('Could not decline this invitation. Please try again.');
+      setChallengeAlert(null);
+      await fetchChallenges();
+    } catch { toast('Could not decline this invitation. Please try again.'); }
   };
 
   if (!userId) return null;
@@ -197,7 +203,7 @@ export default function NotificationBellClient({ userId, showBell = true }: Noti
                 {challenges.map((c) => (
                   <div key={c.id} className="p-3 border-b border-border/40 hover:bg-muted/50 transition-colors">
                     <p className="text-sm font-medium mb-2">
-                      <span className="font-bold text-primary">{c.challenger}</span> challenged you to a game of <span className="font-bold">{c.type === 'chess' ? 'Chess' : c.type === 'ttt' ? 'Tic Tac Toe' : 'Connect Four'}</span>!
+                      <span className="font-bold text-primary">{c.challenger}</span> challenged you to a game of <span className="font-bold">{c.label || (c.type === 'chess' ? 'Chess' : c.type === 'ttt' ? 'Tic Tac Toe' : 'Connect Four')}</span>!
                     </p>
                     <div className="flex gap-2">
                       <button 
@@ -233,7 +239,7 @@ export default function NotificationBellClient({ userId, showBell = true }: Noti
             </p>
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button onClick={() => setChallengeConfirmation(null)} className="rounded-xl border border-border px-4 py-3 text-sm font-bold text-muted-foreground hover:bg-secondary">Stay here</button>
-              <button onClick={() => { const item = challengeConfirmation.challenge; setChallengeConfirmation(null); void acceptChallengeNow(item); }} className="rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow-sm hover:bg-primary/90">Accept challenge</button>
+              <button onClick={() => { const item = challengeConfirmation.challenge; const replace = challengeConfirmation.inLiveMatch; setChallengeConfirmation(null); void acceptChallengeNow(item, replace); }} className="rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow-sm hover:bg-primary/90">Accept challenge</button>
             </div>
           </div>
         </div>
@@ -266,7 +272,7 @@ export default function NotificationBellClient({ userId, showBell = true }: Noti
           <button onClick={() => setChallengeAlert(null)} className="group flex h-16 w-16 items-center justify-center rounded-full border-4 border-card bg-orange-500 text-2xl text-white shadow-2xl ring-4 ring-orange-500/20 animate-in zoom-in-75 duration-300" aria-label={`Challenge from ${activeChallengeAlert.challenger}`}>
           ⚔️
           <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-card bg-destructive px-1 text-[11px] font-black text-destructive-foreground">1</span>
-          <span className="pointer-events-none absolute right-20 top-1/2 w-max -translate-y-1/2 rounded-xl bg-card px-3 py-2 text-xs font-bold text-foreground opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{activeChallengeAlert.challenger} challenged you to {activeChallengeAlert.type === "chess" ? "Chess" : activeChallengeAlert.type === "ttt" ? "Tic-Tac-Toe" : "Connect Four"}</span>
+          <span className="pointer-events-none absolute right-20 top-1/2 w-max -translate-y-1/2 rounded-xl bg-card px-3 py-2 text-xs font-bold text-foreground opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{activeChallengeAlert.challenger} challenged you to {activeChallengeAlert.label || (activeChallengeAlert.type === "chess" ? "Chess" : activeChallengeAlert.type === "ttt" ? "Tic-Tac-Toe" : "Connect Four")}</span>
           </button>
           <div className="absolute bottom-0 right-20 w-56 rounded-2xl border border-border bg-card p-3 text-center shadow-2xl">
             <p className="text-xs font-bold">{activeChallengeAlert.challenger} challenged you</p>

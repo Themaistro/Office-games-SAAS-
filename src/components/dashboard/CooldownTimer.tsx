@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Clock, Play } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,7 @@ interface CooldownTimerProps {
 export default function CooldownTimer({ createdAt, cooldownHours }: CooldownTimerProps) {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const refreshedDeadline = useRef<number | null>(null);
   
   useEffect(() => {
     const createdAtTime = new Date(createdAt).getTime();
@@ -24,7 +25,8 @@ export default function CooldownTimer({ createdAt, cooldownHours }: CooldownTime
       setTimeLeft(remaining);
       
       // Auto-refresh when cooldown expires
-      if (remaining === 0) {
+      if (remaining === 0 && refreshedDeadline.current !== unlockTime) {
+        refreshedDeadline.current = unlockTime;
         router.refresh();
       }
     };
@@ -33,7 +35,7 @@ export default function CooldownTimer({ createdAt, cooldownHours }: CooldownTime
     const interval = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(interval);
-  }, [createdAt, router]);
+  }, [createdAt, cooldownHours, router]);
 
   if (timeLeft === null) return null;
 

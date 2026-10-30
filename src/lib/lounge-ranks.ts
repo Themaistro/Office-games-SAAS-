@@ -12,7 +12,7 @@ export const LOUNGE_RANKS = [
 export function getLoungeRank(lp: number | null | undefined) {
   const points = Math.max(0, Math.floor(lp ?? 0));
   const rankIndex = Math.min(Math.floor(points / 100), LOUNGE_RANKS.length - 1);
-  return { name: LOUNGE_RANKS[rankIndex], lp: points % 100, totalLp: points };
+  return { name: LOUNGE_RANKS[rankIndex], lp: rankIndex === LOUNGE_RANKS.length - 1 ? points - rankIndex * 100 : points % 100, totalLp: points };
 }
 
 export function getLoungeRankStyle(rank: string) {

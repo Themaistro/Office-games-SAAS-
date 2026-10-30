@@ -26,7 +26,7 @@ export default function LogicGame({ question, onAnswer, isSubmitting, showHint }
     setHintUsed(true);
     // Logic hint: Eliminate 1 incorrect option
     const uniqueOptions = Array.from(new Set(question.options));
-    const incorrect = uniqueOptions.filter(o => o !== question.correct_answer);
+    const incorrect = question.hint_options || [];
     if (incorrect.length > 0) {
       const shuffled = [...incorrect].sort(() => 0.5 - Math.random());
       setEliminatedOptions([shuffled[0]]);
@@ -50,25 +50,10 @@ export default function LogicGame({ question, onAnswer, isSubmitting, showHint }
 
   const handleSelect = (option: string | null, isTimeout = false) => {
     if (isSubmitting || selectedOption !== null) return;
-    
     setSelectedOption(option || "[Timeout]");
-    
-    if (isTimeout) {
-      setRevealed(true);
-      setTimeout(() => {
-        onAnswer("[Timeout]", { customIsCorrect: false, customTimeSpent: 30 });
-      }, 1000);
-    } else {
-      setTimeout(() => {
-        setRevealed(true);
-        setTimeout(() => {
-          const timeTaken = 30 - timeLeft;
-          const isCorrect = option === question.correct_answer;
-          onAnswer(option || "[Timeout]", { customIsCorrect: isCorrect, customTimeSpent: timeTaken });
-        }, 1500);
-      }, 1000); // 1s dramatic pause before reveal
-    }
+    onAnswer(option || "[Timeout]", { customTimeSpent: 30 - timeLeft });
   };
+
 
   const questionText = question.content.text || question.content.question || "";
   

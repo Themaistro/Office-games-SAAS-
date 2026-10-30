@@ -38,7 +38,7 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
     
     // Find incorrect options
     const uniqueOptions = Array.from(new Set(question.options));
-    const incorrect = uniqueOptions.filter(o => o !== question.correct_answer);
+    const incorrect = question.hint_options || [];
     const shuffled = [...incorrect].sort(() => 0.5 - Math.random());
     
     // A true 50/50 leaves exactly 1 incorrect option and the 1 correct option (2 options total)
@@ -56,28 +56,10 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
 
   const handleSelect = (option: string | null, isTimeout = false) => {
     if (isSubmitting || selectedOption !== null) return;
-    
     setSelectedOption(option || "[Timeout]");
-    
-    if (isTimeout) {
-      // Immediate fail on timeout
-      setRevealed(true);
-      setTimeout(() => {
-        onAnswer("[Timeout]", { customIsCorrect: false, customTimeSpent: 15 });
-      }, 1000);
-    } else {
-      // Gameshow dramatic suspense
-      setTimeout(() => {
-        setRevealed(true);
-        setTimeout(() => {
-          const timeTaken = 15 - timeLeft;
-          const isCorrect = option === question.correct_answer;
-          // By passing it inside the custom object, we bypass the legacy signature
-          onAnswer(option || "[Timeout]", { customIsCorrect: isCorrect, customTimeSpent: timeTaken });
-        }, 1500);
-      }, 1500); // 1.5 seconds of yellow pulse before the answer is revealed
-    }
+    onAnswer(option || "[Timeout]", { customTimeSpent: 15 - timeLeft });
   };
+
 
   const getOptionState = (option: string) => {
     if (eliminatedOptions.includes(option)) return "eliminated";

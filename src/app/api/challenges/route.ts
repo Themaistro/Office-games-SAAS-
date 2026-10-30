@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { isUuid } from "@/lib/party-contract";
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -29,13 +30,19 @@ export async function GET(request: Request) {
   await query("DELETE FROM ttt_games WHERE status='waiting' AND created_at < now() - interval '30 minutes'");
   await query("DELETE FROM connect_four_games WHERE status='waiting' AND created_at < now() - interval '30 minutes'");
   const { rows } = await query(`SELECT id, 'chess' AS type, created_at, (SELECT full_name FROM profiles WHERE id=white_player_id) AS challenger FROM chess_games WHERE black_player_id=$1 AND white_player_id IS NOT NULL AND status='waiting' UNION ALL SELECT id, 'ttt' AS type, created_at, (SELECT full_name FROM profiles WHERE id=x_player_id) AS challenger FROM ttt_games WHERE o_player_id=$1 AND x_player_id IS NOT NULL AND status='waiting' UNION ALL SELECT id, 'connect-four' AS type, created_at, (SELECT full_name FROM profiles WHERE id=red_player_id) AS challenger FROM connect_four_games WHERE yellow_player_id=$1 AND red_player_id IS NOT NULL AND status='waiting' ORDER BY created_at DESC`, [user.id]);
-  return NextResponse.json(rows, { headers: { "Cache-Control": "no-store" } });
+  const parties=await query("SELECT r.id,'party' AS type,i.created_at,p.full_name AS challenger,(CASE WHEN r.format='trivia' THEN 'Trivia' ELSE 'Mixed Challenges' END)||' '||(CASE WHEN r.mode='duel' THEN 'Duel' ELSE 'Group' END) AS label FROM lounge_room_invites i JOIN lounge_rooms r ON r.id=i.room_id JOIN profiles p ON p.id=i.sender_id WHERE i.recipient_id=$1 AND i.status='pending' AND i.expires_at>now() AND r.status='waiting' AND r.created_at>now()-interval '30 minutes'",[user.id]);
+  return NextResponse.json([...rows,...parties.rows], { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function DELETE(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id, type } = await request.json().catch(() => ({}));
+  if(type==='party'){
+    if(!isUuid(id))return NextResponse.json({error:'Invalid room'},{status:400});
+    await query("UPDATE lounge_room_invites SET status='declined' WHERE room_id=$1 AND recipient_id=$2 AND status='pending'",[id,user.id]);
+    return NextResponse.json({ok:true});
+  }
   const tables: Record<string, string> = { chess: "chess_games", ttt: "ttt_games", "connect-four": "connect_four_games" };
   const recipientColumns: Record<string, string> = { chess: "black_player_id", ttt: "o_player_id", "connect-four": "yellow_player_id" };
   if (!id || !tables[type] || !recipientColumns[type]) return NextResponse.json({ error: "Invalid challenge" }, { status: 400 });

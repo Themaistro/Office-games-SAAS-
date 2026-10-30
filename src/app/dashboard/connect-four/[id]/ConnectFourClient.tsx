@@ -1,72 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowLeft, Circle, Loader2, Trophy, Eye } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowDown, CircleDot } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { cancelConnectFourGame, makeConnectFourMove, resignConnectFourGame } from "../actions";
+import { cancelConnectFourGame, makeConnectFourMove, resignConnectFourGame, challengeUserToConnectFour } from "../actions";
+import { useMatchSync } from "@/hooks/useMatchSync";
+import { MatchPlayer, MatchResult, MatchToolbar, MatchGuide, MatchSpectator, winningCells } from "@/components/game/MatchPresentation";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/ToastProvider";
-import * as Ably from "ably";
-import { getGameChannelName } from "@/lib/realtime";
 
-export default function ConnectFourClient({ initialGame, currentUserId }: { initialGame: any; currentUserId: string }) {
-  const [game, setGame] = useState(initialGame);
-  const [spectators, setSpectators] = useState<any[]>(initialGame.spectators || []);
-  const [busy, setBusy] = useState(false);
-  const [connectionIssue, setConnectionIssue] = useState(false);
-  const router = useRouter();
-  const { toast } = useToast();
-  const me = game.red_player_id === currentUserId ? "R" : game.yellow_player_id === currentUserId ? "Y" : null;
-  const myTurn = me === game.current_turn && game.status === "in_progress";
-  useEffect(() => {
-    if (["red_won", "yellow_won", "draw", "cancelled"].includes(game.status)) return;
-    const timer = window.setInterval(async () => {
-      try {
-        const response = await fetch(`/api/connect-four/${game.id}`, { cache: "no-store" });
-        if (!response.ok) { setConnectionIssue(true); return; }
-        const next = await response.json();
-        setConnectionIssue(false);
-        setGame(next);
-        setSpectators(next.spectators || []);
-      } catch { setConnectionIssue(true); }
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [game.id, game.status]);
-  useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_ABLY_KEY;
-    if (!key) return;
-    const realtime = new Ably.Realtime({ key, echoMessages: false });
-    const channel = realtime.channels.get(getGameChannelName("connect-four", game.id));
-    const handleMessage = (message: Ably.Message) => {
-      const event = message.data as { senderId?: string; payload?: { board?: string; currentTurn?: string; status?: string } };
-      if (event.senderId === currentUserId || !event.payload?.board) return;
-      setGame((current: any) => ({ ...current, board_state: event.payload?.board, current_turn: event.payload?.currentTurn, status: event.payload?.status }));
-      setBusy(false);
-    };
-    void channel.subscribe(handleMessage).catch(() => setConnectionIssue(true));
-    return () => { try { channel.unsubscribe(handleMessage); } catch {} try { realtime.close(); } catch {} };
-  }, [game.id, currentUserId]);
-  const move = async (column: number) => {
-    if (!myTurn || busy) return;
-    const previous = game;
-    const board = game.board_state.split("");
-    for (let row = 5; row >= 0; row--) {
-      const index = row * 7 + column;
-      if (board[index] === "-") { board[index] = me; break; }
-    }
-    setGame({ ...game, board_state: board.join(""), current_turn: me === "R" ? "Y" : "R" });
-    setBusy(true);
-    try { await makeConnectFourMove(game.id, column); }
-    catch (e) { setGame(previous); toast(e instanceof Error ? e.message : "Move failed"); }
-    finally { setBusy(false); }
-  };
-  const over = ["red_won", "yellow_won", "draw"].includes(game.status);
-  const resign = async () => { if (!window.confirm("Resign this match? Your opponent will win.")) return; setBusy(true); try { await resignConnectFourGame(game.id); const response = await fetch(`/api/connect-four/${game.id}`, { cache: "no-store" }); if (response.ok) setGame(await response.json()); } catch (e) { toast(e instanceof Error ? e.message : "Could not resign"); } finally { setBusy(false); } };
-  return <main className="max-w-3xl mx-auto py-8 px-4 space-y-6">
-    <div className="flex items-center justify-between"><button onClick={() => router.push("/dashboard")} className="flex items-center gap-2 font-bold text-muted-foreground"><ArrowLeft size={18}/> Lounge</button><span className="rounded-full border px-4 py-2 text-sm font-black">{over ? game.status === "draw" ? "Draw" : game.status === `${me === "R" ? "red" : "yellow"}_won` ? "You win!" : "Match over" : game.status === "waiting" ? "Waiting for opponent" : myTurn ? "Your turn" : "Opponent's turn"}</span></div>
-    {connectionIssue && <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-700">Connection is unstable. We’re trying to reconnect to this match…</div>}
-    <section className="rounded-3xl border bg-card p-5 shadow-xl"><div className="flex justify-between mb-5"><div className="font-black text-red-500">🔴 {game.red?.full_name || "Waiting"}</div><div className="font-black text-yellow-500">🟡 {game.yellow?.full_name || "Waiting"}</div></div>{!me && <div className="mb-4 rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-sm font-bold text-muted-foreground"><Eye className="mr-2 inline" size={16}/>You are watching this match.</div>}<div className="grid grid-cols-7 gap-2 rounded-2xl bg-blue-600 p-3 sm:p-5">{game.board_state.split("").map((cell: string, index: number) => <button key={index} aria-label={`Column ${(index % 7) + 1}`} disabled={!myTurn || busy || cell !== "-"} onClick={() => move(index % 7)} className="aspect-square rounded-full bg-background/90 shadow-inner transition hover:scale-95 disabled:cursor-default">{cell === "R" && <Circle className="w-full h-full p-1 text-red-500 fill-red-500"/>}{cell === "Y" && <Circle className="w-full h-full p-1 text-yellow-400 fill-yellow-400"/>}</button>)}</div><div className="mt-5 flex justify-between text-sm text-muted-foreground"><span>{busy ? <><Loader2 className="inline animate-spin"/> Saving move…</> : "Choose a column"}</span>{over && <span className="font-black text-primary"><Trophy className="inline" size={16}/> Match complete</span>}</div>{spectators.length > 0 && <div className="mt-4 text-center text-xs font-bold text-muted-foreground"><Eye className="mr-1 inline" size={14}/>{spectators.length} spectator{spectators.length === 1 ? "" : "s"} watching</div>}</section>
-    {game.status === "in_progress" && me && <button disabled={busy} onClick={resign} className="w-full rounded-xl border border-destructive/30 bg-destructive/10 py-3 font-bold text-destructive hover:bg-destructive/15 disabled:opacity-50">Resign match</button>}
-    {game.status === "waiting" && game.red_player_id === currentUserId && <button onClick={async () => { await cancelConnectFourGame(game.id); router.push("/dashboard"); }} className="w-full rounded-xl bg-destructive py-3 font-bold text-destructive-foreground">Cancel lobby</button>}
+export default function ConnectFourClient({initialGame,currentUserId}:{initialGame:any;currentUserId:string}) {
+  const {game,setGame,refresh,connectionIssue,pauseSync,resumeSync}=useMatchSync(initialGame,"connect-four");
+  const [busy,setBusy]=useState(false),[confirm,setConfirm]=useState(false),[hover,setHover]=useState<number|null>(null),[last,setLast]=useState<number|null>(null),[rematchSent,setRematchSent]=useState(false);
+  const previous=useRef(initialGame.board_state),lock=useRef(false),reduced=useReducedMotion(),router=useRouter(),{toast}=useToast();
+  const me=game.red_player_id===currentUserId?"R":game.yellow_player_id===currentUserId?"Y":null;
+  const over=["red_won","yellow_won","draw"].includes(game.status),myTurn=Boolean(me===game.current_turn&&me&&game.status==="in_progress");
+  const current=game.current_turn==="R"?game.red:game.yellow,winner=game.status==="red_won"?game.red:game.status==="yellow_won"?game.yellow:null;
+  const status=game.status==="waiting"?"Waiting for an opponent":over?game.status==="draw"?"Draw":`${winner?.full_name||"Player"} wins`:myTurn?"Your turn":`${current?.full_name||game.current_turn}’s turn`;
+  const winning=winningCells(game.board_state,7,4);
+  useEffect(()=>{const index=[...game.board_state].findIndex((cell:string,i:number)=>cell!=="-"&&previous.current[i]!==cell);if(index>=0)setLast(index);previous.current=game.board_state;},[game.board_state]);
+  async function action(run:()=>Promise<unknown>) {if(lock.current)return;lock.current=true;setBusy(true);pauseSync();try{await run();resumeSync();await refresh();}catch(error){resumeSync();toast(error instanceof Error?error.message:"Action failed");await refresh();}finally{resumeSync();lock.current=false;setBusy(false);}}
+  function move(column:number) {
+    if(!myTurn||busy)return;
+    const board=game.board_state.split("");let target=-1;for(let row=5;row>=0;row--)if(board[row*7+column]==="-"){target=row*7+column;break;}
+    if(target<0)return;board[target]=me;
+    setGame({...game,board_state:board.join(""),current_turn:me==="R"?"Y":"R"});
+    void action(()=>makeConnectFourMove(game.id,column));
+  }
+  const ledger=game.result,delta=ledger?(ledger.player1_id===currentUserId?ledger.player1_lp_delta:ledger.player2_lp_delta):null;
+  return <main className="match-room space-y-6">
+    <MatchToolbar icon={<CircleDot size={22}/>} title="Connect Four" status={status} disconnected={connectionIssue} finished={over}/>
+    <div className="match-stage"><div className="space-y-4">
+    <div className="grid grid-cols-2 gap-3"><MatchPlayer name={game.red?.full_name} avatar={game.red?.avatar_url} lp={game.red?.lounge_lp} side="Red" active={!over&&game.status==="in_progress"&&game.current_turn==="R"}/><MatchPlayer name={game.yellow?.full_name} avatar={game.yellow?.avatar_url} lp={game.yellow?.lounge_lp} side="Yellow" active={!over&&game.status==="in_progress"&&game.current_turn==="Y"}/></div>
+    {!me&&<MatchSpectator count={game.spectators?.length}/>}
+    <section className="match-panel p-6">
+      <div className="mb-2 grid grid-cols-7 gap-1 sm:gap-2">{Array.from({length:7},(_,column)=><button key={column} disabled={!myTurn||busy||game.board_state[column]!=="-"} aria-label={`Drop ${me==="R"?"red":"yellow"} disc in column ${column+1}`} onMouseEnter={()=>setHover(column)} onMouseLeave={()=>setHover(null)} onFocus={()=>setHover(column)} onBlur={()=>setHover(null)} onClick={()=>move(column)} className="grid min-h-11 place-items-center rounded-xl text-primary transition-colors hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-25"><ArrowDown size={20}/></button>)}</div>
+      <div role="img" aria-label="Connect Four board. R is red, Y is yellow." className="grid grid-cols-7 gap-1.5 overflow-hidden rounded-2xl border border-primary/20 bg-primary/15 p-2 sm:gap-2 sm:p-4">{game.board_state.split("").map((cell:string,index:number)=>{
+        let preview=false;if(hover!==null&&myTurn&&index%7===hover&&cell==="-"){preview=Math.floor(index/7)===5||game.board_state[index+7]!=="-";}
+        return <div key={index} aria-label={`Row ${Math.floor(index/7)+1}, column ${index%7+1}: ${cell==="-"?"empty":cell==="R"?"red":"yellow"}`} className={`relative aspect-square rounded-full bg-card shadow-inner ${winning.includes(index)?"ring-2 ring-emerald-500 ring-offset-2 ring-offset-card":last===index?"ring-2 ring-primary":""}`}>{cell!=="-"?<motion.span key={cell} initial={reduced?false:{y:-80,opacity:0}} animate={{y:0,opacity:1}} transition={{duration:0.22,ease:"easeOut"}} className={`absolute inset-0.5 rounded-full border-2 shadow-sm ${cell==="R"?"border-red-600 bg-gradient-to-br from-red-400 to-red-600":"border-amber-500 bg-gradient-to-br from-yellow-200 to-amber-400"}`}/>:preview?<span className={`absolute inset-1 rounded-full opacity-30 ${me==="R"?"bg-red-500":"bg-amber-400"}`}/>:null}</div>;
+      })}</div><p role="status" className="mt-4 text-center text-sm text-muted-foreground">{busy?"Saving…":myTurn?"Choose a column above to drop your disc.":status}</p>
+    </section>
+    {over&&<MatchResult title={status}>{me&&delta!==null&&<span className="text-sm font-bold text-primary">{delta>=0?"+":""}{delta} Lounge LP</span>}{me&&<button disabled={busy||rematchSent} onClick={()=>void action(async()=>{await challengeUserToConnectFour(me==="R"?game.yellow_player_id:game.red_player_id);setRematchSent(true);toast("Rematch invite sent.");})} className="match-button match-button-primary">{rematchSent?"Invite sent":"Invite to rematch"}</button>}</MatchResult>}
+    {me&&game.status==="in_progress"&&<button disabled={busy} onClick={()=>setConfirm(true)} className="match-button match-button-danger">Resign match</button>}
+    {me&&game.status==="waiting"&&<button disabled={busy} onClick={()=>void action(async()=>{await cancelConnectFourGame(game.id);router.push("/office-lounge");})} className="match-button match-button-secondary">Cancel invitation</button>}
+    </div><MatchGuide objective="Connect four. Claim the board." tips={["Choose a column to drop your disc.","Connect four horizontally, vertically, or diagonally.","Look for threats and block your opponent before their next move."]}/></div>
+    <ConfirmModal isOpen={confirm} onClose={()=>setConfirm(false)} onConfirm={()=>void action(()=>resignConnectFourGame(game.id))} title="Resign this match?" message="Your opponent will win this match. Your Lounge rank will be updated." confirmText="Resign match"/>
   </main>;
 }
 

@@ -25,7 +25,8 @@ export async function GET() {
       ORDER BY e.created_at DESC LIMIT 50`,
     [user.id],
   );
-  const history = [...messages, ...challenges]
+  const parties=await query("SELECT i.id::text,'challenge' AS kind,i.created_at,p.full_name AS actor_name,p.avatar_url AS actor_avatar,'Party invitation · '||i.status AS title,CASE WHEN r.format='trivia' THEN 'Trivia' ELSE 'Mixed Challenges' END AS description,(i.recipient_id=$1 AND i.status='pending' AND i.expires_at>now() AND r.status='waiting') AS unread FROM lounge_room_invites i JOIN lounge_rooms r ON r.id=i.room_id JOIN profiles p ON p.id=i.sender_id WHERE i.recipient_id=$1 OR i.sender_id=$1 ORDER BY i.created_at DESC LIMIT 50",[user.id]);
+  const history = [...messages, ...challenges,...parties.rows]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 80);
   return NextResponse.json({ history }, { headers: { "Cache-Control": "no-store" } });

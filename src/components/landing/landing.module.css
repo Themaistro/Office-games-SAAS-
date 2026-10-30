@@ -1,0 +1,27 @@
+.hero { overflow: clip; background: radial-gradient(ellipse at 0% 12%, rgb(20 184 166 / 8%), transparent 45%), radial-gradient(ellipse at 100% 85%, rgb(251 146 60 / 8%), transparent 42%); }
+.demoBackdrop { background: linear-gradient(140deg, rgb(20 184 166 / 13%), rgb(99 102 241 / 8%) 50%, rgb(251 113 133 / 12%)); }
+.highlights > div > span:nth-child(1) svg { color: #0f766e; }
+.highlights > div > span:nth-child(2) svg { color: #be123c; }
+.highlights > div > span:nth-child(3) svg { color: #a16207; }
+.feature { border-radius: 1.25rem; border: 1px solid var(--border); padding: 1.5rem; }
+.feature:nth-child(1) { background: linear-gradient(135deg, rgb(20 184 166 / 9%), transparent); border-color: rgb(13 148 136 / 22%); }
+.feature:nth-child(2) { background: linear-gradient(135deg, rgb(251 113 133 / 9%), transparent); border-color: rgb(225 29 72 / 18%); }
+.feature:nth-child(3) { background: linear-gradient(135deg, rgb(251 191 36 / 12%), transparent); border-color: rgb(202 138 4 / 22%); }
+.feature:nth-child(1) > svg { color: #0f766e; }
+.feature:nth-child(2) > svg { color: #be123c; }
+.feature:nth-child(3) > svg { color: #a16207; }
+.mission { background: linear-gradient(140deg, rgb(20 184 166 / 12%), rgb(20 184 166 / 3%)); }
+.mission > div > div > span:first-child { background: rgb(20 184 166 / 12%); color: #0f766e; }
+.lounge { background: linear-gradient(120deg, #fff8eb, var(--card) 75%); border-color: #eadfc9; }
+.matchPreview { background: linear-gradient(145deg, #f0f9ff, var(--card) 70%); border-color: #c4dfef; box-shadow: 0 14px 40px rgb(3 105 161 / 6%); }
+.previewBadge { background: #e0f2fe; color: #075985; }
+.canvas { isolation: isolate; }
+/* Recommended blend: retain Playground's accents, soften its foundations. */
+.canvas[data-theme="combined"] :is(h1,h2) { font-weight: 750; letter-spacing: -.045em; }
+.canvas[data-theme="combined"] .heroGrid h1 { font-size: clamp(3.2rem,6vw,5.5rem); line-height: 1.04; }
+.canvas[data-theme="combined"] .demoBackdrop { transform: rotate(1.5deg); }
+.canvas[data-theme="combined"] [class~="shadow-2xl"] { box-shadow: 0 10px 32px rgb(48 52 71 / 6%); }
+.canvas[data-theme="combined"] a[class~="shadow-lg"] { box-shadow: 0 5px 16px rgb(79 70 229 / 14%); }
+.canvas[data-theme="combined"] .feature { box-shadow: 0 4px 16px rgb(48 52 71 / 3%); }
+.canvas[data-theme="combined"] .matchPreview { box-shadow: 0 8px 24px rgb(48 52 71 / 4%); }
+.heroGrid { min-width: 0; }

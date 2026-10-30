@@ -34,7 +34,8 @@ export default async function AnalyticsPage() {
     count: dauMap[date].size
   }));
 
-  const todayDAU = dauChart.length > 0 ? dauChart[dauChart.length - 1].count : 0;
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayDAU = dauChart.find(entry => String(entry.date).slice(0, 10) === todayKey)?.count ?? 0;
   
   // Fetch Department Stats
   const { rows: profiles } = await query<{ department: string | null; total_xp: number; current_level: number; role: string }>("SELECT department, total_xp, current_level, role FROM profiles WHERE role = 'employee'");
@@ -59,7 +60,7 @@ export default async function AnalyticsPage() {
     .sort((a, b) => b.avgXp - a.avgXp);
 
   // Fetch Chess Match Count (Last 30 days)
-  const { rows: chessGames } = await query("SELECT created_at FROM chess_games WHERE status IN ('white_won', 'black_won', 'draw') AND created_at >= $1", [thirtyDaysAgo]);
+  const { rows: chessGames } = await query("SELECT created_at FROM match_results WHERE created_at >= $1", [thirtyDaysAgo]);
 
   const chessMatchCount = chessGames?.length || 0;
 
@@ -69,11 +70,11 @@ export default async function AnalyticsPage() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
   const { rows: sessionQuestions } = await query<{ game_type: string; is_correct: boolean; earned_xp: number }>(
-    `SELECT gt.slug AS game_type, sq.is_completed AS is_correct, sq.earned_xp
+    `SELECT gt.slug AS game_type, (sq.outcome = 'correct') AS is_correct, sq.earned_xp
      FROM session_questions sq
      JOIN questions q ON q.id = sq.question_id
      JOIN game_types gt ON gt.id = q.game_type_id
-     WHERE sq.created_at >= $1`,
+     WHERE sq.created_at >= $1 AND sq.is_completed = true AND sq.outcome IS NOT NULL`,
     [sevenDaysAgo]
   );
 
@@ -124,7 +125,7 @@ export default async function AnalyticsPage() {
 
         <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Chess Activity</span>
+            <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Settled Matches</span>
             <Swords className="text-orange-500 w-5 h-5" />
           </div>
           <div className="text-3xl font-black">{chessMatchCount}</div>

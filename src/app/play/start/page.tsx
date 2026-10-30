@@ -18,7 +18,7 @@ export default function StartSessionPage() {
     try {
       const result = await startDailySession();
       if (result.error) {
-        setErrorMsg(result.error);
+        setErrorMsg(result.message || result.error);
         setLoading(false);
         return;
       }

@@ -6,6 +6,7 @@ export async function assertNoActiveMultiplayerGame(userId: string, excludeGameI
       SELECT id FROM chess_games WHERE status = 'in_progress' AND (white_player_id = $1 OR black_player_id = $1)
       UNION ALL SELECT id FROM ttt_games WHERE status = 'in_progress' AND (x_player_id = $1 OR o_player_id = $1)
       UNION ALL SELECT id FROM connect_four_games WHERE status = 'in_progress' AND (red_player_id = $1 OR yellow_player_id = $1)
+      UNION ALL SELECT r.id FROM lounge_rooms r JOIN lounge_room_players p ON p.room_id=r.id WHERE p.user_id=$1 AND p.state='joined' AND r.status='in_progress' AND r.updated_at>now()-interval '2 hours'
     ) active_games WHERE ($2::uuid IS NULL OR id <> $2::uuid) LIMIT 1`,
     [userId, excludeGameId ?? null],
   );

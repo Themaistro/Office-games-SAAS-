@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node scripts/migrate.cjs",
+    "test:matches": "node scripts/test-match-integrity.cjs",
+    "test:rules": "node scripts/test-challenge-rules.cjs",
+    "test:invitations": "node scripts/test-invitations.cjs",
+    "test:parties": "node scripts/test-parties.cjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -21,7 +26,7 @@
     "framer-motion": "^13.1.0",
     "jose": "^6.2.12",
     "lucide-react": "^1.31.0",
-    "next": "^16.4.0",
+    "next": "^16.4.3",
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-chessboard": "^5.12.1",
@@ -37,7 +42,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.0",
+    "eslint-config-next": "^16.4.3",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",

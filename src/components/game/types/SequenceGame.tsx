@@ -1,7 +1,8 @@
 "use client";
 
 import { GameProps } from "@/types/game";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { seededShuffle } from "@/lib/challenge-seed";
 import { clsx } from "clsx";
 import { Grid3x3, Clock, Sparkles } from "lucide-react";
 
@@ -33,6 +34,7 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
   const [failed, setFailed] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
   const [isPeeking, setIsPeeking] = useState(false);
+  const clicks = useRef<number[]>([]);
   
   useEffect(() => {
     // Randomize mode
@@ -40,14 +42,9 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
 
     // Distribute numbers 1 to SEQUENCE_LENGTH randomly in the grid
     const newGrid = Array(GRID_SIZE).fill(null);
-    let placed = 0;
-    while (placed < SEQUENCE_LENGTH) {
-      const randomPos = Math.floor(Math.random() * GRID_SIZE);
-      if (newGrid[randomPos] === null) {
-        newGrid[randomPos] = placed + 1;
-        placed++;
-      }
-    }
+    const positions = seededShuffle(Array.from({length:GRID_SIZE},(_,index)=>index), String(question.content.seed || question.id), "sequence-positions");
+    positions.slice(0,SEQUENCE_LENGTH).forEach((position,index)=>{newGrid[position]=index+1;});
+    clicks.current=[];
     setGrid(newGrid);
     
     setGameState('memorize');
@@ -113,6 +110,7 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
     if (isSubmitting || failed || gameState === 'memorize' || isPeeking || grid[index] === null) return;
     
     const clickedNumber = grid[index];
+    clicks.current.push(index);
     
     if (clickedNumber === currentStep) {
       // Correct!
@@ -123,7 +121,7 @@ export default function SequenceGame({ question, onAnswer, isSubmitting, showHin
       if (currentStep === SEQUENCE_LENGTH) {
         // Won!
         const timeTaken = (Date.now() - startTime) / 1000;
-        onAnswer("Completed Sequence", true, timeTaken);
+        onAnswer(JSON.stringify(clicks.current), true, timeTaken);
       } else {
         setCurrentStep(currentStep + 1);
       }

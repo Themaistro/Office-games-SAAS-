@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { AlertCircle, X } from "lucide-react";
+import { createPortal } from "react-dom";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -27,24 +28,43 @@ export default function ConfirmModal({
   isDestructive = true,
   offsetClassName = "",
 }: ConfirmModalProps) {
+  const dialog = useRef<HTMLDivElement>(null);
+  const closeCallback = useRef(onClose);
+  useEffect(() => { closeCallback.current = onClose; }, [onClose]);
+  const titleId = useId();
+  const messageId = useId();
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeCallback.current();
+      if (e.key === "Tab") {
+        const nodes = dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]');
+        if (!nodes?.length) return;
+        const first = nodes[0], last = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     };
     if (isOpen) {
       window.addEventListener("keydown", handleEscape);
+      dialog.current?.querySelector<HTMLElement>("button")?.focus();
     }
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [isOpen, onClose]);
+    return () => { window.removeEventListener("keydown", handleEscape); if (isOpen) previous?.focus(); };
+  }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
       className={`fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 ${offsetClassName}`}
       onClick={(e) => { e.stopPropagation(); onClose(); }}
     >
       <div
+        ref={dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
         className="bg-card border border-border shadow-2xl rounded-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 mx-4"
         onClick={(e) => e.stopPropagation()}
       >
@@ -55,12 +75,12 @@ export default function ConfirmModal({
             </div>
             <div className="flex-1">
               <div className="flex justify-between items-start">
-                <h3 className="text-xl font-bold tracking-tight mb-2">{title}</h3>
-                <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors -mt-1 -mr-1 p-1">
+                <h3 id={titleId} className="text-xl font-bold tracking-tight mb-2">{title}</h3>
+                <button aria-label="Close confirmation" onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors -mt-1 -mr-1 p-1">
                   <X size={20} />
                 </button>
               </div>
-              <p className="text-muted-foreground text-sm leading-relaxed">
+              <p id={messageId} className="text-muted-foreground text-sm leading-relaxed">
                 {message}
               </p>
             </div>
@@ -89,7 +109,7 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
 

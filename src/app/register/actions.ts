@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { createSession, createUser } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { findInvitation } from "@/lib/invitations";
 
 export async function signup(formData: FormData) {
   const rawEmail = formData.get("email") as string;
@@ -22,6 +23,11 @@ export async function signup(formData: FormData) {
   const fullName = rawFullName.trim();
   const department = rawDepartment.trim();
   const position = rawPosition.trim();
+  const invitationToken = String(formData.get("invitation_token") || "");
+  if (invitationToken) {
+    const invitation = await findInvitation(invitationToken);
+    if (!invitation || invitation.email.toLowerCase() !== email) redirect("/register?error=This invitation is invalid, expired, or belongs to another email address.");
+  }
 
   const { rows: matchingDepartments } = await query<{ name: string }>(
     "SELECT name FROM departments WHERE name = $1 AND is_active = true LIMIT 1",
@@ -53,7 +59,7 @@ export async function signup(formData: FormData) {
 
   try {
     const passwordHash = await bcrypt.hash(password, 12);
-    const userId = await createUser({ email, passwordHash, fullName, department, position });
+    const userId = await createUser({ email, passwordHash, fullName, department, position, invitationToken });
     await createSession(userId);
   } catch (error) {
     const message = error instanceof Error && error.message.includes("duplicate")

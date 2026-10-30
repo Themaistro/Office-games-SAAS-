@@ -1,25 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+
+// No OAuth provider/token exchange is configured. A query-string code is not
+// authentication, and forwarded-host/next headers must not choose a destination.
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get('code');
-  // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get('next') ?? '/dashboard';
-
-  if (code) {
-      const forwardedHost = request.headers.get('x-forwarded-host'); // original origin before load balancer
-      const isLocalEnv = process.env.NODE_ENV === 'development';
-      
-      if (isLocalEnv) {
-        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      } else {
-        return NextResponse.redirect(`${origin}${next}`);
-      }
-  }
-
-  // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/login?error=Could not authenticate user`);
+  return NextResponse.redirect(new URL("/login?error=Single%20sign-on%20is%20not%20configured.%20Please%20use%20your%20email%20and%20password.", request.url));
 }
 

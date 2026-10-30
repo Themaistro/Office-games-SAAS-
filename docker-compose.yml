@@ -37,6 +37,15 @@ services:
       - ./db/migrations/migration16_daily_mission_lineups.sql:/docker-entrypoint-initdb.d/200_migration16_daily_mission_lineups.sql:ro
       - ./db/migrations/migration17_prize_integrity.sql:/docker-entrypoint-initdb.d/210_migration17_prize_integrity.sql:ro
       - ./db/migrations/migration18_daily_mission_outcomes.sql:/docker-entrypoint-initdb.d/220_migration18_daily_mission_outcomes.sql:ro
+      - ./db/migrations/migration15_lounge_ranks.sql:/docker-entrypoint-initdb.d/225_migration15_lounge_ranks.sql:ro
+      - ./db/migrations/migration16_lounge_integrity.sql:/docker-entrypoint-initdb.d/230_migration16_lounge_integrity.sql:ro
+      - ./db/migrations/migration19_match_settlement.sql:/docker-entrypoint-initdb.d/240_migration19_match_settlement.sql:ro
+      - ./db/migrations/migration20_season_snapshots.sql:/docker-entrypoint-initdb.d/250_migration20_season_snapshots.sql:ro
+      - ./db/migrations/migration21_mission_attempt_history.sql:/docker-entrypoint-initdb.d/260_migration21_mission_attempt_history.sql:ro
+      - ./db/migrations/migration22_result_identity_retention.sql:/docker-entrypoint-initdb.d/270_migration22_result_identity_retention.sql:ro
+      - ./db/migrations/migration23_mission_legacy_unique_index.sql:/docker-entrypoint-initdb.d/280_migration23_mission_legacy_unique_index.sql:ro
+      - ./db/migrations/migration24_lounge_parties.sql:/docker-entrypoint-initdb.d/290_migration24_lounge_parties.sql:ro
+      - ./db/migrations/migration25_party_spectators.sql:/docker-entrypoint-initdb.d/300_migration25_party_spectators.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-brain_arena} -d ${POSTGRES_DB:-daily_brain_arena}"]
       interval: 5s

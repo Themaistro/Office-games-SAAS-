@@ -28,6 +28,7 @@ export default function CardMatchGame({ question, onAnswer, isSubmitting, showHi
   
   const [startTime] = useState(Date.now());
   const [cards, setCards] = useState<Card[]>([]);
+  const attempts = useRef<number[][]>([]);
   const [flippedIdxs, setFlippedIdxs] = useState<number[]>([]);
   const [matchedIdxs, setMatchedIdxs] = useState<number[]>([]);
   const [errors, setErrors] = useState(0);
@@ -87,6 +88,7 @@ export default function CardMatchGame({ question, onAnswer, isSubmitting, showHi
     }
     
     setFlippedIdxs([]);
+    attempts.current = [];
     setMatchedIdxs([]);
     setErrors(0);
     setTimeLeft(initialTime);
@@ -114,7 +116,7 @@ export default function CardMatchGame({ question, onAnswer, isSubmitting, showHi
       // challenge. Mistakes affect the XP breakdown, but they do not turn a
       // completed concentration board into a failed answer.
       const isCorrect = true;
-      onAnswer(`Errors: ${errors}`, {
+      onAnswer(JSON.stringify(attempts.current), {
         customIsCorrect: isCorrect,
         isPerfect: errors === 0,
         customScoreModifiers: {
@@ -135,6 +137,7 @@ export default function CardMatchGame({ question, onAnswer, isSubmitting, showHi
 
     if (newFlipped.length === 2) {
       const [first, second] = newFlipped;
+      attempts.current.push([first, second]);
       if (cards[first].emoji === cards[second].emoji) {
         // Match!
         setMatchedIdxs([...matchedIdxs, first, second]);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { getMatchResult } from "@/lib/match-service";
 import { query } from "@/lib/db";
 import { publishChessEvent } from "@/lib/chess-realtime";
 
@@ -17,7 +18,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const parsedSince = sinceParam ? new Date(sinceParam) : null;
   const since = parsedSince && !Number.isNaN(parsedSince.getTime()) ? parsedSince.toISOString() : null;
   const { rows: events } = await query("SELECT e.id, e.sender_id, e.event_type, e.payload, e.created_at, p.full_name FROM chess_events e JOIN profiles p ON p.id=e.sender_id WHERE e.game_id=$1 AND e.created_at > COALESCE($2::timestamptz, now() - interval '2 minutes') ORDER BY e.created_at ASC LIMIT 50", [id, since || null]);
-  return NextResponse.json({ ...game, spectators, events }, { headers: { "Cache-Control": "no-store" } });
+  const {rows:online}=await query("SELECT user_id FROM presence WHERE user_id=ANY($1::uuid[]) AND last_seen>now()-interval '90 seconds'",[[game.white_player_id,game.black_player_id].filter(Boolean)]);
+  return NextResponse.json({ ...game, result: await getMatchResult("chess",id), online_player_ids:online.map(row=>row.user_id), spectators, events }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -29,6 +31,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { rows: games } = await query("SELECT white_player_id, black_player_id FROM chess_games WHERE id=$1 AND status='in_progress'", [id]);
   const game = games[0];
   if (!game || (game.white_player_id !== user.id && game.black_player_id !== user.id)) return NextResponse.json({ error: "Not a player" }, { status: 403 });
+  if (payload.eventType === "offer_draw") await query("UPDATE chess_games SET draw_offered_by=$1 WHERE id=$2 AND status='in_progress' AND (draw_offered_by IS NULL OR draw_offered_by=$1)",[user.id,id]);
+  if (payload.eventType === "decline_draw") await query("UPDATE chess_games SET draw_offered_by=NULL WHERE id=$1 AND status='in_progress'",[id]);
   const safeText = String(payload.payload?.text || "").slice(0, 500);
   const safePayload = payload.eventType === "chat" ? { text: safeText } : {};
   if (payload.eventType === "chat" && !safeText.trim()) return NextResponse.json({ error: "Empty message" }, { status: 400 });

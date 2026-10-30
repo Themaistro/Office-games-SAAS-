@@ -40,7 +40,7 @@ export default function TargetNumberGame({ question, onAnswer, isSubmitting, sho
   // 50/50 Hint Logic
   useEffect(() => {
     if (showHint && eliminatedOptions.length === 0) {
-      const wrongOptions = options.filter(opt => opt !== correctAnswer);
+      const wrongOptions = question.hint_options || [];
       const toEliminate = wrongOptions.sort(() => Math.random() - 0.5).slice(0, 2);
       setEliminatedOptions(toEliminate);
     }
@@ -48,17 +48,9 @@ export default function TargetNumberGame({ question, onAnswer, isSubmitting, sho
 
   const handleOptionClick = (option: string) => {
     if (isSubmitting || eliminatedOptions.includes(option)) return;
-
-    if (option === correctAnswer) {
-      onAnswer(option, { customIsCorrect: true, isPerfect: true });
-    } else {
-      setShakingOption(option);
-      setRevealedAnswer(true);
-      setTimeout(() => {
-        onAnswer(option, { customIsCorrect: false });
-      }, 1200);
-    }
+    onAnswer(option);
   };
+
 
   return (
     <div className="flex flex-col items-center justify-center p-6 sm:p-10 bg-card/80 backdrop-blur-xl border border-border/50 rounded-3xl shadow-xl w-full max-w-lg mx-auto text-center transition-all duration-500">

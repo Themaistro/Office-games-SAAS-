@@ -1,0 +1,11 @@
+[
+  "db/migrations/migration15_lounge_ranks.sql",
+  "db/migrations/migration16_lounge_integrity.sql",
+  "db/migrations/migration19_match_settlement.sql",
+  "db/migrations/migration20_season_snapshots.sql",
+  "db/migrations/migration21_mission_attempt_history.sql",
+  "db/migrations/migration22_result_identity_retention.sql",
+  "db/migrations/migration23_mission_legacy_unique_index.sql",
+  "db/migrations/migration24_lounge_parties.sql",
+  "db/migrations/migration25_party_spectators.sql"
+]

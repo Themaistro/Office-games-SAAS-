@@ -17,6 +17,7 @@ export interface Question {
   content: any; // Format depends on game type
   options: any[]; // Usually string[]
   correct_answer: string;
+  hint_options?: string[];
   explanation?: string;
   base_xp: number;
 }
@@ -27,6 +28,8 @@ export interface SessionQuestion {
   question_id: string;
   order_index: number;
   is_completed: boolean;
+  outcome?: "correct" | "incorrect" | "skipped" | "timed_out" | null;
+  hint_used?: boolean;
   earned_xp?: number;
   question: Question;
 }

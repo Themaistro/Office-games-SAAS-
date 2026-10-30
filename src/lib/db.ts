@@ -13,14 +13,26 @@ function getPool() {
     connectionString,
     max: Number(process.env.DATABASE_POOL_MAX ?? 10),
     idleTimeoutMillis: 30_000,
-    ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
+    connectionTimeoutMillis: 5_000,
+    ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: true } : undefined,
   });
-  if (process.env.NODE_ENV !== "production") global.postgresPool = pool;
+  // Reuse one pool per worker in production too; creating a pool per query
+  // leaks connections and can exhaust PostgreSQL under normal traffic.
+  global.postgresPool = pool;
   return pool;
 }
 
 export async function query<T extends QueryResultRow = QueryResultRow>(text: string, values: unknown[] = []) {
-  return getPool().query<T>(text, values);
+  try {
+    return await getPool().query<T>(text, values);
+  } catch (error) {
+    // Next's development error renderer cannot serialize Node's connection
+    // AggregateError reliably. Preserve a regular Error for callers to handle.
+    if (error instanceof AggregateError) {
+      throw new Error("Database connection unavailable");
+    }
+    throw error;
+  }
 }
 
 export async function withTransaction<T>(callback: (client: PoolClient) => Promise<T>) {
@@ -36,5 +48,23 @@ export async function withTransaction<T>(callback: (client: PoolClient) => Promi
   } finally {
     client.release();
   }
+}
+
+export async function withDatabaseLock<T>(key: string, callback: () => Promise<T>) {
+  // Failed contenders release their connections rather than exhausting the pool
+  // while the lock holder performs work on another connection.
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const client = await getPool().connect();
+    let rows: {locked:boolean}[];
+    try { ({rows} = await client.query<{locked:boolean}>("SELECT pg_try_advisory_lock(hashtext($1)) AS locked",[key])); }
+    catch (error) { client.release(); throw error; }
+    if (rows[0].locked) {
+      try { return await callback(); }
+      finally { try { await client.query("SELECT pg_advisory_unlock(hashtext($1))",[key]); } finally { client.release(); } }
+    }
+    client.release();
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  throw new Error("Your mission is being prepared in another tab. Please try again shortly.");
 }
 

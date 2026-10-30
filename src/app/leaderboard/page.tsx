@@ -8,10 +8,11 @@ import { getLoungeRank } from "@/lib/lounge-ranks";
 export const dynamic = "force-dynamic";
 
 export default async function LeaderboardPage() {
-  const { rows: profiles } = await query("SELECT id, full_name, avatar_url, department, total_xp, current_level, current_streak, lounge_lp FROM profiles WHERE role = 'employee' ORDER BY lounge_lp DESC, full_name ASC LIMIT 100");
+  const { rows: profiles } = await query("SELECT id, full_name, avatar_url, department, total_xp, current_level, current_streak, lounge_lp FROM profiles WHERE role = 'employee' AND is_active = true ORDER BY lounge_lp DESC, full_name ASC LIMIT 100");
+  const { rows: allDepartmentProfiles } = await query("SELECT department,total_xp FROM profiles WHERE role='employee' AND is_active=true");
   const { rows: prizes } = await query("SELECT * FROM prizes ORDER BY rank_requirement ASC");
 
-  const departmentStats = profiles?.reduce((acc: any, profile) => {
+  const departmentStats = allDepartmentProfiles?.reduce((acc: any, profile) => {
     // Only include active users if is_active exists, but since we don't fetch it here yet,
     // we assume profiles from the query are active (or we could filter, but let's just use all fetched)
     const dept = profile.department || 'Unassigned';

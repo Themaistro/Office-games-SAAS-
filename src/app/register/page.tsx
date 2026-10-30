@@ -1,17 +1,25 @@
 import { signup } from "./actions";
 import { Brain } from "lucide-react";
 import Link from "next/link";
-import { getActiveDepartments } from "@/lib/departments";
+import { getActiveDepartments, type DepartmentOption } from "@/lib/departments";
+import { findInvitation } from "@/lib/invitations";
 
 export const dynamic = "force-dynamic";
 
 export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; invite?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  const configuredDepartments = await getActiveDepartments();
+  const invitation = resolvedParams.invite ? await findInvitation(resolvedParams.invite) : null;
+  if (resolvedParams.invite && !invitation) return <main className="mx-auto max-w-md px-5 py-20"><h1 className="text-2xl font-bold">Invitation unavailable</h1><p className="mt-3 text-muted-foreground">This link has expired or has already been used. Ask your administrator for a new invitation.</p><Link href="/login" className="mt-6 inline-block font-bold text-primary">Sign in to an existing account</Link></main>;
+  let configuredDepartments: DepartmentOption[];
+  try {
+    configuredDepartments = await getActiveDepartments();
+  } catch {
+    return <main className="flex min-h-screen items-center justify-center bg-background px-5 py-12"><section className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-xl shadow-primary/5"><Brain size={30} className="text-primary" /><h1 className="mt-5 text-2xl font-bold tracking-tight">We couldn’t load registration</h1><p className="mt-3 text-sm leading-6 text-muted-foreground">Our connection is temporarily unavailable. Please try again in a moment. Your account hasn’t been created yet.</p><a href="/register" className="mt-6 inline-flex rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground">Try again</a><Link href="/" className="ml-4 text-sm font-bold text-muted-foreground hover:text-primary">Back to home</Link></section></main>;
+  }
   const departmentOptions = configuredDepartments;
   
   return (
@@ -30,6 +38,7 @@ export default async function RegisterPage({
         </div>
 
         <form action={signup} className="mt-8 space-y-6">
+          {invitation && <><input type="hidden" name="invitation_token" value={resolvedParams.invite}/><p className="rounded-xl bg-primary/5 p-3 text-sm">You’re invited to join your team. Complete your player profile below.</p></>}
           {resolvedParams?.error && (
             <div className="rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive text-center">
               {resolvedParams.error}
@@ -43,6 +52,7 @@ export default async function RegisterPage({
               </label>
               <input
                 id="full_name"
+                defaultValue={invitation?.full_name}
                 name="full_name"
                 type="text"
                 required
@@ -92,6 +102,8 @@ export default async function RegisterPage({
               </label>
               <input
                 id="email"
+                defaultValue={invitation?.email}
+                readOnly={Boolean(invitation)}
                 name="email"
                 type="email"
                 required

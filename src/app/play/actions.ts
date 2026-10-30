@@ -16,8 +16,11 @@ import {
   generateOddObject,
   generateMemory
 } from '@/lib/game-content';
+import { validateChallenge } from "@/lib/challenge-validation";
+import { GAME_REGISTRY } from "@/lib/game-registry";
 import { SessionQuestion } from "@/types/game";
-import { query as pgQuery } from "@/lib/db";
+import { randomUUID } from "node:crypto";
+import { query as pgQuery, withTransaction, withDatabaseLock } from "@/lib/db";
 
 type MissionGame = { id: string; slug: string; name: string };
 
@@ -148,6 +151,11 @@ export async function startDailySession() {
 
   if (!user) throw new Error("Unauthorized");
 
+  return withDatabaseLock(`mission:${user.id}`, () => prepareDailySession(user));
+}
+
+async function prepareDailySession(user: {id:string;email:string}) {
+  const dbClient = createClient();
   // Fetch the user's department for personalized content filtering
   const { data: profile } = await dbClient
     .from("profiles")
@@ -175,18 +183,19 @@ export async function startDailySession() {
       };
   }
 
-  // 1.d Check if they have an active chess game
-  const { data: activeChess } = await dbClient
-    .from('chess_games')
-    .select('id')
-    .in('status', ['waiting', 'in_progress'])
-    .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`)
-    .limit(1);
-
-  if (activeChess && activeChess.length > 0) {
-    return { 
-      error: "active_chess_game", 
-      message: "You have an active chess game. Please finish or abandon it before starting a Daily Mission." 
+  // Registered Lounge games share the same availability rule. Pending invites
+  // do not block solo play; accepting one is an explicit navigation decision.
+  const party = await pgQuery("SELECT r.id FROM lounge_rooms r JOIN lounge_room_players p ON p.room_id=r.id WHERE p.user_id=$1 AND p.state='joined' AND r.status='in_progress' AND r.updated_at>now()-interval '2 hours' LIMIT 1", [user.id]);
+  if(party.rowCount)return {error:'active_lounge_game',message:'Finish or leave your Lounge party before starting a Daily Mission.'};
+  for (const game of Object.values(GAME_REGISTRY)) {
+    const [first, second] = game.playerColumns;
+    const { rows } = await pgQuery(
+      `SELECT id FROM ${game.table} WHERE status='in_progress' AND ($1=${first} OR $1=${second}) LIMIT 1`,
+      [user.id]
+    );
+    if (rows.length) return {
+      error: "active_lounge_game",
+      message: `Finish or resign your ${game.label} match before starting a Daily Mission.`,
     };
   }
 
@@ -199,6 +208,11 @@ export async function startDailySession() {
 
   if (activeSessions && activeSessions.length > 0) {
     const activeSession = activeSessions[0];
+    const deadline = new Date(activeSession.created_at).getTime() + Number(activeSession.allowed_duration_seconds) * 1000;
+    if (Date.now() >= deadline) {
+      await endSession(activeSession.id, "expired");
+      return prepareDailySession(user);
+    }
     
     // Check if this session is broken (0 questions)
     const { count } = await dbClient
@@ -569,20 +583,11 @@ export async function startDailySession() {
   // We use adminClient because normal users do not have DELETE permissions via RLS on daily_sessions.
   const { createClient: createDbClient } = await import('@/lib/pg-client');
   const adminClient = createDbClient();
-  await adminClient.from("daily_sessions").delete().eq("user_id", user.id).eq("date", today);
-
-  const { data: session, error: sessionError } = await dbClient
-    .from("daily_sessions")
-    .insert({
-      user_id: user.id,
-      date: today,
-      allowed_duration_seconds: profile?.session_time_limit_minutes ? (profile.session_time_limit_minutes * 60) : ((settings?.daily_time_limit_minutes ?? 15) * 60),
-      is_completed: false
-    })
-    .select()
-    .single();
-
-  if (sessionError) throw sessionError;
+  let session = {
+    id: randomUUID(), user_id: user.id, date: today,
+    allowed_duration_seconds: profile?.session_time_limit_minutes ? profile.session_time_limit_minutes*60 : (settings?.daily_time_limit_minutes??15)*60,
+    is_completed: false, status: "in_progress", created_at: new Date().toISOString()
+  };
 
   // 4. Group and assign questions
     // Group questions by game_type_id
@@ -616,7 +621,11 @@ export async function startDailySession() {
         const contentKey = question.content?.sourceKey || question.content?.seed;
         return !seenQuestionIds.has(question.id) && (!contentKey || !seenContentKeys.has(contentKey));
       });
-      const eligibleQuestions = freshQuestions.length > 0 ? freshQuestions : gameQuestions;
+      const eligibleQuestions = (["easy","medium","hard"] as const).flatMap(difficulty => {
+        const fresh = freshQuestions.filter(question=>question.difficulty===difficulty);
+        const needed = gameQuestions[0]?.game_types?.[`${difficulty}_rounds`] ?? 1;
+        return fresh.length >= needed ? fresh : [...fresh, ...gameQuestions.filter(question=>question.difficulty===difficulty&&!fresh.includes(question))];
+      });
       const easyQs = eligibleQuestions.filter(q => q.difficulty === 'easy').sort(() => 0.5 - Math.random());
       const medQs = eligibleQuestions.filter(q => q.difficulty === 'medium').sort(() => 0.5 - Math.random());
       const hardQs = eligibleQuestions.filter(q => q.difficulty === 'hard').sort(() => 0.5 - Math.random());
@@ -682,41 +691,34 @@ export async function startDailySession() {
       is_completed: false
     }));
 
-    const { error: questionInsertError } = await dbClient.from("session_questions").insert(sessionQuestionsData);
-    if (questionInsertError) {
-      await adminClient.from("daily_sessions").delete().eq("id", session.id).eq("user_id", user.id);
-      throw questionInsertError;
-    }
-
-    const { error: historyInsertError } = await adminClient.from("question_history").insert(
-      selectedQuestions.map((q) => ({
-        user_id: user.id,
-        question_id: q.id,
-        session_id: session.id,
-        content_key: q.content?.sourceKey || q.content?.seed || `question:${q.id}`,
-      }))
-    );
-    if (historyInsertError) {
-      await adminClient.from("daily_sessions").delete().eq("id", session.id).eq("user_id", user.id);
-      throw new Error("Could not record question history");
-    }
+    session = await withTransaction(async client => {
+      // Assignments and their history either all exist or none exist.
+      const {rows}=await client.query("INSERT INTO daily_sessions(id,user_id,date,allowed_duration_seconds,is_completed) VALUES($1,$2,$3,$4,false) RETURNING *",[session.id,user.id,today,session.allowed_duration_seconds]);
+      for(const item of sessionQuestionsData) await client.query("INSERT INTO session_questions(session_id,question_id,order_index,is_completed) VALUES($1,$2,$3,false)",[session.id,item.question_id,item.order_index]);
+      for(const q of selectedQuestions) await client.query("INSERT INTO question_history(user_id,question_id,session_id,content_key) VALUES($1,$2,$3,$4)",[user.id,q.id,session.id,q.content?.sourceKey||q.content?.seed||`question:${q.id}`]);
+      return rows[0];
+    });
 
   revalidatePath("/play");
   return { success: true, session };
 }
 
 export async function fetchSessionQuestions(sessionId: string) {
+  const client = createClient();
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
   const { rows: questions } = await pgQuery(`
-    SELECT sq.id, sq.session_id, sq.order_index, sq.is_completed, sq.earned_xp, sq.question_id,
+    SELECT sq.id, sq.session_id, sq.order_index, sq.is_completed, sq.outcome, sq.hint_used, sq.earned_xp, sq.question_id,
            q.id AS q_id, q.difficulty, q.content, q.options, q.base_xp, q.correct_answer,
            gt.id AS game_type_id, gt.name AS game_type_name, gt.slug AS game_type_slug,
            gt.description AS game_type_description
     FROM session_questions sq
     JOIN questions q ON q.id = sq.question_id
     JOIN game_types gt ON gt.id = q.game_type_id
-    WHERE sq.session_id = $1
+    JOIN daily_sessions ds ON ds.id = sq.session_id
+    WHERE sq.session_id = $1 AND ds.user_id = $2
     ORDER BY sq.order_index ASC
-  `, [sessionId]);
+  `, [sessionId, user.id]);
 
   // Map to the shape GameEngine expects, filtering out any missing joins
   const mappedQuestions = questions.map((sq: any) => ({
@@ -724,6 +726,8 @@ export async function fetchSessionQuestions(sessionId: string) {
       session_id: sq.session_id,
       order_index: sq.order_index,
       is_completed: sq.is_completed,
+      outcome: sq.outcome,
+      hint_used: sq.hint_used,
       earned_xp: sq.earned_xp,
       question_id: sq.question_id,
       question: {
@@ -733,7 +737,8 @@ export async function fetchSessionQuestions(sessionId: string) {
         difficulty: sq.difficulty,
         content: sq.content,
         options: sq.options,
-        correct_answer: sq.correct_answer,
+        correct_answer: "",
+        hint_options: sq.hint_used ? (sq.options || []).filter(option => option !== sq.correct_answer).slice(0, 2) : [],
         base_xp: sq.base_xp,
       }
     })) as SessionQuestion[];
@@ -744,12 +749,12 @@ export async function fetchSessionQuestions(sessionId: string) {
     if ((slug === "word-unscramble" || slug === "unscramble") && !sq.question.content?.scrambled) {
       sq.question.content = { scrambled: "YGNESRY" };
       sq.question.options = ["SYNERGY", "OFFICE", "LAPTOP", "MEETING"].sort(() => Math.random() - 0.5);
-      sq.question.correct_answer = "SYNERGY";
+      sq.question.correct_answer = "";
     } else if (slug === "memory" && !sq.question.content?.text) {
       const seq = "3819";
       sq.question.content = { text: seq };
       sq.question.options = [];
-      sq.question.correct_answer = seq;
+      sq.question.correct_answer = "";
     }
     return sq;
   });
@@ -786,7 +791,7 @@ export async function submitAnswer(
     session_created_at: string;
     allowed_duration_seconds: number;
   }>(
-    `SELECT sq.id, sq.is_completed, q.correct_answer, q.base_xp, q.content,
+    `SELECT sq.id, sq.is_completed, sq.hint_used, q.id AS question_id, q.difficulty, q.correct_answer, q.base_xp, q.content,
             gt.slug AS game_slug, ds.user_id, ds.status AS session_status,
             ds.created_at AS session_created_at, ds.allowed_duration_seconds
      FROM session_questions sq
@@ -840,21 +845,9 @@ export async function submitAnswer(
 
   // Interaction-driven games do not have a meaningful textual answer. Their
   // game component reports the validated result of the interaction instead.
-  const interactionGames = new Set([
-    "reaction", "stroop", "typing", "typing-challenge", "sequence",
-    "card_match", "card-match", "sudoku_lite", "sudoku-lite",
-    "odd_object", "odd-object", "memory", "mental_math", "mental-math",
-    "math", "logic", "word", "unscramble", "word-unscramble"
-  ]);
-  let isCorrect = false;
-  if (options?.isSkipped) {
-    isCorrect = false;
-  } else if (interactionGames.has(slug)) {
-    isCorrect = options?.customIsCorrect === true;
-  } else {
-    isCorrect = dbCorrect.toLowerCase() === answer.toLowerCase();
-  }
-  
+  const validated = validateChallenge({id:row.question_id,slug,difficulty:row.difficulty,content:row.content,correctAnswer:dbCorrect},answer,timeSpentSeconds);
+  dbCorrect = validated.correctAnswer;
+  const isCorrect = !options?.isSkipped && validated.correct;
   // Advanced Scoring System
   let xpEarned = 0;
   const breakdown = {
@@ -873,14 +866,14 @@ export async function submitAnswer(
 
     if (gameSlug === 'card-match' || gameSlug === 'card_match') {
       // 1. Base Score calculation (Base is 100, but subtract 5 for every mistake)
-      const mistakes = Math.min(100, Math.max(0, Math.floor(options?.customScoreModifiers?.mistakes || 0)));
+      const mistakes = Math.min(100, Math.max(0, Math.floor(validated.mistakes)));
       breakdown.base = Math.max(0, (sq.questions.base_xp || 100) - (mistakes * 5));
 
       // 2. Speed Bonus calculation
       breakdown.speed = Math.floor(Math.max(0, 60 - timeSpentSeconds));
     } else if (gameSlug === 'typing-challenge' || gameSlug === 'typing') {
       // Typing Challenge: Calculate partial XP based on correct words percentage (accuracy)
-      const accuracy = Math.min(1, Math.max(0, Number(options?.customScoreModifiers?.accuracy ?? 1)));
+      const accuracy = Math.min(1, Math.max(0, validated.accuracy));
         
       const maxBaseXp = sq.questions.base_xp || 100;
       breakdown.base = Math.max(0, Math.floor(maxBaseXp * accuracy));
@@ -897,20 +890,16 @@ export async function submitAnswer(
     
     // No Hint: +20 XP (only for games that actually support hints)
     const noHintSlugs = ['reaction', 'stroop', 'typing', 'typing-challenge', 'sequence'];
-    if (!options?.wasHintUsed && !noHintSlugs.includes(gameSlug)) {
+    if (!row.hint_used && !noHintSlugs.includes(gameSlug)) {
       breakdown.noHint = 20;
     }
 
     // Perfect Puzzle: +50 XP
-    if (options?.isPerfect && !options?.wasHintUsed) {
+    if (validated.correct && ['typing','typing-challenge'].includes(slug) && validated.accuracy === 1 && !row.hint_used) {
       breakdown.perfect = 50;
     }
 
-    // Combo: Scale +15 XP for stringing together correct answers
-    if (options?.currentCombo && options.currentCombo > 0) {
-      breakdown.combo = Math.min(5, Math.floor(options.currentCombo)) * 15;
-    }
-
+    // Combo awards require a server-owned attempt history; client claims are ignored.
     xpEarned = breakdown.base + breakdown.speed + breakdown.noHint + breakdown.perfect + breakdown.combo;
   }
 
@@ -919,6 +908,7 @@ export async function submitAnswer(
     .from("session_questions")
     .update({
       is_completed: true,
+      outcome: options?.isSkipped ? "skipped" : isCorrect ? "correct" : /timeout|time.out|time's up|missed/i.test(answer) ? "timed_out" : "incorrect",
       earned_xp: xpEarned,
       time_spent_seconds: persistedTimeSpentSeconds
     })
@@ -939,146 +929,59 @@ export async function submitAnswer(
   };
 }
 
-export async function endSession(sessionId: string, outcome: "completed" | "expired" = "completed") {
-  const dbClient = await createClient();
-  const { data: { user } } = await dbClient.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const { data: session } = await dbClient
-    .from("daily_sessions")
-    .select("id, user_id, is_completed, status")
-    .eq("id", sessionId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!session) throw new Error("Session not found");
-  if (session.status !== "in_progress") return { error: "Session already closed" };
-
-  const { data: questions } = await dbClient
-    .from("session_questions")
-    .select("earned_xp, is_completed")
-    .eq("session_id", sessionId);
-
-  const completedQuestionCount = questions?.filter((question) => question.is_completed).length || 0;
-  const totalQuestionCount = questions?.length || 0;
-  const finishedEveryChallenge = totalQuestionCount > 0 && completedQuestionCount === totalQuestionCount;
-
-  if (outcome === "completed" && !finishedEveryChallenge) {
-    return { error: "Finish every challenge before completing the mission" };
-  }
-
-  // The browser timer is not authoritative: a final answer can arrive at the
-  // same instant as the countdown reaches zero. If every answer is safely in
-  // the database, the timed end is still a genuine completion.
-  if (outcome === "expired" && finishedEveryChallenge) {
-    outcome = "completed";
-  }
-
-  const baseTotalXp = questions?.reduce((sum, q) => sum + (q.earned_xp || 0), 0) || 0;
-  if (outcome === "expired") {
-    const { data: expiredSession, error: expireError } = await dbClient
-      .from("daily_sessions")
-      .update({
-        status: "expired",
-        is_completed: false,
-        total_score: baseTotalXp,
-        total_xp_earned: 0,
-        ended_at: new Date().toISOString()
-      })
-      .eq("id", sessionId)
-      .eq("user_id", user.id)
-      .eq("status", "in_progress")
-      .select("id")
-      .maybeSingle();
-    if (expireError) throw new Error("Could not close expired session");
-    if (!expiredSession) return { error: "Session already closed" };
-    revalidatePath("/daily-mission");
-    revalidatePath("/dashboard");
-    return { success: true, outcome: "expired" };
-  }
-
-  const { data: profile } = await dbClient
-    .from("profiles")
-    .select("total_xp, current_streak, best_streak, games_played")
-    .eq("id", user.id)
-    .single();
-
-  let newStreak = 1;
-  let streakBonus = 0;
-  if (profile) {
-    newStreak = (profile.current_streak || 0) + 1;
-    // Award 50 XP per day of the streak (e.g., 2-day streak = 100 XP, 3-day = 150 XP)
-    streakBonus = newStreak > 1 ? newStreak * 50 : 0;
-  }
-
-  const finalTotalXp = baseTotalXp + streakBonus;
-
-  const { data: completedSession, error: completeSessionError } = await dbClient
-    .from("daily_sessions")
-    .update({
-      is_completed: true,
-      status: "completed",
-      total_score: baseTotalXp,
-      total_xp_earned: finalTotalXp,
-      ended_at: new Date().toISOString()
-    })
-    .eq("id", sessionId)
-    .eq("user_id", user.id)
-    .eq("is_completed", false)
-    .select("id")
-    .maybeSingle();
-
-  if (completeSessionError) throw new Error("Could not complete session");
-  if (!completedSession) return { error: "Session already completed" };
-
-  if (profile) {
-    // If finalTotalXp is negative, it's a penalty for skipping. Cap total_xp at 0.
-    const newXp = Math.max(0, (profile.total_xp || 0) + finalTotalXp);
-    const newGamesPlayed = (profile.games_played || 0) + 1;
-    const newBestStreak = Math.max(profile.best_streak || 0, newStreak);
-    const newLevel = Math.floor(newXp / 1200) + 1;
-
-    const adminClient = createAdminClient();
-    const { error: profileUpdateError } = await adminClient
-      .from("profiles")
-      .update({
-        total_xp: newXp,
-        games_played: newGamesPlayed,
-        current_streak: newStreak,
-        best_streak: newBestStreak,
-        current_level: newLevel,
-        last_played_at: new Date().toISOString()
-      })
-      .eq("id", user.id);
-
-    if (profileUpdateError) {
-      throw new Error("Could not update player progress");
+export async function endSession(sessionId: string, requested: "completed" | "expired" = "completed") {
+  const dbClient=createClient();const {data:{user}}=await dbClient.auth.getUser();if(!user)throw new Error("Unauthorized");
+  const result=await withTransaction(async client=>{
+    const {rows}=await client.query("SELECT * FROM daily_sessions WHERE id=$1 AND user_id=$2 FOR UPDATE",[sessionId,user.id]);
+    const session=rows[0];if(!session)throw new Error("Session not found");
+    if(session.status!=="in_progress")return {success:true,outcome:session.status,totalXp:session.total_xp_earned};
+    const {rows:questions}=await client.query("SELECT is_completed,earned_xp FROM session_questions WHERE session_id=$1",[sessionId]);
+    const all=questions.length>0&&questions.every(q=>q.is_completed);
+    if(requested==="completed"&&!all)return {error:"Finish every challenge before completing the mission"};
+    const expired=Date.now()>=new Date(session.created_at).getTime()+session.allowed_duration_seconds*1000;
+    if(requested==="expired"&&!expired&&!all)return {error:"Mission time has not expired"};
+    const total=questions.reduce((sum,q)=>sum+Number(q.earned_xp||0),0);
+    const elapsedSeconds = Math.max(0, Math.min(Number(session.allowed_duration_seconds), Math.floor((Date.now() - new Date(session.created_at).getTime()) / 1000)));
+    await client.query("UPDATE daily_sessions SET time_spent_seconds=$1 WHERE id=$2", [elapsedSeconds, sessionId]);
+    if(!all){
+      await client.query("UPDATE daily_sessions SET status='expired',is_completed=false,total_score=$1,total_xp_earned=0,ended_at=now() WHERE id=$2",[total,sessionId]);
+      return {success:true,outcome:"expired"};
     }
-      
-    const activityRows = [{
-      user_id: user.id,
-      activity_type: "mission",
-      metadata: { description: `completed a Daily Mission with a score of ${baseTotalXp} and earned ${finalTotalXp} XP`, score: baseTotalXp, xp: finalTotalXp, streak: newStreak, session_id: sessionId }
-    }];
-    if (baseTotalXp >= 4000) activityRows.push({
-      user_id: user.id,
-      activity_type: "achievement",
-      metadata: { description: `finished a Daily Mission with a high score of ${baseTotalXp}`, score: baseTotalXp }
-    });
-    if (newLevel > (Math.floor((profile.total_xp || 0) / 1200) + 1)) activityRows.push({
-      user_id: user.id,
-      activity_type: "achievement",
-      metadata: { description: `reached Level ${newLevel}`, level: newLevel }
-    });
-    await adminClient.from("activity_feed").insert(activityRows);
-  }
+    const {rows:profiles}=await client.query("SELECT * FROM profiles WHERE id=$1 FOR UPDATE",[user.id]);
+    const profile=profiles[0];if(!profile)throw new Error("Profile not found");
+    const today=String(session.date).slice(0,10);
+    const {rows:previous}=await client.query("SELECT date FROM daily_sessions WHERE user_id=$1 AND status='completed' AND id<>$2 ORDER BY date DESC,created_at DESC LIMIT 1",[user.id,sessionId]);
+    const previousDate=previous[0]?String(previous[0].date).slice(0,10):null;
+    const dayGap=previousDate?Math.round((Date.parse(today)-Date.parse(previousDate))/86400000):null;
+    const streak=dayGap===0?profile.current_streak:dayGap===1?profile.current_streak+1:1;
+    const bonus=dayGap!==0&&streak>1?streak*50:0,totalXp=total+bonus,newXp=Math.max(0,profile.total_xp+totalXp),level=Math.floor(newXp/1200)+1;
+    await client.query("UPDATE daily_sessions SET status='completed',is_completed=true,total_score=$1,total_xp_earned=$2,ended_at=now() WHERE id=$3",[total,totalXp,sessionId]);
+    await client.query("UPDATE profiles SET total_xp=$1,current_level=$2,current_streak=$3,best_streak=GREATEST(best_streak,$3),games_played=games_played+1,last_played_at=now() WHERE id=$4",[newXp,level,streak,user.id]);
+    await client.query("INSERT INTO activity_feed(user_id,activity_type,metadata) VALUES($1,'mission',$2::jsonb)",[user.id,JSON.stringify({description:`completed a Daily Mission with a score of ${total} and earned ${totalXp} XP`,session_id:sessionId,score:total,xp:totalXp,streak})]);
+    if(level>profile.current_level)await client.query("INSERT INTO activity_feed(user_id,activity_type,metadata) VALUES($1,'achievement',$2::jsonb)",[user.id,JSON.stringify({description:`reached Level ${level}`,level})]);
+    return {success:true,outcome:"completed",totalXp};
+  });
+  revalidatePath("/dashboard");revalidatePath("/daily-mission");
+  return result;
+}
 
-  revalidatePath("/dashboard");
-  revalidatePath("/daily-mission");
-  return { success: true, outcome: "completed", totalXp: finalTotalXp };
+export async function useMissionHint(sessionQuestionId: string) {
+  const dbClient=createClient();const {data:{user}}=await dbClient.auth.getUser();if(!user)throw new Error("Unauthorized");
+  return withTransaction(async client=>{
+    const {rows}=await client.query("SELECT ds.* FROM daily_sessions ds JOIN session_questions sq ON sq.session_id=ds.id WHERE sq.id=$1 AND ds.user_id=$2 FOR UPDATE OF ds",[sessionQuestionId,user.id]);
+    const session=rows[0];if(!session||session.status!=="in_progress")throw new Error("Mission is not active");
+    if (Date.now() >= new Date(session.created_at).getTime() + Number(session.allowed_duration_seconds) * 1000) throw new Error("Mission time has ended");
+    const {rows:counts}=await client.query("SELECT count(*)::int AS used FROM session_questions WHERE session_id=$1 AND hint_used=true",[session.id]);
+    const left=Math.max(0,3-counts[0].used);if(!left)throw new Error("No hints remaining");
+    const {rowCount}=await client.query("UPDATE session_questions SET hint_used=true WHERE id=$1 AND is_completed=false AND hint_used=false",[sessionQuestionId]);
+    if(!rowCount)throw new Error("Hint unavailable");
+    const {rows:hints}=await client.query("SELECT q.options,q.correct_answer FROM questions q JOIN session_questions sq ON sq.question_id=q.id WHERE sq.id=$1",[sessionQuestionId]);
+    return {remaining:left-1, eliminatedOptions:(hints[0]?.options||[]).filter(option=>option!==hints[0].correct_answer).slice(0,2)};
+  });
 }
 
 export async function resetDailySession() {
+  if (process.env.NODE_ENV === "production") throw new Error("Test resets are disabled in production");
   const dbClient = await createClient();
   const { data: { user } } = await dbClient.auth.getUser();
 

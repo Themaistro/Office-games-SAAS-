@@ -6,11 +6,12 @@ import { Chessboard, defaultArrowOptions } from "react-chessboard";
 import type { Arrow } from "react-chessboard";
 import * as Ably from "ably";
 import { getGameChannelName } from "@/lib/realtime";
-import { updateChessGameState, resignChessGame, drawChessGame, declareChessTimeout, cancelChessGame } from "../actions";
+import { updateChessGameState, resignChessGame, drawChessGame, declareChessTimeout, cancelChessGame, challengeUserToChess } from "../actions";
 import { Loader2, Flag, Handshake, Send, Eye, User, X as XIcon, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useVfx } from "@/hooks/useVfx";
+import { MatchToolbar, MatchPlayer, MatchResult, MatchSpectator } from "@/components/game/MatchPresentation";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/ToastProvider";
 
 const darkSquareStyle = { backgroundColor: "#739552" };
@@ -70,7 +71,8 @@ export default function ChessBoardClient({
 
   // Modal State
   const [showResignConfirm, setShowResignConfirm] = useState(false);
-  const [dismissedGameOver, setDismissedGameOver] = useState(false);
+  const [rematchSent, setRematchSent] = useState(false);
+  const [rematchBusy, setRematchBusy] = useState(false);
 
   const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
   const [arrows, setArrows] = useState<Arrow[]>([]);
@@ -191,7 +193,7 @@ export default function ChessBoardClient({
       if (typeof next.white_time_ms === "number") setWhiteTimeMs(next.white_time_ms);
       if (typeof next.black_time_ms === "number") setBlackTimeMs(next.black_time_ms);
       if (next.pgn && next.pgn !== chess.pgn()) { chess.loadPgn(next.pgn); setFen(chess.fen()); }
-      setIsOpponentConnected(Boolean(next.white_player_id && next.black_player_id));
+      setIsOpponentConnected(Boolean(next.online_player_ids?.includes(next.white_player_id === currentUserId ? next.black_player_id : next.white_player_id)));
       } catch {
         setConnectionIssue(true);
       } finally {
@@ -202,9 +204,8 @@ export default function ChessBoardClient({
   }, [game.id, gameStatus, router, chess, currentUserId]);
 
   useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_ABLY_KEY;
-    if (!key || !game.id) return;
-    const realtime = new Ably.Realtime({ key, echoMessages: false });
+    if (!game.id) return;
+    const realtime = new Ably.Realtime({ authUrl: `/api/realtime?type=chess&id=${game.id}`, echoMessages: false });
     const channel = realtime.channels.get(getGameChannelName("chess", game.id));
     const handleMessage = (message: Ably.Message) => {
       const event = message.data as { type?: string; senderId?: string; payload?: Record<string, any> };
@@ -461,7 +462,9 @@ export default function ChessBoardClient({
     if (res && !res.success) toast("Failed to resign: " + res.error);
   };
 
-  const handleOfferDraw = () => {
+  const handleOfferDraw = async () => {
+    const result = await drawChessGame(game.id);
+    if (!result.success) { toast(result.error || "Draw offer failed"); return; }
     channelRef.current?.send({
       type: 'broadcast',
       event: 'offer_draw',
@@ -506,56 +509,36 @@ export default function ChessBoardClient({
   };
 
   const renderPlayerHeader = (color: 'white' | 'black') => {
-    const p = color === 'white' ? game.white : game.black;
-    const time = color === 'white' ? whiteTimeMs : blackTimeMs;
-    const matAdvantage = color === 'white' ? material.white : material.black;
-    
-    const isLowTime = time <= 60000 && time > 0;
-    
-    return (
-      <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-card/95 p-3 shadow-sm backdrop-blur">
-        <div className="flex items-center gap-3">
-          <div className={`w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 border-2 ${color === "white" ? "border-amber-300 bg-amber-50" : "border-slate-700 bg-slate-900"}`}>
-            {p?.avatar_url ? <img src={p.avatar_url} alt={`${p.full_name || color} avatar`} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-black text-muted-foreground">{color === "white" ? "W" : "B"}</div>}
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2 font-bold text-sm">{p?.full_name || "Waiting..."} <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{color === "white" ? "WHITE" : "BLACK"}</span></div>
-            <div className="flex items-center h-4 text-xs font-bold text-green-500">
-              {matAdvantage > 0 ? `Material +${matAdvantage}` : "Even material"} <span className="ml-2 text-muted-foreground font-medium">ELO {p?.chess_elo ?? 1200}</span>
-            </div>
-          </div>
-        </div>
-        <div className={`font-mono text-2xl font-bold px-3 py-1 rounded shadow-sm transition-colors ${
-          isLowTime ? "bg-red-500/20 text-red-500 border border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse" :
-          gameStatus === "in_progress" && chess.turn() === color.charAt(0) ? "bg-primary/20 text-primary border border-primary/50" : 
-          "bg-muted/80 text-muted-foreground"
-        }`}>
-          {isMounted ? formatTime(time) : "--:--"}
-        </div>
-      </div>
-    );
+    const p = color === "white" ? game.white : game.black;
+    const time = color === "white" ? whiteTimeMs : blackTimeMs;
+    const advantage = color === "white" ? material.white : material.black;
+    const active = gameStatus === "in_progress" && chess.turn() === color.charAt(0);
+    return <MatchPlayer name={p?.full_name} avatar={p?.avatar_url} lp={p?.lounge_lp} side={color === "white" ? "White" : "Black"} active={active} detail={`${advantage > 0 ? `Material +${advantage}` : "Even material"} · Chess rating ${p?.chess_elo ?? "—"}`}><div aria-label={`${color} clock`} className={`match-clock ${active && time <= 60000 && time > 0 ? "match-clock-low" : ""}`}>{isMounted ? formatTime(time) : "--:--"}</div></MatchPlayer>;
   };
 
   let derivedGameOver: { title: string, reason: string } | null = null;
   if (gameStatus === "white_won") {
-    derivedGameOver = { title: "White Wins!", reason: chess.isCheckmate() ? "by Checkmate" : "by Resignation / Timeout" };
+    derivedGameOver = { title: `${game.white?.full_name || "White"} wins`, reason: chess.isCheckmate() ? "by Checkmate" : "by Resignation / Timeout" };
   } else if (gameStatus === "black_won") {
-    derivedGameOver = { title: "Black Wins!", reason: chess.isCheckmate() ? "by Checkmate" : "by Resignation / Timeout" };
+    derivedGameOver = { title: `${game.black?.full_name || "Black"} wins`, reason: chess.isCheckmate() ? "by Checkmate" : "by Resignation / Timeout" };
   } else if (gameStatus === "draw") {
     derivedGameOver = { title: "Game Drawn", reason: "by Agreement or Stalemate" };
   }
+  if (derivedGameOver && game.result?.reason) {
+    const reasons: Record<string, string> = { checkmate: "Decided by checkmate", timeout: "Decided on time", resignation: "Decided by resignation", resigned_to_accept_invite: "Opponent resigned to accept another invitation", agreement: "Draw agreed by both players", stalemate: "Draw by stalemate", draw: "Match drawn" };
+    derivedGameOver.reason = reasons[game.result.reason] || "Result recorded";
+  }
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 relative rounded-[2rem] bg-gradient-to-br from-card/50 via-background to-secondary/30 p-2 sm:p-4">
-      {connectionIssue && <div role="status" className="absolute left-4 right-4 top-4 z-20 rounded-xl border border-amber-500/30 bg-amber-500/90 px-4 py-2 text-center text-xs font-black text-amber-950 shadow-lg">Connection unstable — reconnecting to the match…</div>}
+    <section className="match-room space-y-6"><MatchToolbar title="Chess" status={derivedGameOver?.title || (gameStatus === "waiting" ? "Waiting for an opponent" : `${chess.turn() === "w" ? game.white?.full_name || "White" : game.black?.full_name || "Black"}’s turn`)} disconnected={connectionIssue} finished={Boolean(derivedGameOver)}/><div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-6">
       
       {/* Left: Chess Board */}
-      <div className="flex-1 max-w-[700px] flex flex-col gap-4">
+      <div className="min-w-0 flex flex-col gap-4">
         {/* Top Player (Opponent) */}
         {renderPlayerHeader(playerColor === 'white' ? 'black' : 'white')}
 
-        {playerColor === "spectator" && <div className="flex items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2 text-sm font-bold text-violet-600 dark:text-violet-300"><Eye size={16} /> Spectator mode · watch the match live</div>}
-        <div className="w-full aspect-square rounded-2xl overflow-hidden shadow-[0_24px_70px_rgba(15,23,42,0.22)] border-[10px] border-slate-900/90 bg-slate-900 relative ring-1 ring-white/10">
+        {playerColor === "spectator" && <MatchSpectator count={spectators.length}/>}
+        <div className="w-full aspect-square rounded-2xl overflow-hidden border-[6px] border-border bg-secondary relative shadow-sm">
           <Chessboard 
             key={playerColor}
             options={{
@@ -611,71 +594,29 @@ export default function ChessBoardClient({
             </div>
           )}
 
-          {/* Game Over Overlay Modal */}
-          {derivedGameOver && !dismissedGameOver && (
-            <div className="absolute inset-0 z-[160] flex flex-col items-center justify-center bg-background/80 p-6 text-center backdrop-blur-sm animate-in fade-in duration-300">
-              <div className="bg-card border border-border rounded-2xl p-8 shadow-2xl max-w-sm w-full scale-in-90 animate-in zoom-in duration-300 delay-150">
-                <h2 className="text-3xl font-black text-foreground mb-2">{derivedGameOver.title}</h2>
-                <p className="text-muted-foreground font-medium mb-8">{derivedGameOver.reason}</p>
-                <div className="flex flex-col gap-2">
-<Link href="/office-lounge" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-95 shadow-lg">
-                    Return to Dashboard
-                  </Link>
-                  <button onClick={() => setDismissedGameOver(true)} className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground py-3 rounded-xl font-bold transition-transform hover:scale-[1.02] active:scale-95 shadow-md">
-                    Review Board
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Resign Confirmation Modal */}
-          {showResignConfirm && (
-            <div className="absolute inset-0 z-[160] flex items-center justify-center bg-background/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="bg-card border border-border rounded-xl p-6 shadow-2xl max-w-xs w-full text-center scale-in-95 animate-in zoom-in duration-200">
-                <h3 className="text-xl font-bold mb-2">Resign Game?</h3>
-                <p className="text-sm text-muted-foreground mb-6">Are you sure you want to surrender?</p>
-                <div className="flex gap-2">
-                  <button onClick={() => setShowResignConfirm(false)} className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-lg font-bold text-sm transition-colors">Cancel</button>
-                  <button onClick={confirmResign} className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 rounded-lg font-bold text-sm transition-colors shadow-md">Resign</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Draw Offer Overlay Modal */}
-          {drawOfferedBy && drawOfferedBy !== playerColor && gameStatus === "in_progress" && (
-            <div className="absolute inset-0 z-[160] flex items-center justify-center bg-background/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="bg-card border border-primary/50 rounded-xl p-6 shadow-2xl max-w-xs w-full text-center scale-in-95 animate-in zoom-in duration-200">
-                <h3 className="text-xl font-bold mb-2">Draw Offered</h3>
-                <p className="text-sm text-muted-foreground mb-6">Your opponent has offered a draw.</p>
-                <div className="flex gap-2">
-                  <button onClick={handleDeclineDraw} className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-lg font-bold text-sm transition-colors">Decline</button>
-                  <button onClick={handleAcceptDraw} className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg font-bold text-sm transition-colors shadow-md">Accept</button>
-                </div>
-              </div>
-            </div>
-          )}
+          <ConfirmModal isOpen={showResignConfirm} onClose={()=>setShowResignConfirm(false)} onConfirm={()=>void confirmResign()} title="Resign this match?" message="Your opponent will win and your Lounge rank will be updated." confirmText="Resign match"/>
         </div>
 
         {/* Bottom Player (You) */}
         {renderPlayerHeader(playerColor === 'white' ? 'white' : 'black')}
+        {derivedGameOver && <MatchResult title={derivedGameOver.title} description={`${derivedGameOver.reason}. The final board stays open for review.`}>{playerColor !== "spectator" && game.result && <span className="rounded-xl bg-card px-3 py-2 text-sm font-bold text-primary">{Number(game.result.player1_id === currentUserId ? game.result.player1_lp_delta : game.result.player2_lp_delta) >= 0 ? "+" : ""}{game.result.player1_id === currentUserId ? game.result.player1_lp_delta : game.result.player2_lp_delta} Lounge LP</span>}{playerColor !== "spectator" && <button className="match-button match-button-primary" disabled={rematchBusy || rematchSent} onClick={async () => { setRematchBusy(true); try { await challengeUserToChess(playerColor === "white" ? game.black_player_id : game.white_player_id, 600000); setRematchSent(true); toast("Rematch invite sent."); } catch (error) { toast(error instanceof Error ? error.message : "Could not send rematch"); } finally { setRematchBusy(false); } }}>{rematchSent ? "Invite sent" : rematchBusy ? "Sending…" : "Rematch · 10 min"}</button>}</MatchResult>}
       </div>
 
       {/* Right: Sidebar */}
-      <div className="w-full lg:w-[350px] flex flex-col min-h-[420px] lg:h-[700px] bg-card border border-border rounded-xl overflow-hidden shadow-lg">
+      <div className="match-panel flex min-h-[640px] max-h-[850px] flex-col overflow-hidden">
         
-        {/* Status / Controls Tab */}
+        {drawOfferedBy && drawOfferedBy !== playerColor && playerColor !== "spectator" && gameStatus === "in_progress" && <section className="border-b border-border bg-primary/5 p-5" aria-label="Draw offer"><p className="text-sm font-bold">Your opponent offered a draw</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Accept to end the match as a draw, or decline to keep playing.</p><div className="mt-4 flex gap-2"><button onClick={handleDeclineDraw} className="match-button match-button-secondary flex-1">Decline</button><button onClick={handleAcceptDraw} className="match-button match-button-primary flex-1">Accept draw</button></div></section>}
+        {/* Match controls */}
         <div className="p-4 border-b border-border bg-muted/30">
           <div className="font-bold text-center mb-3 text-lg" aria-live="polite">
             {gameStatus === "waiting" ? <span className="flex items-center justify-center gap-2 text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Waiting for Opponent</span> : 
-             gameStatus === "white_won" ? "White Wins!" : 
-             gameStatus === "black_won" ? "Black Wins!" : 
+             gameStatus === "white_won" ? derivedGameOver?.title :
+             gameStatus === "black_won" ? derivedGameOver?.title :
              gameStatus === "draw" ? "Game Drawn" : 
-             (chess.turn() === "w" && playerColor === "white") || (chess.turn() === "b" && playerColor === "black") ? "Your Turn" : "Opponent's Turn"}
+             (chess.turn() === "w" && playerColor === "white") || (chess.turn() === "b" && playerColor === "black") ? "Your Turn" : playerColor === "spectator" ? `${chess.turn() === "w" ? game.white?.full_name || "White" : game.black?.full_name || "Black"}’s turn` : "Opponent’s turn"}
           </div>
           <div className="mb-3 flex justify-end">
-            <button type="button" onClick={() => setShowNotation((visible) => !visible)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground" aria-pressed={showNotation}>
+            <button type="button" onClick={() => setShowNotation((visible) => !visible)} className="match-button match-button-secondary" aria-pressed={showNotation}>
               <Settings2 size={13} /> {showNotation ? "Hide coordinates" : "Show coordinates"}
             </button>
           </div>
@@ -686,13 +627,13 @@ export default function ChessBoardClient({
                 onClick={async () => {
                   try {
                     await cancelChessGame(game.id);
-                    router.push('/dashboard');
+                    router.push('/office-lounge');
                   } catch (e: any) {
                     if (e.message === "NEXT_REDIRECT") throw e;
                     toast("Failed to cancel: " + e.message);
                   }
                 }}
-                className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                className="match-button match-button-secondary flex-1"
               >
                 <XIcon size={14} /> Cancel Game
               </button>
@@ -701,11 +642,11 @@ export default function ChessBoardClient({
 
           {gameStatus === "in_progress" && playerColor !== "spectator" && (
             <div className="flex gap-2">
-              <button onClick={handleResign} className="flex-1 bg-muted hover:bg-destructive hover:text-destructive-foreground text-foreground px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors">
-                <Flag size={14} /> Resign
+              <button onClick={handleResign} className="match-button match-button-danger flex-1">
+                <Flag size={14} /> Resign match
               </button>
-              <button onClick={handleOfferDraw} className="flex-1 bg-muted hover:bg-secondary hover:text-secondary-foreground text-foreground px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors">
-                <Handshake size={14} /> Draw
+              <button onClick={handleOfferDraw} className="match-button match-button-secondary flex-1">
+                <Handshake size={14} /> Offer draw
               </button>
             </div>
           )}
@@ -713,7 +654,7 @@ export default function ChessBoardClient({
           {gameStatus === "in_progress" && playerColor !== "spectator" && (
             <div className="mt-3 flex items-center justify-center gap-2 text-[11px] font-bold text-muted-foreground">
               <span className={`h-2 w-2 rounded-full ${isOpponentConnected ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`} />
-              {isOpponentConnected ? "Opponent connected" : "Waiting for opponent"}
+              {isOpponentConnected ? "Opponent online" : "Opponent offline or reconnecting"}
             </div>
           )}
 
@@ -747,9 +688,10 @@ export default function ChessBoardClient({
           </div>
         )}
 
+        <div className="flex items-center justify-between border-b border-border px-5 py-3"><h2 className="text-sm font-bold">Move history</h2><span className="text-xs text-muted-foreground">{movePairs.length} turn{movePairs.length === 1 ? "" : "s"}</span></div>
         {/* Move History */}
         <div className="flex-1 overflow-y-auto bg-background p-0" ref={historyScrollRef}>
-          <table className="w-full text-sm text-left border-collapse">
+          {movePairs.length === 0 && <p className="px-5 py-8 text-center text-sm text-muted-foreground">Opening moves will appear here.</p>}<table aria-label="Move history" className="w-full text-sm text-left border-collapse">
             <tbody className="divide-y divide-border/50">
               {movePairs.map((pair, i) => (
                 <tr key={i} className="even:bg-muted/20">
@@ -763,9 +705,9 @@ export default function ChessBoardClient({
         </div>
 
         {/* Chat Box */}
-        <div className="h-[200px] flex flex-col border-t border-border">
+        <div className="h-[220px] shrink-0 flex flex-col border-t border-border"><h2 className="px-4 pt-4 text-sm font-bold">Match chat</h2>
           <div className="flex-1 p-3 overflow-y-auto bg-muted/10 flex flex-col gap-2" ref={chatScrollRef}>
-            {chatMessages.length === 0 && <div className="text-xs text-muted-foreground text-center mt-4">Welcome to chat!</div>}
+            {chatMessages.length === 0 && <div className="text-xs text-muted-foreground text-center mt-4">Say hello to your opponent.</div>}
             {chatMessages.map((msg, i) => (
               <div key={i} className="text-sm">
                 <span className="font-bold opacity-75">{msg.sender}: </span>
@@ -779,17 +721,19 @@ export default function ChessBoardClient({
                 type="text" 
                 value={chatInput} 
                 onChange={e => setChatInput(e.target.value)} 
+                aria-label="Match chat message"
+                maxLength={500}
                 placeholder="Send a message..." 
-                className="flex-1 bg-background border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className="min-w-0 flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               />
-              <button type="submit" className="bg-primary text-primary-foreground p-2 rounded-md hover:opacity-90">
+              <button type="submit" aria-label="Send match message" disabled={!chatInput.trim()} className="match-button match-button-primary px-3">
                 <Send size={14} />
               </button>
             </form>
           )}
         </div>
       </div>
-    </div>
+    </div></section>
   );
 }
 

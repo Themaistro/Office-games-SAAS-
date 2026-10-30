@@ -10,6 +10,9 @@ export default function OnboardingPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<{ invited: number; failed: number; skipped: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [details, setDetails] = useState<Awaited<ReturnType<typeof inviteRoster>>["results"]>([]);
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [allowedDomain, setAllowedDomain] = useState("");
 
   const downloadTemplate = () => {
     const blob = new Blob(["email,full_name\nname@yourcompany.com,Alex Morgan\n"], { type: "text/csv;charset=utf-8" });
@@ -43,9 +46,10 @@ export default function OnboardingPage() {
     setIsUploading(true);
     
     setError(null);
-    void inviteRoster(file).then((response) => {
+    void inviteRoster(file, allowedDomain).then((response) => {
       setIsUploading(false);
       if (response.error) { setError(response.error); return; }
+      setDetails(response.results);
       setResult({
         invited: response.results.filter((item) => item.status === "invited").length,
         failed: response.results.filter((item) => item.status === "failed").length,
@@ -70,16 +74,23 @@ export default function OnboardingPage() {
         <div className="md:col-span-2 space-y-6">
           <div className="bg-card border border-border p-6 rounded-xl shadow-sm">
             <h2 className="text-xl font-semibold mb-4">Upload Employee Roster</h2>
+            {!result && <div className="mb-5"><label htmlFor="invite-domain" className="text-sm font-bold">Company email domain</label><input id="invite-domain" type="text" disabled={isUploading} value={allowedDomain} onChange={event => setAllowedDomain(event.target.value)} placeholder="yourcompany.com" className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2"/><p className="mt-2 text-xs text-muted-foreground">Only matching addresses will receive an invitation link. This need not match your administrator account’s email domain.</p></div>}
             
             {result ? (
               <div className="flex flex-col items-center justify-center p-8 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-900/30 text-center animate-in fade-in zoom-in duration-300">
                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
                   <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-500" />
                 </div>
-                <h3 className="text-lg font-bold text-green-800 dark:text-green-400 mb-2">Upload Successful!</h3>
+                <h3 className="text-lg font-bold text-green-800 dark:text-green-400 mb-2">Roster processed</h3>
                 <p className="text-green-700 dark:text-green-500/80 mb-6">
-                  {result.invited} invitation{result.invited === 1 ? "" : "s"} sent. {result.failed} failed and {result.skipped} skipped.
+                  {result.invited} invitation{result.invited === 1 ? "" : "s"} prepared. {result.failed} failed and {result.skipped} skipped. Copy and share the links below; no email has been sent. Links expire in seven days.
                 </p>
+                <ul className="mb-6 w-full space-y-3 text-left">
+                  {details.map((item, index) => <li key={`${item.email}-${index}`} className="rounded-xl border border-border bg-card p-3 text-sm text-foreground">
+                    <p className="break-all font-bold">{item.email}</p>
+                    {item.invitationPath ? <><input aria-label={`Invitation link for ${item.email}`} readOnly value={typeof window === "undefined" ? item.invitationPath : `${window.location.origin}${item.invitationPath}`} className="mt-2 w-full rounded-lg border border-border bg-background p-2 text-xs"/><button type="button" className="mt-2 rounded-lg bg-primary px-3 py-2 font-bold text-primary-foreground" onClick={async () => { try { await navigator.clipboard.writeText(`${window.location.origin}${item.invitationPath}`); setCopiedEmail(item.email); } catch { setError("Copy is unavailable. Select and copy the invitation link manually."); } }}>{copiedEmail === item.email ? "Copied" : "Copy invitation link"}</button></> : <p className="mt-1 text-muted-foreground">{item.reason || item.status}</p>}
+                  </li>)}
+                </ul>
                 <button 
                   onClick={() => setResult(null)}
                   className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Trophy, AlertTriangle, Home } from "lucide-react";
 import GameEngine from "@/components/game/GameEngine";
@@ -14,6 +14,8 @@ export default function PlayPage() {
   const [questions, setQuestions] = useState<SessionQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [finishing, setFinishing] = useState(false);
+  const finishLock = useRef(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const [globalTimeLeft, setGlobalTimeLeft] = useState<number | null>(null);
   const { toast } = useToast();
 
@@ -55,39 +57,41 @@ export default function PlayPage() {
   }, [router]);
 
   useEffect(() => {
-    if (globalTimeLeft === null || globalTimeLeft <= 0 || finishing) return;
-
-    const interval = setInterval(() => {
-      setGlobalTimeLeft((prev) => {
-        if (prev === null) return null;
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [globalTimeLeft, finishing]);
+    if (!session?.created_at || finishing) return;
+    const deadline = new Date(session.created_at).getTime() + Number(session.allowed_duration_seconds) * 1000;
+    const update = () => setGlobalTimeLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    update();
+    const interval = setInterval(update, 1000);
+    document.addEventListener("visibilitychange", update);
+    return () => { clearInterval(interval); document.removeEventListener("visibilitychange", update); };
+  }, [session, finishing]);
 
   // Watch for timer reaching 0 to trigger endSession safely outside render
   useEffect(() => {
-    if (globalTimeLeft === 0 && !finishing && session?.id) {
+    if (globalTimeLeft === 0 && !finishing && !finishError && session?.id) {
       handleEndSession(session.id, "expired");
     }
-  }, [globalTimeLeft, finishing, session?.id]);
+  }, [globalTimeLeft, finishing, finishError, session?.id]);
 
   const handleEndSession = async (sessionId: string, outcome: "completed" | "expired" = "completed") => {
-    if (finishing) return;
+    if (finishLock.current) return false;
+    finishLock.current = true;
     setFinishing(true);
-    const result = await endSession(sessionId, outcome);
-    if (result?.error) {
+    setFinishError(null);
+    try {
+      const result = await endSession(sessionId, outcome);
+      if (result?.error) throw new Error(result.error);
+      router.replace("/daily-mission");
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Your mission could not be saved. Please retry.";
+      setFinishError(message);
       setFinishing(false);
-      toast(result.error);
-      return;
+      toast(message);
+      return false;
+    } finally {
+      finishLock.current = false;
     }
-    router.replace("/daily-mission");
   };
 
 
@@ -134,6 +138,7 @@ export default function PlayPage() {
 
       {/* Game Area */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 max-w-4xl mx-auto w-full">
+        {finishError && <div role="alert" className="mb-4 w-full rounded-2xl border border-destructive/20 bg-destructive/5 p-4"><p>{finishError}</p><button disabled={finishing} onClick={() => handleEndSession(session.id, globalTimeLeft === 0 ? "expired" : "completed")} className="mt-3 rounded-xl bg-primary px-4 py-2 font-bold text-primary-foreground">Retry saving mission</button></div>}
         {questions.length > 0 ? (
           <GameEngine 
             sessionQuestions={questions} 

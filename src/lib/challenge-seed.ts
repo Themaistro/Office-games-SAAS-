@@ -10,7 +10,10 @@ export function seededNumber(seed: string | undefined, salt = "", max = 1) {
 }
 
 export function seededShuffle<T>(items: T[], seed?: string, salt = "") {
-  return [...items].sort((left, right) =>
-    seededNumber(seed, `${salt}:${String(left)}`, 1_000_000) - seededNumber(seed, `${salt}:${String(right)}`, 1_000_000)
-  );
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    const other = seededNumber(seed, `${salt}:${index}`, index + 1);
+    [shuffled[index], shuffled[other]] = [shuffled[other], shuffled[index]];
+  }
+  return shuffled;
 }

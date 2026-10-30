@@ -12,6 +12,9 @@ export type GameDefinition = {
   label: string;
   shortLabel: string;
   route: string;
+  table: string;
+  playerColumns: readonly [string, string];
+  winStatuses: readonly [string, string];
   supportsDirectChallenges: true;
   supportsPublicLobby: true;
   supportsSpectators: true;
@@ -24,6 +27,7 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
     label: "Chess",
     shortLabel: "Chess",
     route: "chess",
+    table: "chess_games", playerColumns: ["white_player_id", "black_player_id"], winStatuses: ["white_won", "black_won"],
     supportsDirectChallenges: true,
     supportsPublicLobby: true,
     supportsSpectators: true,
@@ -34,6 +38,7 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
     label: "Tic-Tac-Toe",
     shortLabel: "Tic Tac Toe",
     route: "ttt",
+    table: "ttt_games", playerColumns: ["x_player_id", "o_player_id"], winStatuses: ["x_won", "o_won"],
     supportsDirectChallenges: true,
     supportsPublicLobby: true,
     supportsSpectators: true,
@@ -44,6 +49,7 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
     label: "Connect Four",
     shortLabel: "Connect Four",
     route: "connect-four",
+    table: "connect_four_games", playerColumns: ["red_player_id", "yellow_player_id"], winStatuses: ["red_won", "yellow_won"],
     supportsDirectChallenges: true,
     supportsPublicLobby: true,
     supportsSpectators: true,

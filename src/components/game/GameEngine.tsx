@@ -20,7 +20,8 @@ import CompanyTriviaGame from "./types/CompanyTriviaGame";
 import MissingLettersGame from "./types/MissingLettersGame";
 import { Trophy, CheckCircle, Flame, Target, XCircle, ArrowRight, Lightbulb, Zap, Star, SkipForward } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { submitAnswer } from "@/app/play/actions";
+import { submitAnswer, useMissionHint } from "@/app/play/actions";
+import { useToast } from "@/components/ui/ToastProvider";
 import { useGameTutorial } from "@/hooks/useTutorials";
 import { useVfx } from "@/hooks/useVfx";
 import clsx from "clsx";
@@ -28,7 +29,7 @@ import GameShell from "./GameShell";
 
 interface GameEngineProps {
   sessionQuestions: SessionQuestion[];
-  onComplete: () => void;
+  onComplete: () => Promise<boolean> | boolean;
 }
 
 interface ScoreBreakdown {
@@ -92,6 +93,7 @@ function getPerformanceMessage(slug: string, isCorrect: boolean) {
 }
 
 export default function GameEngine({ sessionQuestions, onComplete }: GameEngineProps) {
+  const {toast}=useToast();
   useGameTutorial();
   const { triggerConfetti, triggerShake } = useVfx();
   const router = useRouter();
@@ -105,8 +107,10 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [answerResults, setAnswerResults] = useState<Array<boolean | "skipped" | null>>(() => sessionQuestions.map((question) => {
     if (!question.is_completed) return null;
-    if ((question.earned_xp ?? 0) < 0) return "skipped";
-    return (question.earned_xp ?? 0) > 0;
+    if (question.outcome === "skipped") return "skipped";
+    if (question.outcome) return question.outcome === "correct";
+    // Historic attempts without a recorded outcome stay unknown.
+    return null;
   }));
   const submissionLock = useRef(false);
   
@@ -114,7 +118,8 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   const [currentCombo, setCurrentCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
   const [wasHintUsed, setWasHintUsed] = useState(false);
-  const [hintsLeft, setHintsLeft] = useState(3); // Max 3 hints per session
+  const [hintsLeft, setHintsLeft] = useState(Math.max(0,3-sessionQuestions.filter(question=>question.hint_used).length));
+  const [hintOptions,setHintOptions]=useState<string[]>([]);
 
   // Difficulty & Overlay State
   const [currentDifficulty, setCurrentDifficulty] = useState(sessionQuestions[currentIndex]?.question?.difficulty || 'medium');
@@ -124,11 +129,11 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
   const [autoProceedCountdown, setAutoProceedCountdown] = useState<number | null>(null);
 
   // Stats tracking
-  const [stats, setStats] = useState({
-    totalScore: 0,
-    totalXp: 0,
-    correctAnswers: 0,
-  });
+  const [stats, setStats] = useState(() => ({
+    totalScore: sessionQuestions.reduce((sum, question) => sum + (question.outcome === "correct" ? 100 : question.outcome === "skipped" ? -50 : 0), 0),
+    totalXp: sessionQuestions.reduce((sum, question) => sum + Number(question.earned_xp || 0), 0),
+    correctAnswers: sessionQuestions.filter(question => question.outcome === "correct").length,
+  }));
 
   const currentSessionQuestion = sessionQuestions[currentIndex];
 
@@ -145,7 +150,8 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     
     const start = Date.now();
     setQuestionStartTime(start);
-    setWasHintUsed(false); // Reset hint for new question
+    setWasHintUsed(Boolean(sessionQuestions[currentIndex]?.hint_used));
+    setHintOptions(sessionQuestions[currentIndex]?.question.hint_options || []);
 
     // Track elapsed time when component unmounts (e.g. user goes to dashboard)
     return () => {
@@ -198,7 +204,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       customTimeSpent = legacyTimeSpent;
     } else if (optionsOrIsCorrect) {
       customIsCorrect = optionsOrIsCorrect.customIsCorrect;
-      customTimeSpent = optionsOrIsCorrect.customTimeSpent;
+      customTimeSpent = optionsOrIsCorrect.customTimeSpent ?? legacyTimeSpent;
       isPerfect = optionsOrIsCorrect.isPerfect;
       isSkipped = optionsOrIsCorrect.isSkipped;
       customScoreModifiers = optionsOrIsCorrect.customScoreModifiers;
@@ -223,12 +229,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       });
       
       if (!result.success) {
-        setFeedback({
-          isCorrect: false,
-          xpEarned: 0,
-          correctAnswer: result.error || "We couldn't save that answer. Please try again.",
-          isSkipped: false,
-        });
+        toast(result.error || "We couldn't save that answer. Please try again.");
         submissionLock.current = false;
         setIsSubmitting(false);
         return;
@@ -289,20 +290,30 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       setIsSubmitting(false);
     } catch (e) {
       console.error(e);
+      toast("Your answer wasn’t saved. Please try again.");
       submissionLock.current = false;
       setIsSubmitting(false);
     }
   };
 
-  const handleNextChallenge = () => {
-    setFeedback(null);
+  const handleNextChallenge = async () => {
+    if (submissionLock.current) return;
     setWasHintUsed(false); // Synchronously reset hint state before next render
     if (currentIndex < sessionQuestions.length - 1) {
+      setFeedback(null);
       setCurrentIndex(prev => prev + 1);
     } else {
-      triggerConfetti();
-      setIsSessionComplete(true);
-      onComplete();
+      submissionLock.current = true;
+      setIsSubmitting(true);
+      try {
+        if (await onComplete()) {
+          triggerConfetti();
+          setIsSessionComplete(true);
+        }
+      } finally {
+        submissionLock.current = false;
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -318,10 +329,10 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
     return () => clearTimeout(timer);
   }, [autoProceedCountdown]);
 
-  const handleUseHint = () => {
-    if (wasHintUsed || feedback !== null || hintsLeft <= 0) return;
-    setWasHintUsed(true);
-    setHintsLeft(prev => prev - 1);
+  const handleUseHint = async () => {
+    if (wasHintUsed || feedback !== null || hintsLeft <= 0 || isSubmitting) return;
+    try { const result=await useMissionHint(currentSessionQuestion.id);setHintOptions(result.eliminatedOptions);setWasHintUsed(true);setHintsLeft(result.remaining); }
+    catch(error){toast(error instanceof Error?error.message:"Hint unavailable. Try again.");}
   };
 
   const handleSkip = () => {
@@ -488,7 +499,7 @@ export default function GameEngine({ sessionQuestions, onComplete }: GameEngineP
       );
     }
 
-    const question = currentSessionQuestion.question;
+    const question = {...currentSessionQuestion.question,hint_options:hintOptions};
     if (question.content && question.content.question && question.options && question.options.length > 0) {
       if (question.content.isCompanyTrivia) {
         return <CompanyTriviaGame key={question.id} question={question} onAnswer={handleAnswer} isSubmitting={isSubmitting} showHint={wasHintUsed} />;

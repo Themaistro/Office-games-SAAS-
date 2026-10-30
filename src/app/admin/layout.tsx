@@ -1,10 +1,14 @@
 import { Activity } from "lucide-react";
-import { destroySession, getCurrentUser } from "@/lib/auth";
-import { query } from "@/lib/db";
+import { destroySession, getCurrentAdmin, getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 import AdminMobileMenu from "./AdminMobileMenu";
 import AdminSidebar from "./AdminSidebar";
+
+// Admin pages must always be rendered against the current session and role.
+// This prevents a cached admin shell from being reused after a role changes.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminLayout({
   children,
@@ -17,10 +21,7 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
-  const { rows } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
-  const profile = rows[0];
-
-  if (profile?.role !== "admin") {
+  if (!(await getCurrentAdmin())) {
     redirect("/dashboard");
   }
 

@@ -47,7 +47,7 @@ export default function CompanyTriviaGame({ question, onAnswer, isSubmitting, sh
     setLifelineUsed(true);
     
     const uniqueOptions = Array.from(new Set(question.options));
-    const incorrect = uniqueOptions.filter(o => o !== question.correct_answer);
+    const incorrect = question.hint_options || [];
     const shuffled = [...incorrect].sort(() => 0.5 - Math.random());
     
     const numToEliminate = Math.max(1, incorrect.length - 1);
@@ -62,26 +62,11 @@ export default function CompanyTriviaGame({ question, onAnswer, isSubmitting, sh
   }, [showHint, lifelineUsed, useLifeline]);
 
   const handleSelect = (option: string | null, isTimeout = false) => {
-    if (showIntro || isSubmitting || selectedOption !== null) return;
-    
+    if (isSubmitting || selectedOption !== null) return;
     setSelectedOption(option || "[Timeout]");
-    
-    if (isTimeout) {
-      setRevealed(true);
-      setTimeout(() => {
-        onAnswer("[Timeout]", { customIsCorrect: false, customTimeSpent: 15 });
-      }, 1000);
-    } else {
-      setTimeout(() => {
-        setRevealed(true);
-        setTimeout(() => {
-          const timeTaken = 15 - timeLeft;
-          const isCorrect = option === question.correct_answer;
-          onAnswer(option || "[Timeout]", { customIsCorrect: isCorrect, customTimeSpent: timeTaken });
-        }, 1500);
-      }, 1500);
-    }
+    onAnswer(option || "[Timeout]", { customTimeSpent: 15 - timeLeft });
   };
+
 
   const getOptionState = (option: string) => {
     if (eliminatedOptions.includes(option)) return "eliminated";

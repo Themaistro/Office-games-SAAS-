@@ -1,348 +1,49 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useRef, useState } from "react";
+import { Circle, X } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Circle, X as XIcon, Trophy, User, Flag, Eye } from "lucide-react";
-import { makeTttMove, cancelTttGame, resignTttGame } from "../actions";
-import { clsx } from "clsx";
-import Link from "next/link";
-import { useVfx } from "@/hooks/useVfx";
+import { makeTttMove, resignTttGame, cancelTttGame, createTttRematch } from "../actions";
+import { useMatchSync } from "@/hooks/useMatchSync";
+import { MatchPlayer, MatchResult, MatchToolbar, MatchGuide, MatchSpectator, winningCells } from "@/components/game/MatchPresentation";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/ToastProvider";
-import * as Ably from "ably";
-import { getGameChannelName } from "@/lib/realtime";
 
-import { createTttRematch } from "../actions";
-
-export default function TttBoardClient({ initialGame, currentUserId, matchupScore }: { initialGame: any; currentUserId: string; matchupScore: { xWins: number; oWins: number; draws: number } }) {
-  const [rematchState, setRematchState] = useState<"idle" | "requested" | "received" | "loading">("idle");
-  const [newGameId, setNewGameId] = useState<string | null>(null);
-  const [opponentPresent, setOpponentPresent] = useState(false);
-  const { triggerConfetti } = useVfx();
-  const [game, setGame] = useState<any>(initialGame);
-  const [spectators, setSpectators] = useState<any[]>(initialGame.spectators || []);
-  const [loadingAction, setLoadingAction] = useState(false);
-  const [connectionIssue, setConnectionIssue] = useState(false);
-  const [showResignConfirm, setShowResignConfirm] = useState(false);
-  const router = useRouter();
-  const { toast } = useToast();
-
-  useEffect(() => {
-    setGame(initialGame);
-  }, [initialGame]);
-
-  useEffect(() => {
-    if (game.status === 'finished' && game.winner_id === currentUserId) {
-      triggerConfetti();
-    }
-  }, [game.status, game.winner_id, currentUserId, triggerConfetti]);
-
-  useEffect(() => {
-    if (["x_won", "o_won", "draw"].includes(game.status)) return;
-    const timer = window.setInterval(async () => {
-      try {
-        const response = await fetch(`/api/ttt/${game.id}`, { cache: "no-store" });
-        if (!response.ok) { setConnectionIssue(true); return; }
-        const next = await response.json();
-        setConnectionIssue(false);
-        setGame(next);
-        setSpectators(next.spectators || []);
-        setOpponentPresent(Boolean(next.x_player_id && next.o_player_id));
-        if (game.status === "waiting" && next.status === "in_progress") router.refresh();
-      } catch { setConnectionIssue(true); }
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [game.id, game.status, router]);
-
-  useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_ABLY_KEY;
-    if (!key) return;
-    const realtime = new Ably.Realtime({ key, echoMessages: false });
-    const channel = realtime.channels.get(getGameChannelName("ttt", game.id));
-    const handleMessage = (message: Ably.Message) => {
-      const event = message.data as { senderId?: string; payload?: { board?: string; currentTurn?: string; status?: string } };
-      if (event.senderId === currentUserId || event.payload?.board === undefined) return;
-      setGame((current: any) => ({ ...current, board_state: event.payload?.board, current_turn: event.payload?.currentTurn, status: event.payload?.status }));
-    };
-    void channel.subscribe(handleMessage).catch(() => setConnectionIssue(true));
-    return () => { try { channel.unsubscribe(handleMessage); } catch {} try { realtime.close(); } catch {} };
-  }, [game.id, currentUserId]);
-
-  const isX = game.x_player_id === currentUserId;
-  const isO = game.o_player_id === currentUserId;
-  const isSpectator = !isX && !isO;
-
-  const mySymbol = isX ? "X" : isO ? "O" : null;
-  const myTurn = mySymbol && game.current_turn === mySymbol && game.status === "in_progress";
-
-  const handleCellClick = async (index: number) => {
-    if (!myTurn || loadingAction || game.board_state[index] !== '-') return;
-    
-    // Optimistic update locally
-    const newBoard = game.board_state.split("");
-    newBoard[index] = mySymbol;
-    setGame({ ...game, board_state: newBoard.join(""), current_turn: mySymbol === "X" ? "O" : "X" });
-
-    setLoadingAction(true);
-    try {
-      await makeTttMove(game.id, index);
-    } catch (err: any) {
-      console.error(err);
-      // Revert if error
-      setGame(game);
-    } finally {
-      setLoadingAction(false);
-    }
-  };
-
-  const isGameOver = game.status === "x_won" || game.status === "o_won" || game.status === "draw";
-
-  const handleRequestRematch = () => {
-    setRematchState("requested");
-  };
-
-  const handleAcceptRematch = async () => {
-    setRematchState("loading");
-    try {
-      const createdId = await createTttRematch(game.id);
-      router.push(`/dashboard/ttt/${createdId}`);
-    } catch (e: any) {
-      console.error(e);
-      setRematchState("idle");
-    }
-  };
-
-  let statusMessage = "Waiting for Opponent...";
-  if (game.status === "in_progress") {
-    statusMessage = myTurn ? "Your Turn" : "Opponent's Turn";
-    if (isSpectator) statusMessage = `${game.current_turn}'s Turn`;
-  } else if (game.status === "x_won") {
-    statusMessage = isX ? "Victory!" : isO ? "Defeat!" : "X Wins!";
-  } else if (game.status === "o_won") {
-    statusMessage = isO ? "Victory!" : isX ? "Defeat!" : "O Wins!";
-  } else if (game.status === "draw") {
-    statusMessage = "Draw!";
+export default function TttBoardClient({initialGame,currentUserId}: {initialGame:any;currentUserId:string;matchupScore:{xWins:number;oWins:number;draws:number}}) {
+  const {game,setGame,refresh,connectionIssue,pauseSync,resumeSync}=useMatchSync(initialGame,"ttt");
+  const [busy,setBusy]=useState(false),[confirm,setConfirm]=useState(false),[rematchSent,setRematchSent]=useState(false);
+  const lock=useRef(false), reduced=useReducedMotion(),router=useRouter(),{toast}=useToast();
+  const me=game.x_player_id===currentUserId?"X":game.o_player_id===currentUserId?"O":null;
+  const over=["x_won","o_won","draw"].includes(game.status);
+  const turn=game.current_turn==="X"?game.x_player:game.o_player;
+  const myTurn=Boolean(me&&me===game.current_turn&&game.status==="in_progress");
+  const winner=game.status==="x_won"?game.x_player:game.status==="o_won"?game.o_player:null;
+  const status=game.status==="waiting"?"Waiting for an opponent":over?game.status==="draw"?"Draw":`${winner?.full_name||"Player"} wins`:myTurn?"Your turn":`${turn?.full_name||game.current_turn}’s turn`;
+  const winning=winningCells(game.board_state,3,3);
+  async function action(run:()=>Promise<unknown>) {if(lock.current)return;lock.current=true;setBusy(true);pauseSync();try{await run();resumeSync();await refresh();}catch(error){resumeSync();toast(error instanceof Error?error.message:"Action failed");await refresh();}finally{resumeSync();lock.current=false;setBusy(false);}}
+  function move(index:number) {
+    if(!myTurn||busy||game.board_state[index]!=="-")return;
+    const board=game.board_state.split("");board[index]=me;
+    setGame({...game,board_state:board.join(""),current_turn:me==="X"?"O":"X"});
+    void action(()=>makeTttMove(game.id,index));
   }
-
-  const renderPlayerCard = (player: any, symbol: "X" | "O", isCurrentTurn: boolean) => {
-    if (!player) {
-      return (
-        <div className="flex-1 p-4 rounded-3xl bg-card border-2 border-dashed border-border/50 flex flex-col items-center justify-center opacity-50">
-          <Loader2 className="animate-spin text-muted-foreground mb-2" />
-          <p className="text-sm font-bold text-muted-foreground">Waiting...</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className={clsx(
-        "flex-1 p-4 rounded-3xl border-2 transition-all duration-300 flex flex-col items-center gap-3 relative overflow-hidden group",
-        isCurrentTurn && !isGameOver ? "border-primary bg-primary/5 shadow-[0_0_20px_rgba(var(--primary),0.1)] scale-[1.02]" : "border-border/60 bg-card",
-        game.status === `${symbol.toLowerCase()}_won` && "border-green-500 bg-green-500/10 shadow-[0_0_20px_rgba(34,197,94,0.1)]"
-      )}>
-        {isCurrentTurn && !isGameOver && (
-          <div className="absolute inset-0 bg-primary/10 animate-pulse" />
-        )}
-        
-        <div className="relative z-10 w-16 h-16 rounded-full overflow-hidden border-4 border-background shadow-md bg-secondary flex items-center justify-center">
-          {(!opponentPresent && player.id !== currentUserId) && (
-            <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center z-20">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-background px-2 py-0.5 rounded-full border shadow-sm">Left</span>
-            </div>
-          )}
-          {player.avatar_url ? (
-            <img src={player.avatar_url} alt={`${player.full_name || "Player"} avatar`} className="w-full h-full object-cover" />
-          ) : (
-            <User size={24} className="text-muted-foreground" />
-          )}
-        </div>
-        
-        <div className="relative z-10 text-center">
-          <div className="font-black text-lg truncate w-full px-2">{player.full_name || "Unknown"}</div>
-          <div className="text-sm font-bold text-muted-foreground flex items-center justify-center gap-1">
-            <Trophy size={14} className="text-primary" /> {player.ttt_elo ?? 1200}
-          </div>
-        </div>
-
-        <div className={clsx(
-          "relative z-10 w-10 h-10 rounded-xl flex items-center justify-center mt-2 shadow-sm mb-2",
-          symbol === "X" ? "bg-blue-500/10 text-blue-500" : "bg-red-500/10 text-red-500"
-        )}>
-          {symbol === "X" ? <XIcon strokeWidth={3} /> : <Circle strokeWidth={3} />}
-        </div>
-        
-        {/* Rivalry Score Indicator */}
-        <div className="relative z-20 bg-background border border-border shadow-sm rounded-full px-4 py-1.5 text-sm font-black flex items-center gap-1.5">
-          <span className="text-green-500">{symbol === "X" ? matchupScore.xWins : matchupScore.oWins}</span>
-          <span className="text-border">/</span>
-          <span className="text-muted-foreground">{matchupScore.draws}</span>
-          <span className="text-border">/</span>
-          <span className="text-red-500">{symbol === "X" ? matchupScore.oWins : matchupScore.xWins}</span>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="max-w-3xl mx-auto flex flex-col gap-8">
-      <div className="flex items-center justify-between">
-        <button onClick={() => router.push("/dashboard")} className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors group">
-          <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center group-hover:-translate-x-1 transition-transform">
-            <ArrowLeft size={16} />
-          </div>
-          Back to Lounge
-        </button>
-
-        <div className="flex items-center gap-3">
-          <div className={clsx(
-            "px-6 py-2 rounded-full font-black text-sm uppercase tracking-widest border transition-colors shadow-sm",
-            game.status === "in_progress" && myTurn && "bg-primary text-primary-foreground border-primary animate-pulse",
-            game.status === "in_progress" && !myTurn && "bg-secondary text-muted-foreground border-border/50",
-            game.status === "waiting" && "bg-accent/20 text-accent-foreground border-accent/30",
-            isGameOver && "bg-background text-foreground border-border/60"
-          )}>
-            {statusMessage}
-          </div>
-
-          {game.status === "waiting" && !isSpectator && (
-            <button 
-              onClick={async () => {
-                try {
-                  await cancelTttGame(game.id);
-                  router.push('/dashboard');
-                } catch (e: any) {
-                  if (e.message === "NEXT_REDIRECT") throw e;
-                  toast("Failed to cancel: " + e.message);
-                }
-              }}
-              className="px-4 py-2 rounded-full font-bold text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-sm flex items-center gap-2"
-            >
-              <XIcon size={14} /> Cancel
-            </button>
-          )}
-
-          {game.status === "in_progress" && !isSpectator && (
-            <button 
-              onClick={() => setShowResignConfirm(true)}
-              className="px-4 py-2 rounded-full font-bold text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-sm flex items-center gap-2"
-            >
-              <Flag size={14} /> Resign
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex gap-4 sm:gap-8 justify-between">
-        {renderPlayerCard(game.x_player, "X", game.current_turn === "X")}
-        {renderPlayerCard(game.o_player, "O", game.current_turn === "O")}
-      </div>
-      {connectionIssue && <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-700">Connection is unstable. We’re trying to reconnect to this match…</div>}
-
-      {isSpectator && <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-sm font-bold text-muted-foreground"><Eye className="mr-2 inline" size={16} />You are watching this match.</div>}
-      {spectators.length > 0 && <div className="text-center text-xs font-bold text-muted-foreground"><Eye className="mr-1 inline" size={14} />{spectators.length} spectator{spectators.length === 1 ? "" : "s"} watching</div>}
-
-      <div className="relative mx-auto mt-4 sm:mt-8">
-        <div className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] grid grid-cols-3 grid-rows-3 gap-3 p-3 bg-secondary/50 rounded-3xl border border-border/60 shadow-xl relative z-10 overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:100px_100px]" />
-          
-          {game.board_state.split("").map((cell: string, idx: number) => {
-            const isClickable = cell === '-' && myTurn && !loadingAction;
-            return (
-              <button
-                key={idx}
-                onClick={() => handleCellClick(idx)}
-                disabled={!isClickable}
-                className={clsx(
-                  "relative bg-card rounded-2xl flex items-center justify-center transition-all duration-300",
-                  isClickable ? "hover:scale-95 hover:bg-primary/5 cursor-pointer shadow-sm border border-border/40 hover:border-primary/40" : "cursor-default border border-transparent shadow-[inset_0_2px_10px_rgba(0,0,0,0.02)]",
-                  cell === 'X' ? "text-blue-500" : cell === 'O' ? "text-red-500" : "text-transparent"
-                )}
-              >
-                {cell === 'X' && <XIcon size={64} strokeWidth={2.5} className="animate-in zoom-in spin-in-12 duration-300" />}
-                {cell === 'O' && <Circle size={56} strokeWidth={3} className="animate-in zoom-in duration-300" />}
-              </button>
-            );
-          })}
-        </div>
-
-        {isGameOver && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center animate-in fade-in zoom-in duration-500 rounded-3xl bg-background/60 backdrop-blur-md border border-border/50">
-            <div role="status" aria-live="polite" className="bg-card p-8 rounded-3xl shadow-2xl border border-border/80 flex flex-col items-center text-center max-w-[80%] transform transition-transform hover:scale-105">
-              <Trophy size={48} className={clsx(
-                "mb-4",
-                game.status === "draw" ? "text-muted-foreground" : "text-yellow-500 animate-bounce"
-              )} />
-              <h2 className="text-3xl font-black tracking-tight mb-2">
-                {statusMessage}
-              </h2>
-              <p className="text-muted-foreground text-sm font-semibold mb-6">
-                {game.status === "draw" ? "It's a tie! Well played both." : "Elo ratings have been updated."}
-              </p>
-              <div className="flex gap-3 mt-2 w-full">
-<Link href="/office-lounge" className="flex-1 px-4 py-3 rounded-xl font-bold bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all text-center">
-                  Lobby
-                </Link>
-                {!isSpectator && (
-                  <button 
-                    onClick={handleRequestRematch}
-                    disabled={rematchState !== "idle" || !opponentPresent}
-                    className={clsx(
-                      "flex-[2] px-6 py-3 rounded-xl font-bold transition-all shadow-lg",
-                      !opponentPresent ? "bg-destructive/10 text-destructive cursor-not-allowed" :
-                      rematchState === "requested" ? "bg-muted text-muted-foreground cursor-default" : "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 shadow-primary/20"
-                    )}
-                  >
-                    {!opponentPresent ? "Opponent Left" : rematchState === "requested" ? "Waiting for Opponent..." : "Play Again"}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      {rematchState === "received" && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-card p-6 rounded-3xl border shadow-xl max-w-sm w-full mx-4 animate-in zoom-in-95 text-center">
-            <h3 className="text-xl font-black mb-2">Rematch Requested!</h3>
-            <p className="text-muted-foreground text-sm mb-6">Your opponent wants to play again. Do you accept?</p>
-            <div className="flex gap-3">
-              <button onClick={() => setRematchState("idle")} className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-lg font-bold text-sm transition-colors">Decline</button>
-              <button 
-                onClick={handleAcceptRematch}
-                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 rounded-lg font-bold text-sm transition-colors"
-              >
-                Accept
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showResignConfirm && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-card p-6 rounded-3xl border shadow-xl max-w-sm w-full mx-4 animate-in zoom-in-95">
-            <h3 className="text-xl font-black mb-2">Resign Match?</h3>
-            <p className="text-muted-foreground text-sm mb-6">Are you sure you want to resign? You will lose Elo points.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setShowResignConfirm(false)} className="flex-1 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-lg font-bold text-sm transition-colors">Cancel</button>
-              <button 
-                onClick={async () => {
-                  try {
-                    await resignTttGame(game.id);
-                    setShowResignConfirm(false);
-                  } catch (e: any) {
-                    if (e.message === "NEXT_REDIRECT") throw e;
-                    toast("Failed to resign: " + e.message);
-                  }
-                }}
-                className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 rounded-lg font-bold text-sm transition-colors"
-              >
-                Resign
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  const ledger=game.result;
+  const delta=ledger?(ledger.player1_id===currentUserId?ledger.player1_lp_delta:ledger.player2_lp_delta):null;
+  return <main className="match-room space-y-6">
+    <MatchToolbar icon={<X size={22}/>} title="Tic-Tac-Toe" status={status} disconnected={connectionIssue} finished={over}/>
+    <div className="match-stage"><div className="space-y-4">
+    <div className="grid grid-cols-2 gap-3"><MatchPlayer name={game.x_player?.full_name} avatar={game.x_player?.avatar_url} lp={game.x_player?.lounge_lp} side="X" active={!over&&game.status==="in_progress"&&game.current_turn==="X"}/><MatchPlayer name={game.o_player?.full_name} avatar={game.o_player?.avatar_url} lp={game.o_player?.lounge_lp} side="O" active={!over&&game.status==="in_progress"&&game.current_turn==="O"}/></div>
+    {!me&&<MatchSpectator count={game.spectators?.length}/>}
+    <section aria-label="Tic-Tac-Toe board" className="match-panel p-6">
+      <div className="mx-auto grid aspect-square w-full max-w-[400px] grid-cols-3 gap-2 rounded-2xl bg-secondary/60 p-2">{game.board_state.split("").map((cell:string,index:number)=><button key={index} aria-label={`Row ${Math.floor(index/3)+1}, column ${index%3+1}: ${cell==="-"?"empty":cell}`} onClick={()=>move(index)} disabled={!myTurn||busy||cell!=="-"} className={`grid aspect-square place-items-center rounded-xl border bg-card transition-colors focus-visible:outline-2 focus-visible:outline-primary ${winning.includes(index)?"border-emerald-500 bg-emerald-50":"border-border enabled:hover:border-primary enabled:hover:bg-primary/5"}`}>{cell!=="-"&&<motion.span initial={reduced?false:{scale:0.65,opacity:0}} animate={{scale:1,opacity:1}} className={cell==="X"?"text-primary":"text-rose-500"}>{cell==="X"?<X className="h-12 w-12 sm:h-20 sm:w-20" strokeWidth={2.5}/>:<Circle className="h-11 w-11 sm:h-16 sm:w-16" strokeWidth={2.5}/>}</motion.span>}</button>)}</div>
+      <p role="status" className="mt-4 text-center text-sm text-muted-foreground">{busy?"Saving…":status}</p>
+    </section>
+    {over&&<MatchResult title={status}>{me&&delta!==null&&<span className="text-sm font-bold text-primary">{delta>=0?"+":""}{delta} Lounge LP</span>}{me&&<button disabled={busy||rematchSent} onClick={()=>void action(async()=>{await createTttRematch(game.id);setRematchSent(true);toast("Rematch invite sent. Your opponent can accept or decline.");})} className="match-button match-button-primary">{rematchSent?"Invite sent":"Invite to rematch"}</button>}</MatchResult>}
+    {me&&game.status==="in_progress"&&<button disabled={busy} onClick={()=>setConfirm(true)} className="match-button match-button-danger">Resign match</button>}
+    {me&&game.status==="waiting"&&<button disabled={busy} onClick={()=>void action(async()=>{await cancelTttGame(game.id);router.push("/office-lounge");})} className="match-button match-button-secondary">Cancel invitation</button>}
+    </div><MatchGuide objective="Three in a row wins." tips={["Take turns placing your mark in an empty square.","Make a horizontal, vertical, or diagonal line of three.","A full board with no line is a draw."]}/></div>
+    <ConfirmModal isOpen={confirm} onClose={()=>setConfirm(false)} onConfirm={()=>void action(()=>resignTttGame(game.id))} title="Resign this match?" message="Your opponent will win this match. Your Lounge rank will be updated." confirmText="Resign match"/>
+  </main>;
 }
 

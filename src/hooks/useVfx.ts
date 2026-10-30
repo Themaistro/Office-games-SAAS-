@@ -5,6 +5,7 @@ import { useCallback } from "react";
 
 export function useVfx() {
   const triggerConfetti = useCallback(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const duration = 3000;
     const end = Date.now() + duration;
 
@@ -33,6 +34,7 @@ export function useVfx() {
   }, []);
 
   const triggerShake = useCallback((elementId: string) => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const el = document.getElementById(elementId);
     if (!el) return;
     

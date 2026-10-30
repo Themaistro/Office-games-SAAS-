@@ -45,6 +45,12 @@ export async function GET() {
       jsonb_build_object('full_name', r.full_name, 'avatar_url', r.avatar_url)
     FROM connect_four_games g LEFT JOIN profiles r ON r.id = g.red_player_id LEFT JOIN profiles y ON y.id = g.yellow_player_id
     WHERE g.status IN ('in_progress', 'red_won', 'yellow_won', 'draw')
+    UNION ALL
+    SELECT 'party-'||r.id,r.host_id,'party',
+      CASE WHEN r.status='finished' THEN COALESCE((SELECT string_agg(p.full_name,' & ') FROM lounge_room_players m JOIN profiles p ON p.id=m.user_id WHERE m.room_id=r.id AND m.state='joined' AND (m.score,m.correct_count)=(SELECT score,correct_count FROM lounge_room_players WHERE room_id=r.id AND state='joined' ORDER BY score DESC,correct_count DESC LIMIT 1)),'The team')||' took first place in '
+      ELSE COALESCE(h.full_name,'A coworker')||' started ' END || (CASE WHEN r.format='trivia' THEN 'Trivia' ELSE 'Mixed Challenges' END)||' '||(CASE WHEN r.mode='duel' THEN 'Duel' ELSE 'Group' END),
+      r.updated_at,jsonb_build_object('game_id',r.id,'game_type','party'),jsonb_build_object('full_name',h.full_name,'avatar_url',h.avatar_url)
+    FROM lounge_rooms r LEFT JOIN profiles h ON h.id=r.host_id WHERE r.visibility='public' AND r.status IN ('in_progress','finished')
     ORDER BY created_at DESC LIMIT 30`);
   return NextResponse.json(rows, { headers: { "Cache-Control": "no-store" } });
 }

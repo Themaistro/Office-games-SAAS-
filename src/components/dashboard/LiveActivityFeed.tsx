@@ -20,20 +20,27 @@ type FeedItem = {
 
 export default function LiveActivityFeed() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    fetchFeed();
-    const timer = window.setInterval(fetchFeed, 1000);
-    return () => window.clearInterval(timer);
+    let disposed = false;
+    let fetching = false;
+    const controller = new AbortController();
+    const fetchFeed = async () => {
+      if (fetching || document.visibilityState !== "visible") return;
+      fetching = true;
+      try {
+        const response = await fetch("/api/activity", { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error("Activity unavailable");
+        const items = await response.json();
+        if (!disposed) { setFeed(items); setFailed(false); }
+      } catch { if (!disposed) setFailed(true); }
+      finally { fetching = false; if (!disposed) setLoading(false); }
+    };
+    void fetchFeed();
+    const timer = window.setInterval(() => void fetchFeed(), 5000);
+    return () => { disposed = true; controller.abort(); window.clearInterval(timer); };
   }, []);
-
-  const fetchFeed = async () => {
-    const response = await fetch("/api/activity", { cache: "no-store" });
-    if (response.ok) setFeed(await response.json());
-  };
-
-  const fetchProfileForNewItem = async (item: FeedItem) => {
-    setFeed((prev) => [item, ...prev].slice(0, 20));
-  };
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -57,7 +64,7 @@ export default function LiveActivityFeed() {
 
       <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
         {feed.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/40 px-5 py-8 text-center text-sm text-muted-foreground">No recent activity yet. Be the first to start a mission or game.</div>
+          <div role="status" className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/40 px-5 py-8 text-center text-sm text-muted-foreground">{loading ? "Loading activity…" : failed ? "Activity is temporarily unavailable. Reconnecting…" : "No recent activity yet. Be the first to start a mission or game."}</div>
         ) : (
           feed.map((item) => (
             <div key={item.id} className="flex gap-4 items-start p-3 rounded-2xl bg-muted/30 border border-border/50 animate-in fade-in slide-in-from-right-4">
@@ -77,9 +84,8 @@ export default function LiveActivityFeed() {
               <div className="flex flex-col">
                 <p className="text-sm">
                   <Link href={`/profile/${item.user_id}`} className="font-bold hover:text-primary transition-colors hover:underline">
-                    {item.profiles?.full_name || "Someone"}
-                  </Link>{" "}
-                  <span className="text-muted-foreground">{item.description}</span>
+                    {/^(completed|reached|just |won |drew |finished |earned |started )/i.test(item.description) ? `${item.profiles?.full_name || "Someone"} ${item.description}` : item.description}
+                  </Link>
                 </p>
                 <span className="text-[10px] text-muted-foreground mt-1">
                   {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}

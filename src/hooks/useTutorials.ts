@@ -10,20 +10,25 @@ export function useDashboardTutorial() {
     if (typeof window === "undefined") return;
     if (localStorage.getItem("has_seen_dashboard_tutorial_v2")) return;
 
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let activeDriver: ReturnType<typeof driver> | undefined;
+    const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
       const data = response.ok ? await response.json() : null;
-      if (!data || data.games_played > 0) return;
+      if (disposed || !data || data.games_played > 0) return;
 
       // Small delay to let DOM render (especially Navbar)
-      const timeoutId = setTimeout(() => {
+      timer = setTimeout(() => {
+        if (disposed || document.querySelector(".driver-overlay")) return;
         const el = document.getElementById("tour-dashboard");
         if (!el) return;
 
         const driverObj = driver({
           showProgress: true,
           animate: true,
-          allowClose: false, // Force them to use the buttons
+          allowClose: true,
           showButtons: ['next', 'previous', 'close'],
           doneBtnText: 'Finish Tour',
           nextBtnText: 'Next',
@@ -75,13 +80,20 @@ export function useDashboardTutorial() {
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            localStorage.setItem("has_seen_dashboard_tutorial_v2", "true");
+            if (!disposed) localStorage.setItem("has_seen_dashboard_tutorial_v2", "true");
           }
         });
+        activeDriver = driverObj;
         driverObj.drive();
       }, 1500);
     };
-    checkFirstTime();
+    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    return () => {
+      disposed = true;
+      controller.abort();
+      clearTimeout(timer);
+      activeDriver?.destroy();
+    };
   }, []);
 }
 
@@ -90,12 +102,17 @@ export function useGameTutorial() {
     if (typeof window === "undefined") return;
     if (localStorage.getItem("has_seen_game_tutorial_v2")) return;
 
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let activeDriver: ReturnType<typeof driver> | undefined;
+    const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
       const data = response.ok ? await response.json() : null;
-      if (!data || data.games_played > 0) return;
+      if (disposed || !data || data.games_played > 0) return;
 
-      const timeoutId = setTimeout(() => {
+      timer = setTimeout(() => {
+        if (disposed || document.querySelector(".driver-overlay")) return;
       const hintEl = document.getElementById("tour-hint-button");
       const skipEl = document.getElementById("tour-skip-button");
       
@@ -112,7 +129,7 @@ export function useGameTutorial() {
         {
           popover: {
             title: "Speed Matters! ⚡",
-            description: "There's a timer running in the background. The faster you solve a challenge, the higher your Speed Bonus! Don't worry though—if you leave the page to check the dashboard, the timer pauses until you return.",
+            description: "There's a timer running in the background. The faster you solve a challenge, the higher your Speed Bonus! Your mission deadline keeps running when you leave the page. Saved answers remain available when you return.",
             nextBtnText: "Next",
           }
         }
@@ -134,7 +151,7 @@ export function useGameTutorial() {
           element: "#tour-skip-button",
           popover: {
             title: "Skip if needed ⏭️",
-            description: "If a question is too hard, you can skip it. Be careful though, skipping will cost you 50 XP!",
+            description: "If a question is too hard, you can skip it. Be careful though, check the displayed skip cost before confirming.",
             side: "top",
             align: "center"
           }
@@ -152,14 +169,21 @@ export function useGameTutorial() {
         steps,
         onDestroyStarted: () => {
           driverObj.destroy();
-          localStorage.setItem("has_seen_game_tutorial_v2", "true");
+          if (!disposed) localStorage.setItem("has_seen_game_tutorial_v2", "true");
         }
       });
       
-      driverObj.drive();
+      activeDriver = driverObj;
+        driverObj.drive();
       }, 1500);
     };
-    checkFirstTime();
+    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    return () => {
+      disposed = true;
+      controller.abort();
+      clearTimeout(timer);
+      activeDriver?.destroy();
+    };
   }, []);
 }
 
@@ -168,19 +192,24 @@ export function useProfileTutorial() {
     if (typeof window === "undefined") return;
     if (localStorage.getItem("has_seen_profile_tutorial_v2")) return;
 
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let activeDriver: ReturnType<typeof driver> | undefined;
+    const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
       const data = response.ok ? await response.json() : null;
-      if (!data || data.games_played > 0) return;
+      if (disposed || !data || data.games_played > 0) return;
 
-      const timeoutId = setTimeout(() => {
+      timer = setTimeout(() => {
+        if (disposed || document.querySelector(".driver-overlay")) return;
         const el = document.getElementById("tour-profile-stats");
         if (!el) return;
 
         const driverObj = driver({
           showProgress: true,
           animate: true,
-          allowClose: false,
+          allowClose: true,
           showButtons: ['next', 'previous', 'close'],
           doneBtnText: 'Finish Tour',
           nextBtnText: 'Next',
@@ -214,14 +243,21 @@ export function useProfileTutorial() {
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            localStorage.setItem("has_seen_profile_tutorial_v2", "true");
+            if (!disposed) localStorage.setItem("has_seen_profile_tutorial_v2", "true");
           }
         });
         
+        activeDriver = driverObj;
         driverObj.drive();
       }, 1500);
     };
-    checkFirstTime();
+    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    return () => {
+      disposed = true;
+      controller.abort();
+      clearTimeout(timer);
+      activeDriver?.destroy();
+    };
   }, []);
 }
 
@@ -230,19 +266,24 @@ export function useLeaderboardTutorial() {
     if (typeof window === "undefined") return;
     if (localStorage.getItem("has_seen_leaderboard_tutorial_v2")) return;
 
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let activeDriver: ReturnType<typeof driver> | undefined;
+    const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
       const data = response.ok ? await response.json() : null;
-      if (!data || data.games_played > 0) return;
+      if (disposed || !data || data.games_played > 0) return;
 
-      const timeoutId = setTimeout(() => {
+      timer = setTimeout(() => {
+        if (disposed || document.querySelector(".driver-overlay")) return;
         const el = document.getElementById("tour-leaderboard-players");
         if (!el) return;
 
         const driverObj = driver({
           showProgress: true,
           animate: true,
-          allowClose: false,
+          allowClose: true,
           showButtons: ['next', 'previous', 'close'],
           doneBtnText: 'Finish Tour',
           nextBtnText: 'Next',
@@ -267,14 +308,21 @@ export function useLeaderboardTutorial() {
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            localStorage.setItem("has_seen_leaderboard_tutorial_v2", "true");
+            if (!disposed) localStorage.setItem("has_seen_leaderboard_tutorial_v2", "true");
           }
         });
         
+        activeDriver = driverObj;
         driverObj.drive();
       }, 1500);
     };
-    checkFirstTime();
+    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    return () => {
+      disposed = true;
+      controller.abort();
+      clearTimeout(timer);
+      activeDriver?.destroy();
+    };
   }, []);
 }
 
@@ -283,19 +331,24 @@ export function useChallengeTutorial() {
     if (typeof window === "undefined") return;
     if (localStorage.getItem("has_seen_challenge_tutorial_v2")) return;
 
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let activeDriver: ReturnType<typeof driver> | undefined;
+    const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store" });
+      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
       const data = response.ok ? await response.json() : null;
-      if (!data || data.games_played > 0) return;
+      if (disposed || !data || data.games_played > 0) return;
 
-      const timeoutId = setTimeout(() => {
+      timer = setTimeout(() => {
+        if (disposed || document.querySelector(".driver-overlay")) return;
         const el = document.getElementById("tour-challenge-menu");
         if (!el) return;
 
         const driverObj = driver({
           showProgress: true,
           animate: true,
-          allowClose: false,
+          allowClose: true,
           showButtons: ['next', 'previous', 'close'],
           doneBtnText: 'Finish Tour',
           nextBtnText: 'Next',
@@ -313,14 +366,21 @@ export function useChallengeTutorial() {
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            localStorage.setItem("has_seen_challenge_tutorial_v2", "true");
+            if (!disposed) localStorage.setItem("has_seen_challenge_tutorial_v2", "true");
           }
         });
         
+        activeDriver = driverObj;
         driverObj.drive();
       }, 1500);
     };
-    checkFirstTime();
+    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    return () => {
+      disposed = true;
+      controller.abort();
+      clearTimeout(timer);
+      activeDriver?.destroy();
+    };
   }, []);
 }
 

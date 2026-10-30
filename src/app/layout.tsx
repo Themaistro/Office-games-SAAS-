@@ -7,6 +7,9 @@ import { PresenceProvider } from "@/components/providers/PresenceProvider";
 import { getCurrentUser } from "@/lib/auth";
 import ContactsPanel from "@/components/messaging/ContactsPanel";
 import ToastProvider from "@/components/ui/ToastProvider";
+import AppearanceProvider from "@/components/providers/AppearanceProvider";
+import { cookies } from "next/headers";
+import { APPEARANCE_COOKIE, resolveAppearance } from "@/lib/appearance";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,16 +28,18 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
+  const theme = resolveAppearance((await cookies()).get(APPEARANCE_COOKIE)?.value);
   return (
     <html
       lang="en"
+      data-office-theme={theme}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col pb-16 md:pb-0">
-        <PresenceProvider>
+        <AppearanceProvider initialTheme={theme}><PresenceProvider>
           <GlobalRealtimeSync />
           <ToastProvider>{user && <ContactsPanel userId={user.id} />}{children}</ToastProvider>
-        </PresenceProvider>
+        </PresenceProvider></AppearanceProvider>
       </body>
     </html>
   );

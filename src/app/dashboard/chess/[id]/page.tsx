@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import ChessBoardClient from "./ChessBoardClient";
+import { getMatchResult } from "@/lib/match-service";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -18,9 +19,9 @@ export default async function ChessGamePage(props: { params: Promise<{ id: strin
   }
 
   const [{ rows: profiles }, { rows: games }] = await Promise.all([
-    query<any>("SELECT id, full_name, avatar_url, chess_elo FROM profiles WHERE id = $1", [user.id]),
-    query<any>(`SELECT g.*, jsonb_build_object('id', w.id, 'full_name', w.full_name, 'avatar_url', w.avatar_url, 'chess_elo', w.chess_elo) AS white,
-      jsonb_build_object('id', b.id, 'full_name', b.full_name, 'avatar_url', b.avatar_url, 'chess_elo', b.chess_elo) AS black
+    query<any>("SELECT id, full_name, avatar_url, chess_elo, lounge_lp FROM profiles WHERE id = $1", [user.id]),
+    query<any>(`SELECT g.*, jsonb_build_object('id', w.id, 'full_name', w.full_name, 'avatar_url', w.avatar_url, 'lounge_lp', w.lounge_lp, 'chess_elo', w.chess_elo) AS white,
+      jsonb_build_object('id', b.id, 'full_name', b.full_name, 'avatar_url', b.avatar_url, 'lounge_lp', b.lounge_lp, 'chess_elo', b.chess_elo) AS black
       FROM chess_games g LEFT JOIN profiles w ON w.id = g.white_player_id LEFT JOIN profiles b ON b.id = g.black_player_id WHERE g.id = $1`, [gameId]),
   ]);
   const profile = profiles[0];
@@ -77,13 +78,9 @@ export default async function ChessGamePage(props: { params: Promise<{ id: strin
     }
   }
 
+  game.result = await getMatchResult("chess", gameId);
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
-          <ArrowLeft size={16} /> Back to Lounge
-        </Link>
-      </div>
+    <div>
 
       <ChessBoardClient 
         game={game} 

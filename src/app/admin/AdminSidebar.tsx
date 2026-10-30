@@ -1,29 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { ADMIN_NAVIGATION, ADMIN_SETTINGS_LINK } from "@/lib/admin-navigation";
 import { usePathname } from "next/navigation";
 import {
   Activity, BarChart3, Brain, Building2, CircleHelp, Gift, LayoutDashboard,
   LogOut, Megaphone, Settings, ShieldCheck, Users, UserPlus,
 } from "lucide-react";
 
-const groups = [
-  { label: "Workspace", links: [
-    { name: "Overview", href: "/admin", icon: LayoutDashboard },
-    { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
-  ]},
-  { label: "People & content", links: [
-    { name: "Player roster", href: "/admin/users", icon: Users },
-    { name: "Departments", href: "/admin/departments", icon: Building2 },
-    { name: "Onboarding", href: "/admin/onboarding", icon: UserPlus },
-    { name: "Announcements", href: "/admin/announcements", icon: Megaphone },
-  ]},
-  { label: "Game operations", links: [
-    { name: "Games", href: "/admin/games", icon: Brain },
-    { name: "Questions", href: "/admin/questions", icon: CircleHelp },
-    { name: "Prizes", href: "/admin/prizes", icon: Gift },
-  ]},
-];
+const groups = ADMIN_NAVIGATION;
 
 export default function AdminSidebar({ onSignOut }: { onSignOut: () => void }) {
   const pathname = usePathname();
@@ -39,7 +24,7 @@ export default function AdminSidebar({ onSignOut }: { onSignOut: () => void }) {
           <div className="space-y-1">{group.links.map((link) => {
             const active = pathname === link.href || (link.href !== "/admin" && pathname.startsWith(`${link.href}/`));
             const Icon = link.icon;
-            return <Link key={link.href} href={link.href} className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all ${active ? "bg-primary text-primary-foreground shadow-md shadow-primary/15" : "text-muted-foreground hover:bg-primary/10 hover:text-primary"}`}>
+            return <Link key={link.href} href={link.href} aria-current={active ? "page" : undefined} className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all ${active ? "bg-primary text-primary-foreground shadow-md shadow-primary/15" : "text-muted-foreground hover:bg-primary/10 hover:text-primary"}`}>
               <Icon size={17} className={active ? "" : "opacity-75 group-hover:opacity-100"} />{link.name}
             </Link>;
           })}</div>

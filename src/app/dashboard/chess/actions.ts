@@ -5,165 +5,30 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Chess as ServerChess } from "chess.js";
 import { publishChessEvent } from "@/lib/chess-realtime";
+import { getCurrentUser } from "@/lib/auth";
+import { withTransaction } from "@/lib/db";
+import { activateMatch, settleMatch, lockedMatch, createWaitingMatch } from "@/lib/match-service";
 import { assertNoActiveMultiplayerGame } from "@/lib/game-presence";
 
-export async function createChessGame(preferredColor: "white" | "black" | "random" = "random", timeMs: number = 600000) {
-  const dbClient = await createClient();
-  const { data: { user } } = await dbClient.auth.getUser();
-
-  if (!user) throw new Error("Unauthorized");
-  await assertNoActiveMultiplayerGame(user.id);
-
-  // Check for active daily mission
-  const { data: activeMission } = await dbClient
-    .from('daily_sessions')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('is_completed', false)
-    .limit(1);
-
-  if (activeMission && activeMission.length > 0) {
-    throw new Error("You have an unfinished Daily Mission! Please complete it first.");
-  }
-
-  let whitePlayerId = null;
-  let blackPlayerId = null;
-
-  if (preferredColor === "white") {
-    whitePlayerId = user.id;
-  } else if (preferredColor === "black") {
-    blackPlayerId = user.id;
-  } else {
-    // random
-    if (Math.random() > 0.5) {
-      whitePlayerId = user.id;
-    } else {
-      blackPlayerId = user.id;
-    }
-  }
-
-  // Prevent orphaned lobbies across both games
-  const { createClient: createDbClient } = await import('@/lib/pg-client');
-  const adminClient = createDbClient();
-
-  await adminClient
-    .from("chess_games")
-    .delete()
-    .eq("status", "waiting")
-    .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`);
-
-  await adminClient
-    .from("ttt_games")
-    .delete()
-    .eq("status", "waiting")
-    .or(`x_player_id.eq.${user.id},o_player_id.eq.${user.id}`);
-
-  await adminClient
-    .from("connect_four_games")
-    .delete()
-    .eq("status", "waiting")
-    .or(`red_player_id.eq.${user.id},yellow_player_id.eq.${user.id}`);
-
-  const { data, error } = await dbClient
-    .from("chess_games")
-    .insert({
-      white_player_id: whitePlayerId,
-      black_player_id: blackPlayerId,
-      status: "waiting",
-      white_time_ms: timeMs,
-      black_time_ms: timeMs,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Failed to create chess game:", error);
-    throw new Error("Failed to create game");
-  }
-
+export async function createChessGame(preferredColor: "white" | "black" | "random" = "random", timeMs = 600000) {
+  const user = await getCurrentUser(); if (!user) throw new Error("Unauthorized");
+  if (!["white","black","random"].includes(preferredColor)) throw new Error("Invalid side");
+  const firstSeat = preferredColor === "white" || (preferredColor === "random" && Math.random() > 0.5);
+  const game = await createWaitingMatch("chess",user.id,{firstSeat,timeMs});
   revalidatePath("/dashboard");
-  redirect(`/dashboard/chess/${data.id}`);
+  redirect(`/dashboard/chess/${game.id}`);
 }
 
-export async function challengeUserToChess(targetUserId: string, timeControlMs: number = 600000) {
-  const dbClient = await createClient();
-  const { data: { user } } = await dbClient.auth.getUser();
-
-  if (!user) throw new Error("Unauthorized");
-  if (!targetUserId || targetUserId === user.id) throw new Error("Invalid challenge target");
-
-  // Check for active daily mission
-  const { data: activeMission } = await dbClient
-    .from('daily_sessions')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('is_completed', false)
-    .limit(1);
-
-  if (activeMission && activeMission.length > 0) {
-    throw new Error("You have an unfinished Daily Mission! Please complete it first.");
-  }
-
-  const { data: existingChallenge } = await dbClient.from("chess_games").select("id").eq("white_player_id", user.id).eq("black_player_id", targetUserId).eq("status", "waiting").limit(1);
-  if (existingChallenge && existingChallenge.length > 0) throw new Error("A Chess challenge is already waiting for this player.");
-
-  // Create a direct challenge — challenger is always white_player_id so the
-  // lobby widget can distinguish sender vs receiver without extra DB columns.
-  const { data, error } = await dbClient
-    .from("chess_games")
-    .insert({
-      white_player_id: user.id,       // challenger
-      black_player_id: targetUserId,  // challenged
-      status: "waiting",
-      white_time_ms: timeControlMs,
-      black_time_ms: timeControlMs,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Failed to create direct challenge:", error);
-    throw new Error("Failed to challenge user");
-  }
-
-  revalidatePath("/dashboard");
-  revalidatePath(`/profile/${targetUserId}`);
-  await dbClient.from("challenge_events").insert({ game_id: data.id, game_type: "chess", actor_id: user.id, challenger_id: user.id, challenged_id: targetUserId, event_type: "created" });
-  return { id: data.id };
+export async function challengeUserToChess(targetUserId: string, timeControlMs = 600000) {
+  const user = await getCurrentUser(); if (!user) throw new Error("Unauthorized");
+  const game = await createWaitingMatch("chess",user.id,{targetId:targetUserId,timeMs:timeControlMs});
+  revalidatePath("/dashboard"); revalidatePath(`/profile/${targetUserId}`);
+  return game;
 }
 
-export async function acceptChallenge(gameId: string) {
-  const dbClient = await createClient();
-  const { data: { user } } = await dbClient.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  await assertNoActiveMultiplayerGame(user.id);
-
-  // Check for active daily mission
-  const { data: activeMission } = await dbClient
-    .from('daily_sessions')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('is_completed', false)
-    .limit(1);
-  if (activeMission && activeMission.length > 0) {
-    throw new Error("You have an unfinished Daily Mission! Please complete it first.");
-  }
-
-  const { createClient: createDbClient } = await import('@/lib/pg-client');
-  const adminClient = createDbClient();
-
-  const { error, data } = await adminClient
-    .from("chess_games")
-    .update({ status: "in_progress", last_move_timestamp: new Date().toISOString() })
-    .eq("id", gameId)
-    .eq("black_player_id", user.id)
-    .not("white_player_id", "is", null)
-    .select();
-
-  if (error || !data || data.length === 0) throw new Error("Failed to accept challenge or not a valid challenge");
-
-  await adminClient.from("challenge_events").insert({ game_id: gameId, game_type: "chess", actor_id: user.id, event_type: "accepted" });
-
+export async function acceptChallenge(gameId: string, replaceActive = false) {
+  const user = await getCurrentUser(); if (!user) throw new Error("Unauthorized");
+  await activateMatch("chess", gameId, user.id, true, replaceActive);
   revalidatePath("/dashboard");
   redirect(`/dashboard/chess/${gameId}`);
 }
@@ -234,345 +99,80 @@ export async function cancelChessGame(gameId: string) {
 }
 
 export async function joinChessGame(gameId: string) {
-  const dbClient = await createClient();
-  const { data: { user } } = await dbClient.auth.getUser();
-
-  if (!user) throw new Error("Unauthorized");
-  await assertNoActiveMultiplayerGame(user.id);
-
-  // Check for active daily mission
-  const { data: activeMission } = await dbClient
-    .from('daily_sessions')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('is_completed', false)
-    .limit(1);
-
-  if (activeMission && activeMission.length > 0) {
-    throw new Error("You have an unfinished Daily Mission! Please complete it first.");
-  }
-
-  const { data: game, error: fetchError } = await dbClient
-    .from("chess_games")
-    .select("*")
-    .eq("id", gameId)
-    .single();
-
-  if (fetchError || !game) {
-    throw new Error("Game not found");
-  }
-
-  if (game.status !== "waiting") {
-    // If it's in progress, they might be reconnecting
-    if (game.white_player_id === user.id || game.black_player_id === user.id) {
-      redirect(`/dashboard/chess/${gameId}`);
-    }
-    throw new Error("Game is no longer available");
-  }
-
-  // Prevent joining your own game as the other player
-  if (game.white_player_id === user.id || game.black_player_id === user.id) {
-    redirect(`/dashboard/chess/${gameId}`);
-  }
-
-  // Prevent joining a direct challenge game where both players are already set
-  if (game.white_player_id && game.black_player_id) {
-    throw new Error("This game already has two players.");
-  }
-
-  // Delete any other waiting games this user might have created before joining someone else's
-  await dbClient
-    .from("chess_games")
-    .delete()
-    .eq("status", "waiting")
-    .or(`white_player_id.eq.${user.id},black_player_id.eq.${user.id}`);
-
-  const updateData: any = {
-    status: "in_progress",
-    updated_at: new Date().toISOString(),
-    last_move_timestamp: new Date().toISOString()
-  };
-
-  if (!game.white_player_id) {
-    updateData.white_player_id = user.id;
-  } else if (!game.black_player_id) {
-    updateData.black_player_id = user.id;
-  }
-
-  // Need service role to securely bypass RLS for joining
-  const { createClient: createDbClient } = await import('@/lib/pg-client');
-  const adminClient = createDbClient();
-
-  const { error: updateError, data } = await adminClient
-    .from("chess_games")
-    .update(updateData)
-    .eq("id", gameId)
-    .is(!game.white_player_id ? "white_player_id" : "black_player_id", null)
-    .select();
-
-  if (updateError || !data || data.length === 0) {
-    console.error("Failed to join game:", updateError || "Seat already taken");
-    throw new Error("Failed to join game: " + (updateError?.message || "Seat already taken"));
-  }
-
+  const user = await getCurrentUser(); if (!user) throw new Error("Unauthorized");
+  await activateMatch("chess", gameId, user.id, false);
   revalidatePath("/dashboard");
   redirect(`/dashboard/chess/${gameId}`);
 }
 
-export async function updateChessGameState(gameId: string, pgn: string, fen: string, status: string, turn: 'w' | 'b') {
-  const dbClient = await createClient();
-  const { data: { user } } = await dbClient.auth.getUser();
-  if (!user) return;
-
-  const { createClient: createDbClient } = await import('@/lib/pg-client');
-  const adminClient = createDbClient();
-
-  // Fetch current game state to calculate time securely
-  const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
-  if (!game) return;
-  
-  // Verify user is actually part of the game
-  if (game.white_player_id !== user.id && game.black_player_id !== user.id) return;
-  if (game.status !== "in_progress") return;
-
-  // Never trust client-provided board state or result. Rebuild the submitted
-  // position with chess.js and require exactly one legal move from the stored
-  // position, made by the player whose turn it is.
-  const currentChess = new ServerChess();
-  let submittedChess: ServerChess;
-  try {
-    if (game.pgn) currentChess.loadPgn(game.pgn);
-    submittedChess = new ServerChess();
-    submittedChess.loadPgn(pgn);
-    if (submittedChess.fen() !== fen || submittedChess.turn() !== turn) return;
-    const currentHistory = currentChess.history();
-    const submittedHistory = submittedChess.history();
-    if (submittedHistory.length !== currentHistory.length + 1) return;
-    if (submittedHistory.slice(0, -1).some((move, index) => move !== currentHistory[index])) return;
-    const currentTurn = currentChess.turn();
-    if ((currentTurn === 'w' && game.white_player_id !== user.id) ||
-        (currentTurn === 'b' && game.black_player_id !== user.id)) return;
-  } catch {
-    return;
-  }
-
-  const now = new Date();
-  const isFinished = submittedChess!.isCheckmate() || submittedChess!.isDraw();
-  const serverStatus = isFinished
-    ? (submittedChess!.isCheckmate() ? (turn === 'w' ? 'black_won' : 'white_won') : 'draw')
-    : 'in_progress';
-  const updatePayload: any = {
-    pgn,
-    fen,
-    status: serverStatus,
-    updated_at: now.toISOString(),
-    last_move_timestamp: now.toISOString()
-  };
-
-  // If there's a last move timestamp, deduct time from the player who just moved
-  if (game.last_move_timestamp && serverStatus === "in_progress") {
-    const elapsedMs = now.getTime() - new Date(game.last_move_timestamp).getTime();
-    
-    // If it's black's turn now, white just moved!
-    if (turn === 'b') {
-      const newWhiteTime = Math.max(0, game.white_time_ms - elapsedMs);
-      updatePayload.white_time_ms = newWhiteTime;
-      if (newWhiteTime === 0) {
-        updatePayload.status = 'black_won'; // Time out
-        updatePayload.status = 'black_won';
-      }
-    } else {
-      // White's turn now, black just moved
-      const newBlackTime = Math.max(0, game.black_time_ms - elapsedMs);
-      updatePayload.black_time_ms = newBlackTime;
-      if (newBlackTime === 0) {
-        updatePayload.status = 'white_won'; // Time out
-        updatePayload.status = 'white_won';
-      }
-    }
-  }
-
-  const { data: updatedGame, error: updateError } = await adminClient.from("chess_games").update(updatePayload)
-    .eq("id", gameId)
-    .eq("status", "in_progress")
-    .eq("pgn", game.pgn || "")
-    .select("id")
-    .maybeSingle();
-
-  if (updateError || !updatedGame) return;
-  await publishChessEvent(gameId, { type: "move", senderId: user.id, payload: { pgn, fen, status: updatePayload.status, turn, white_time_ms: updatePayload.white_time_ms, black_time_ms: updatePayload.black_time_ms, last_move_timestamp: updatePayload.last_move_timestamp } }).catch(() => undefined);
-  if (updatePayload.status !== 'in_progress') {
-    await processChessGameEnd(gameId, updatePayload.status as 'white_won' | 'black_won' | 'draw');
-  }
+export async function updateChessGameState(gameId: string, pgn: string, fen: string, _status: string, turn: 'w' | 'b') {
+  const user = await getCurrentUser(); if (!user) throw new Error("Unauthorized");
+  if (pgn.length > 200_000 || fen.length > 200) throw new Error("Invalid board");
+  const payload = await withTransaction(async client => {
+    const { rows } = await lockedMatch(client,"chess",gameId);
+    const game = rows[0];
+    if (!game || game.status !== "in_progress") throw new Error("Match is not active");
+    const chess = new ServerChess(); if (game.pgn) chess.loadPgn(game.pgn);
+    const mover = chess.turn() === "w" ? game.white_player_id : game.black_player_id;
+    if (mover !== user.id) throw new Error("Not your turn");
+    const submitted = new ServerChess(); submitted.loadPgn(pgn);
+    const history = chess.history(), incoming = submitted.history();
+    if (incoming.length !== history.length + 1 || history.some((m,i) => incoming[i] !== m) || submitted.fen() !== fen || submitted.turn() !== turn) throw new Error("Illegal move");
+    // Deadline takes priority even when the proposed move is checkmate.
+    const clockColumn = chess.turn() === "w" ? "white_time_ms" : "black_time_ms";
+    const remaining = Math.max(0, Number(game[clockColumn]) - Math.max(0, Date.now() - new Date(game.last_move_timestamp || Date.now()).getTime()));
+    const timedOut = remaining === 0;
+    const result = timedOut ? (chess.turn() === "w" ? "black_won" : "white_won") : submitted.isCheckmate() ? (turn === "w" ? "black_won" : "white_won") : submitted.isDraw() ? "draw" : "in_progress";
+    await client.query(`UPDATE chess_games SET pgn=$1,fen=$2,turn=$3,${clockColumn}=$4,last_move_timestamp=now(),updated_at=now(),draw_offered_by=NULL WHERE id=$5`, [timedOut ? game.pgn : pgn,timedOut ? game.fen : fen,timedOut ? chess.turn() : turn,remaining,gameId]);
+    if (result !== "in_progress") await settleMatch(client,"chess",game,result,timedOut ? "timeout" : submitted.isCheckmate() ? "checkmate" : "draw");
+    return { pgn: timedOut ? game.pgn : pgn, fen: timedOut ? game.fen : fen, turn: timedOut ? chess.turn() : turn, status:result, white_time_ms: clockColumn === "white_time_ms" ? remaining : game.white_time_ms, black_time_ms: clockColumn === "black_time_ms" ? remaining : game.black_time_ms, last_move_timestamp:new Date().toISOString() };
+  });
+  await publishChessEvent(gameId,{type:"move",senderId:user.id,payload}).catch(() => undefined);
+  revalidatePath(`/dashboard/chess/${gameId}`);
 }
 
 export async function declareChessTimeout(gameId: string) {
-  const { createClient: createDbClient } = await import('@/lib/pg-client');
-  const adminClient = createDbClient();
-  
-  const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
-  if (!game || game.status !== "in_progress" || !game.last_move_timestamp) return { success: false };
-
-  // Calculate if time actually ran out on the server side to prevent cheating
-  const elapsedMs = Date.now() - new Date(game.last_move_timestamp).getTime();
-  
-  // To know whose turn it is, we need to load the PGN
-  const { Chess } = await import('chess.js');
-  const chess = new Chess();
-  if (game.pgn) {
-    chess.loadPgn(game.pgn);
-  }
-  
-  const isWhiteTurn = chess.turn() === 'w';
-  
-  if (isWhiteTurn) {
-    if (elapsedMs >= game.white_time_ms) {
-      await adminClient.from("chess_games").update({ 
-        white_time_ms: 0, 
-        status: 'black_won',
-        updated_at: new Date().toISOString() 
-      }).eq("id", gameId);
-      await processChessGameEnd(gameId, 'black_won');
-      return { success: true };
-    }
-  } else {
-    if (elapsedMs >= game.black_time_ms) {
-      await adminClient.from("chess_games").update({ 
-        black_time_ms: 0, 
-        status: 'white_won',
-        updated_at: new Date().toISOString() 
-      }).eq("id", gameId);
-      await processChessGameEnd(gameId, 'white_won');
-      return { success: true };
-    }
-  }
-  
-  return { success: false };
+  const user = await getCurrentUser(); if (!user) throw new Error("Unauthorized");
+  const result = await withTransaction(async client => {
+    const {rows} = await lockedMatch(client,"chess",gameId);
+    const game=rows[0];
+    if (!game || ![game.white_player_id,game.black_player_id].includes(user.id) || game.status !== "in_progress") return null;
+    const chess=new ServerChess(); if(game.pgn) chess.loadPgn(game.pgn);
+    const white=chess.turn()==="w", column=white?"white_time_ms":"black_time_ms";
+    if (!game.last_move_timestamp || Date.now()-new Date(game.last_move_timestamp).getTime()<Number(game[column])) return null;
+    const status=white?"black_won":"white_won";
+    await client.query(`UPDATE chess_games SET ${column}=0 WHERE id=$1`,[gameId]);
+    await settleMatch(client,"chess",game,status,"timeout");
+    return status;
+  });
+  if(result) await publishChessEvent(gameId,{type:"game_finished",payload:{status:result}}).catch(() => undefined);
+  return {success:Boolean(result)};
 }
 
 export async function resignChessGame(gameId: string) {
-  try {
-    const dbClient = await createClient();
-    const { data: { user } } = await dbClient.auth.getUser();
-    if (!user) return { success: false, error: "Unauthorized" };
-
-    const { createClient: createDbClient } = await import('@/lib/pg-client');
-    const adminClient = createDbClient();
-
-    const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
-    if (!game) return { success: false, error: "Game not found" };
-
-    let result: 'white_won' | 'black_won' | 'draw';
-    if (game.white_player_id === user.id) {
-      result = 'black_won';
-    } else if (game.black_player_id === user.id) {
-      result = 'white_won';
-    } else {
-      return { success: false, error: "Spectators can't resign" };
-    }
-
-    await processChessGameEnd(gameId, result);
-    return { success: true };
-  } catch (error: any) {
-    console.error("Error resigning game:", error);
-    return { success: false, error: error.message };
-  }
-}
-
-export async function drawChessGame(gameId: string) {
-  try {
-    const dbClient = await createClient();
-    const { data: { user } } = await dbClient.auth.getUser();
-    if (!user) return { success: false, error: "Unauthorized" };
-
-    const { createClient: createDbClient } = await import('@/lib/pg-client');
-    const adminClient = createDbClient();
-
-    const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
-    if (!game) return { success: false, error: "Game not found" };
-    
-    if (game.white_player_id !== user.id && game.black_player_id !== user.id) {
-      return { success: false, error: "You are not a player in this game" };
-    }
-
-    await processChessGameEnd(gameId, 'draw');
-    return { success: true };
-  } catch (error: any) {
-    console.error("Error drawing game:", error);
-    return { success: false, error: error.message };
-  }
-}
-
-export async function processChessGameEnd(gameId: string, result: 'white_won' | 'black_won' | 'draw') {
-  const dbClient = await createClient();
-  
-  // Need service role to securely update elos
-  const { createClient: createDbClient } = await import('@/lib/pg-client');
-  const adminClient = createDbClient();
-  
-  const { data: game } = await adminClient.from("chess_games").select("*").eq("id", gameId).single();
-  if (!game || game.status !== 'in_progress') return; // Already processed or not started
-
-  const { data: endedGame, error: endError } = await adminClient
-    .from("chess_games")
-    .update({ status: result, winner_id: result === "white_won" ? game.white_player_id : result === "black_won" ? game.black_player_id : null, updated_at: new Date().toISOString() })
-    .eq("id", gameId)
-    .eq("status", "in_progress")
-    .select("id");
-
-  if (endError || !endedGame || endedGame.length === 0) return;
-  await publishChessEvent(gameId, { type: "game_finished", payload: { status: result, winner_id: result === "white_won" ? game.white_player_id : result === "black_won" ? game.black_player_id : null } }).catch(() => undefined);
-
-  await adminClient.from("challenge_events").insert({ game_id: gameId, game_type: "chess", actor_id: game.white_player_id, challenger_id: game.white_player_id, challenged_id: game.black_player_id, event_type: "completed" });
-
-  // Elo calculation
-  if (!game.white_player_id || !game.black_player_id) return;
-
-  const { data: whiteProfile } = await adminClient.from("profiles").select("chess_elo, full_name").eq("id", game.white_player_id).single();
-  const { data: blackProfile } = await adminClient.from("profiles").select("chess_elo, full_name").eq("id", game.black_player_id).single();
-
-  const R1 = whiteProfile?.chess_elo || 1200;
-  const R2 = blackProfile?.chess_elo || 1200;
-
-  const E1 = 1 / (1 + Math.pow(10, (R2 - R1) / 400));
-  const E2 = 1 / (1 + Math.pow(10, (R1 - R2) / 400));
-
-  let S1 = 0.5, S2 = 0.5;
-  if (result === 'white_won') { S1 = 1; S2 = 0; }
-  else if (result === 'black_won') { S1 = 0; S2 = 1; }
-
-  const K = 32;
-  const newR1 = Math.round(R1 + K * (S1 - E1));
-  const newR2 = Math.round(R2 + K * (S2 - E2));
-
-  await adminClient.from("profiles").update({ chess_elo: newR1 }).eq("id", game.white_player_id);
-  await adminClient.from("profiles").update({ chess_elo: newR2 }).eq("id", game.black_player_id);
-  
-  let winnerId = null;
-  let description = "";
-  if (result === 'white_won') {
-    winnerId = game.white_player_id;
-    const loserName = blackProfile?.full_name || "Unknown";
-    description = `won a chess match against ${loserName}!`;
-  } else if (result === 'black_won') {
-    winnerId = game.black_player_id;
-    const loserName = whiteProfile?.full_name || "Unknown";
-    description = `won a chess match against ${loserName}!`;
-  } else {
-    // Draw
-    const opponentName = blackProfile?.full_name || "Unknown";
-    description = `drew a chess match against ${opponentName}.`;
-  }
-  
-  // Create two events so both profiles show activity, or just one global one. 
-  // For a global feed, one event is fine. We will attribute it to the winner if there is one, or white if draw.
-  const feedUserId = winnerId || game.white_player_id;
-  
-  await adminClient.from("activity_feed").insert({
-    user_id: feedUserId,
-    type: "chess",
-    description: description,
-    metadata: { game_id: gameId, result: result }
+  const user=await getCurrentUser(); if(!user) return {success:false,error:"Unauthorized"};
+  await withTransaction(async client=>{
+    const {rows}=await lockedMatch(client,"chess",gameId);
+    const game=rows[0]; if(!game || ![game.white_player_id,game.black_player_id].includes(user.id)) throw new Error("Not a player");
+    if(game.status!=="in_progress") return;
+    await settleMatch(client,"chess",game,user.id===game.white_player_id?"black_won":"white_won","resignation");
   });
+  await publishChessEvent(gameId,{type:"game_finished"}).catch(()=>undefined);
+  revalidatePath(`/dashboard/chess/${gameId}`);
+  return {success:true};
+}
+
+// Calling once offers a draw; only the other player can accept it.
+export async function drawChessGame(gameId: string) {
+  const user=await getCurrentUser(); if(!user) return {success:false,error:"Unauthorized"};
+  const accepted=await withTransaction(async client=>{
+    const {rows}=await lockedMatch(client,"chess",gameId);
+    const game=rows[0]; if(!game || game.status!=="in_progress" || ![game.white_player_id,game.black_player_id].includes(user.id)) throw new Error("Match is unavailable");
+    if(game.draw_offered_by && game.draw_offered_by!==user.id) { await settleMatch(client,"chess",game,"draw","agreement"); return true; }
+    await client.query("UPDATE chess_games SET draw_offered_by=$1,updated_at=now() WHERE id=$2",[user.id,gameId]);
+    return false;
+  });
+  await publishChessEvent(gameId,{type:accepted?"game_finished":"offer_draw",senderId:user.id,payload:{status:accepted?"draw":"in_progress"}}).catch(()=>undefined);
+  return {success:true,offered:!accepted};
 }
 

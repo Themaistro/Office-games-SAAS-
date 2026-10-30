@@ -3,7 +3,6 @@ import { Brain } from "lucide-react";
 import Link from "next/link";
 import BouncingBackground from "@/components/BouncingBackground";
 import PasswordInput from "@/components/PasswordInput";
-import SSOButtons from "@/components/SSOButtons";
 
 export default async function LoginPage({
   searchParams,
@@ -12,9 +11,6 @@ export default async function LoginPage({
 }) {
   const resolvedParams = await searchParams;
   
-  // Keep the public login page independent from optional database statistics.
-  // Authentication itself is handled by the server action below.
-  const playersCount: number = 0;
   
   return (
     <div className="flex min-h-screen bg-background relative overflow-hidden">
@@ -47,7 +43,7 @@ export default async function LoginPage({
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <span className="text-xs font-semibold text-white/90">
-              {playersCount.toLocaleString()} {playersCount === 1 ? 'player registered' : 'players registered'}
+              Your team’s playground
             </span>
           </div>
         </div>
@@ -133,18 +129,6 @@ export default async function LoginPage({
               </button>
             </div>
             
-            {/* SSO Separator */}
-            <div className="relative animate-in fade-in duration-1000 delay-500 fill-mode-both">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/60" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-background/80 px-2 text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
-
-            {/* SSO Buttons */}
-            <SSOButtons />
 
             <p className="mt-8 text-center text-sm text-muted-foreground animate-in fade-in duration-1000 delay-500 fill-mode-both">
               Don't have an account?{" "}
