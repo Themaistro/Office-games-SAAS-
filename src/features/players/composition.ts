@@ -1,4 +1,7 @@
 import "server-only";
+import { createProfileRanking } from "./application/profile-ranking";
+import * as rankingRepository from "./infrastructure/profile-read";
+export const profileRanking = createProfileRanking(rankingRepository);
 
 export * as adminUsersActionsQueries from "./infrastructure/admin-users-actions-queries";
 

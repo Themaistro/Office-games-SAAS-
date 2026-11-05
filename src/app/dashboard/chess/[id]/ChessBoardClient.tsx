@@ -1,4 +1,5 @@
 "use client";
+import { getMaterialAdvantage } from "@/features/lounge/domain/chess-presentation";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Chess, Square } from "chess.js";
@@ -28,10 +29,10 @@ import { useRouter } from "next/navigation";
 import { useVfx } from "@/hooks/useVfx";
 import {
   MatchToolbar,
-  MatchPlayer,
   MatchResult,
   MatchSpectator,
 } from "@/components/game/MatchPresentation";
+import ChessPlayerHeader from "@/components/game/chess/ChessPlayerHeader";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -161,20 +162,6 @@ export default function ChessBoardClient({
   }, [sendChessEvent]);
 
   // Material Calculation
-  const getMaterialAdvantage = (fenString: string) => {
-    const values = { p: 1, n: 3, b: 3, r: 5, q: 9 };
-    const pieces = fenString.split(" ")[0];
-    let w = 0;
-    let b = 0;
-    for (const char of pieces) {
-      if (Object.keys(values).includes(char.toLowerCase())) {
-        const val = values[char.toLowerCase() as keyof typeof values];
-        if (char === char.toUpperCase()) w += val;
-        else b += val;
-      }
-    }
-    return { white: Math.max(0, w - b), black: Math.max(0, b - w) };
-  };
   const material = getMaterialAdvantage(fen);
 
   // Move History
@@ -702,38 +689,6 @@ export default function ChessBoardClient({
     setChatInput("");
   };
 
-  const formatTime = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
-
-  const renderPlayerHeader = (color: "white" | "black") => {
-    const p = color === "white" ? game.white : game.black;
-    const time = color === "white" ? whiteTimeMs : blackTimeMs;
-    const advantage = color === "white" ? material.white : material.black;
-    const active =
-      gameStatus === "in_progress" && chess.turn() === color.charAt(0);
-    return (
-      <MatchPlayer
-        name={p?.full_name}
-        avatar={p?.avatar_url}
-        lp={p?.lounge_lp}
-        side={color === "white" ? "White" : "Black"}
-        active={active}
-        detail={`${advantage > 0 ? `Material +${advantage}` : "Even material"} · Chess rating ${p?.chess_elo ?? "—"}`}
-      >
-        <div
-          aria-label={`${color} clock`}
-          className={`match-clock ${active && time <= 60000 && time > 0 ? "match-clock-low" : ""}`}
-        >
-          {isMounted ? formatTime(time) : "--:--"}
-        </div>
-      </MatchPlayer>
-    );
-  };
-
   let derivedGameOver: { title: string; reason: string } | null = null;
   if (gameStatus === "white_won") {
     derivedGameOver = {
@@ -782,7 +737,16 @@ export default function ChessBoardClient({
         {/* Left: Chess Board */}
         <div className="min-w-0 flex flex-col gap-4">
           {/* Top Player (Opponent) */}
-          {renderPlayerHeader(playerColor === "white" ? "black" : "white")}
+          <ChessPlayerHeader
+            color={playerColor === "white" ? "black" : "white"}
+            game={game}
+            whiteTimeMs={whiteTimeMs}
+            blackTimeMs={blackTimeMs}
+            material={material}
+            gameStatus={gameStatus}
+            turn={chess.turn()}
+            mounted={isMounted}
+          />
 
           {playerColor === "spectator" && (
             <MatchSpectator count={spectators.length} />
@@ -903,7 +867,16 @@ export default function ChessBoardClient({
           </div>
 
           {/* Bottom Player (You) */}
-          {renderPlayerHeader(playerColor === "white" ? "white" : "black")}
+          <ChessPlayerHeader
+            color={playerColor === "white" ? "white" : "black"}
+            game={game}
+            whiteTimeMs={whiteTimeMs}
+            blackTimeMs={blackTimeMs}
+            material={material}
+            gameStatus={gameStatus}
+            turn={chess.turn()}
+            mounted={isMounted}
+          />
           {derivedGameOver && (
             <MatchResult
               title={derivedGameOver.title}

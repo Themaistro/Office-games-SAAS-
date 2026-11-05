@@ -1,6 +1,6 @@
 "use client";
 
-import { GameProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { useState } from "react";
 import { clsx } from "clsx";
 
@@ -8,7 +8,7 @@ export default function WordGame({
   question,
   onAnswer,
   isSubmitting,
-}: GameProps) {
+}: GameComponentPropsFor<"word">) {
   const [startTime] = useState(Date.now());
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
 

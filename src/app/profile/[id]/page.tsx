@@ -1,3 +1,5 @@
+import MissionHistoryList from "@/components/profile/MissionHistoryList";
+import { profileRanking } from "@/features/players/composition";
 import { profileRead } from "@/features/players/composition";
 import { profileRelations } from "@/features/players/composition";
 import { getCurrentUser } from "@/features/identity/public-server";
@@ -12,7 +14,6 @@ import {
   Star,
   Lock,
   Activity,
-  ChevronRight,
   Eye,
 } from "lucide-react";
 import Link from "next/link";
@@ -30,10 +31,6 @@ const {
   findProfile,
   findChessHistory,
   findTttHistory,
-  countHigherXp,
-  countEqualXpBeforeName,
-  countDepartmentHigherXp,
-  countDepartmentEqualXpBeforeName,
   findRecentMissions,
   findMissionHeatmap,
   findCompletedMissionIds,
@@ -143,44 +140,12 @@ export default async function PublicProfilePage(props: {
     borderColor = "border-orange-500/30";
   }
 
-  // Calculate Global Rank
-  let userRank = "--";
-  const { count: higherXpCount } = await countHigherXp(profile.total_xp || 0);
-
-  let tieBreakerCount = 0;
-  if (profile.full_name) {
-    const { count } = await countEqualXpBeforeName(
-      profile.total_xp || 0,
-      profile.full_name,
-    );
-    tieBreakerCount = count || 0;
-  }
-
-  if (profile.role !== "admin") {
-    userRank = ((higherXpCount || 0) + tieBreakerCount + 1).toString();
-  } else {
-    userRank = "Admin";
-  }
-
-  // Calculate Department Rank
-  let deptRank = "--";
-  if (profile.department && profile.role !== "admin") {
-    const { count: higherDeptXpCount } = await countDepartmentHigherXp(
-      profile.department,
-      profile.total_xp || 0,
-    );
-
-    let deptTieBreakerCount = 0;
-    if (profile.full_name) {
-      const { count } = await countDepartmentEqualXpBeforeName(
-        profile.department,
-        profile.total_xp || 0,
-        profile.full_name,
-      );
-      deptTieBreakerCount = count || 0;
-    }
-    deptRank = ((higherDeptXpCount || 0) + deptTieBreakerCount + 1).toString();
-  }
+  const { userRank, deptRank } = await profileRanking({
+    role: profile.role,
+    total_xp: profile.total_xp,
+    full_name: profile.full_name,
+    department: profile.department,
+  });
 
   // Fetch Mission History for Sidebar (last 10)
   const { data: recentHistory } = await findRecentMissions(profileId);
@@ -699,42 +664,7 @@ export default async function PublicProfilePage(props: {
               </h2>
               <div className="bg-card/50 backdrop-blur-md border border-border/50 rounded-3xl shadow-sm overflow-hidden flex flex-col h-full min-h-[400px]">
                 {recentHistory && recentHistory.length > 0 ? (
-                  <div className="divide-y divide-border/50 overflow-y-auto max-h-[800px]">
-                    {recentHistory.map(
-                      (
-                        session: {
-                          date: string;
-                          total_score: number;
-                          total_xp_earned: number;
-                          is_completed: boolean;
-                        },
-                        i: number,
-                      ) => (
-                        <div
-                          key={i}
-                          className="p-5 hover:bg-secondary/30 transition-colors flex items-center justify-between group cursor-default"
-                        >
-                          <div className="flex flex-col gap-1">
-                            <span className="font-bold text-foreground">
-                              {session.date}
-                            </span>
-                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              Score: {session.total_score}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold text-sm">
-                              +{session.total_xp_earned} XP
-                            </div>
-                            <ChevronRight
-                              size={16}
-                              className="text-muted-foreground/50 group-hover:text-primary transition-colors translate-x-0 group-hover:translate-x-1"
-                            />
-                          </div>
-                        </div>
-                      ),
-                    )}
-                  </div>
+                  <MissionHistoryList history={recentHistory} />
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center p-8 text-center opacity-50">
                     <Target className="w-12 h-12 text-muted-foreground mb-4" />

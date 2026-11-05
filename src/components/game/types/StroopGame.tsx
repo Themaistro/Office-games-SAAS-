@@ -1,6 +1,6 @@
 "use client";
 
-import { GameProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { Palette } from "lucide-react";
@@ -24,7 +24,7 @@ export default function StroopGame({
   question,
   onAnswer,
   isSubmitting,
-}: GameProps) {
+}: GameComponentPropsFor<"stroop">) {
   const [startTime] = useState(Date.now());
   const [wordIdx, setWordIdx] = useState(0);
   const [colorIdx, setColorIdx] = useState(0);

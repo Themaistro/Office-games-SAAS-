@@ -1,6 +1,6 @@
 "use client";
 
-import { GameProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { Brain, Lightbulb } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -9,7 +9,7 @@ export default function MemoryGame({
   onAnswer,
   isSubmitting,
   showHint,
-}: GameProps & { showHint?: boolean }) {
+}: GameComponentPropsFor<"memory">) {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [phase, setPhase] = useState<"memorize" | "recall" | "hint">(
     "memorize",

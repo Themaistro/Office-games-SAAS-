@@ -4,7 +4,7 @@ import {
   seededNumber,
   seededShuffle,
 } from "@/features/challenges/domain/challenge-seed";
-import { GameProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { clsx } from "clsx";
 import { Clock, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -14,7 +14,7 @@ export default function OddObjectGame({
   onAnswer,
   isSubmitting,
   showHint,
-}: GameProps) {
+}: GameComponentPropsFor<"odd_object">) {
   const [grid, setGrid] = useState<
     { id: number; isOdd: boolean; emoji: string; isEliminated: boolean }[]
   >([]);

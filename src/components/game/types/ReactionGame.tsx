@@ -1,6 +1,6 @@
 "use client";
 
-import { GameProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
 import { Zap } from "lucide-react";
@@ -10,7 +10,7 @@ export default function ReactionGame({
   question,
   onAnswer,
   isSubmitting,
-}: GameProps) {
+}: GameComponentPropsFor<"reaction">) {
   const [gameState, setGameState] = useState<
     "idle" | "flashing" | "go" | "early" | "done" | "timeout"
   >("idle");

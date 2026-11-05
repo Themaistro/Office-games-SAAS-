@@ -1,6 +1,6 @@
 "use client";
 
-import { GameComponentProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { useEffect, useMemo, useState } from "react";
 
 export default function UnscrambleGame({
@@ -8,7 +8,7 @@ export default function UnscrambleGame({
   onAnswer,
   isSubmitting,
   showHint,
-}: GameComponentProps) {
+}: GameComponentPropsFor<"unscramble">) {
   const scrambledWord = (question?.content?.scrambled || "") as string;
   const options = useMemo(
     () => Array.from(new Set((question?.options || []) as string[])),

@@ -1,19 +1,26 @@
 import { seededNumber, seededShuffle } from "./challenge-seed";
 import { generateSudoku } from "./sudoku";
 import { typingTimeLimit } from "./typing-rules";
+import type { QuestionContent } from "./question-content";
 
 type Challenge = {
   id: string;
   slug: string;
   difficulty: "easy" | "medium" | "hard";
-  content: Record<string, any> | null;
+  content: QuestionContent | null;
+  correctAnswer: string;
+};
+export type ValidatedChallengeResult = {
+  correct: boolean;
+  accuracy: number;
+  mistakes: number;
   correctAnswer: string;
 };
 export function validateChallenge(
   challenge: Challenge,
   answer: string,
   seconds: number,
-) {
+): ValidatedChallengeResult {
   const { slug, difficulty } = challenge,
     content = challenge.content || {},
     seed = String(content.seed || challenge.id);

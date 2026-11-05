@@ -8,6 +8,7 @@ const commands = [
   ['scripts/test-architecture.cjs'],
   ['scripts/test-platform-structure.cjs'],
   ['scripts/test-question-contracts.cjs'],
+  ['scripts/test-profile-presentation.cjs'],
   ['scripts/test-challenge-rules.cjs'],
   ['scripts/test-content-generators.cjs'],
   ['scripts/test-content-history.cjs'],

@@ -1,6 +1,6 @@
 "use client";
 
-import { GameComponentProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
 import { Copy } from "lucide-react";
@@ -90,7 +90,7 @@ export default function CardMatchGame({
   onAnswer,
   isSubmitting,
   showHint,
-}: GameComponentProps) {
+}: GameComponentPropsFor<"card_match">) {
   const difficulty = question?.difficulty || "medium";
   // Easy: 12 cards, Medium: 16 cards, Hard: 20 cards
   const initialTime =

@@ -1,7 +1,7 @@
 "use client";
 
 import { seededShuffle } from "@/features/challenges/domain/challenge-seed";
-import { GameProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { clsx } from "clsx";
 import { Clock, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,7 +11,7 @@ export default function SequenceGame({
   onAnswer,
   isSubmitting,
   showHint,
-}: GameProps & { showHint?: boolean }) {
+}: GameComponentPropsFor<"sequence">) {
   const [gameState, setGameState] = useState<"memorize" | "play">("memorize");
   const [mode, setMode] = useState<"numbers" | "letters">("numbers");
 

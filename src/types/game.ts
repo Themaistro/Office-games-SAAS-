@@ -66,25 +66,27 @@ export interface SessionQuestion {
   question: Question;
 }
 
+export interface ChallengeAnswerOptions {
+  customIsCorrect?: boolean;
+  customTimeSpent?: number;
+  isPerfect?: boolean;
+  isSkipped?: boolean;
+  dynamicCorrectAnswer?: string;
+  customScoreModifiers?: {
+    mistakes?: number;
+    customSpeedBonus?: number;
+    accuracy?: number;
+  };
+}
 export interface GameProps {
   question: Question;
-  onAnswer: (
-    answer: string,
-    options?: {
-      customIsCorrect?: boolean;
-      customTimeSpent?: number;
-      isPerfect?: boolean;
-      isSkipped?: boolean;
-      dynamicCorrectAnswer?: string;
-      customScoreModifiers?: {
-        mistakes?: number;
-        customSpeedBonus?: number;
-        accuracy?: number;
-      };
-    },
-  ) => void;
+  onAnswer: (answer: string, options?: ChallengeAnswerOptions) => void;
   isSubmitting?: boolean;
   showHint?: boolean;
 }
 
 export type GameComponentProps = GameProps;
+export type GameComponentPropsFor<T extends keyof ChallengePayloads> = Omit<
+  GameProps,
+  "question"
+> & { question: QuestionFor<T> };

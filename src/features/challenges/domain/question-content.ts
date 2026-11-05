@@ -16,15 +16,29 @@ export interface QuestionContent {
 }
 
 /** New games can require their own fields without widening every component. */
+type Metadata = Pick<
+  QuestionContent,
+  "seed" | "sourceKey" | "generated" | "isCompanyTrivia" | "companyTriviaId"
+>;
+type ChoicePayload = Metadata & Pick<QuestionContent, "question" | "text">;
 export type ChallengePayloads = {
-  trivia: QuestionContent & { question: string };
-  memory: QuestionContent & { text: string };
-  typing: QuestionContent & { text: string };
-  unscramble: QuestionContent & { scrambled: string };
-  math: QuestionContent & { target: number };
-  reaction: QuestionContent & { seed: string };
-  sequence: QuestionContent & { seed: string };
-  card_match: QuestionContent & { seed: string };
+  trivia: ChoicePayload;
+  company_trivia: ChoicePayload;
+  coding: ChoicePayload;
+  logic: ChoicePayload;
+  word: Metadata & Pick<QuestionContent, "text">;
+  missing_letters: Metadata & Pick<QuestionContent, "wordWithBlanks">;
+  memory: Metadata & Pick<QuestionContent, "text">;
+  typing: Metadata & Pick<QuestionContent, "text">;
+  unscramble: Metadata & Pick<QuestionContent, "scrambled">;
+  math: Metadata & Pick<QuestionContent, "target">;
+  mental_math: Metadata;
+  reaction: Metadata;
+  stroop: Metadata;
+  sequence: Metadata;
+  card_match: Metadata & Pick<QuestionContent, "cards">;
+  sudoku_lite: Metadata;
+  odd_object: Metadata & Pick<QuestionContent, "even" | "odd">;
 };
 
 export function parseAnswerOptions(value: unknown): string[] {

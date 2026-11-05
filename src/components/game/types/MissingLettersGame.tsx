@@ -1,6 +1,6 @@
 "use client";
 
-import { GameComponentProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { useEffect, useMemo, useState } from "react";
 
 export default function MissingLettersGame({
@@ -8,7 +8,7 @@ export default function MissingLettersGame({
   onAnswer,
   isSubmitting,
   showHint,
-}: GameComponentProps) {
+}: GameComponentPropsFor<"missing_letters">) {
   const wordWithBlanks = (question?.content?.wordWithBlanks || "") as string;
   const options = useMemo(
     () => Array.from(new Set((question?.options || []) as string[])),

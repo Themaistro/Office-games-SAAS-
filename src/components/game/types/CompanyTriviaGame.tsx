@@ -1,6 +1,6 @@
 "use client";
 
-import { GameProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { useState, useEffect, useCallback } from "react";
 import { clsx } from "clsx";
 import { Clock, Star, Sparkles } from "lucide-react";
@@ -11,7 +11,7 @@ export default function CompanyTriviaGame({
   onAnswer,
   isSubmitting,
   showHint,
-}: GameProps & { showHint?: boolean }) {
+}: GameComponentPropsFor<"company_trivia">) {
   const [showIntro, setShowIntro] = useState(true);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);

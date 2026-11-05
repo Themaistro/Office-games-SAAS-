@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { GameComponentProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { Activity, Clock } from "lucide-react";
 import { clsx } from "clsx";
 import { motion } from "framer-motion";
@@ -12,7 +12,7 @@ export default function MentalMathGame({
   onAnswer,
   isSubmitting,
   showHint,
-}: GameComponentProps) {
+}: GameComponentPropsFor<"mental_math">) {
   const [equation, setEquation] = useState("");
   const [answer, setAnswer] = useState(0);
   const [input, setInput] = useState("");

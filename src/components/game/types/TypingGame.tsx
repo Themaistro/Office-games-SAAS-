@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { GameComponentProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { Clock, Activity, Target } from "lucide-react";
 import { clsx } from "clsx";
 import { typingTimeLimit } from "@/features/challenges/domain/typing-rules";
@@ -10,7 +10,7 @@ export default function TypingGame({
   question,
   onAnswer,
   isSubmitting,
-}: GameComponentProps) {
+}: GameComponentPropsFor<"typing">) {
   const [targetSentence, setTargetSentence] = useState(
     question?.content?.text || "The quick brown fox jumps over the lazy dog.",
   );

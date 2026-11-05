@@ -1,6 +1,6 @@
 "use client";
 
-import { GameComponentProps } from "@/types/game";
+import type { GameComponentPropsFor } from "@/types/game";
 import { clsx } from "clsx";
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -12,7 +12,7 @@ export default function SudokuLiteGame({
   onAnswer,
   isSubmitting,
   showHint,
-}: GameComponentProps) {
+}: GameComponentPropsFor<"sudoku_lite">) {
   const [solution, setSolution] = useState<number[][]>([]);
   const [initialBoard, setInitialBoard] = useState<(number | null)[][]>([]);
   const [board, setBoard] = useState<(number | null)[][]>([]);
