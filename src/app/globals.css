@@ -1,4 +1,7 @@
 @import "tailwindcss";
+html {
+  scrollbar-gutter: stable;
+}
 @import "../styles/tokens.css";
 @import "../styles/layers.css";
 

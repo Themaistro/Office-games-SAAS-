@@ -47,7 +47,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col pb-16 md:pb-0">
         <AppearanceProvider initialTheme={theme}>
           <PresenceProvider enabled={Boolean(user && !admin)}>
-            <GlobalRealtimeSync />
+            <GlobalRealtimeSync userId={user && !admin ? user.id : undefined} />
             <ToastProvider>
               {user && !admin && <ContactsPanel userId={user.id} />}
               {children}

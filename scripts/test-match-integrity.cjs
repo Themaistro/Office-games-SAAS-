@@ -155,6 +155,15 @@ async function main() {
         if(cancelled)assert.equal(row,undefined);else assert.equal(row?.status,'in_progress');
       }
     });
+    await check('all board resignations return explicit results and reject spectators',async()=>{
+      const actions=[['chess','chess_games',chessActions.resignChessGame,'black_won'],['ttt','ttt_games',require('../src/app/dashboard/ttt/actions.ts').resignTttGame,'o_won'],['connect-four','connect_four_games',require('../src/app/dashboard/connect-four/actions.ts').resignConnectFourGame,'yellow_won']];
+      for(const [type,table,resign,status]of actions){
+        await closeFixtures();const game=await createWaitingMatch(type,people[0],{targetId:people[1]});games.push([table,game.id]);await activateMatch(type,game.id,people[1],true);
+        currentUser={id:people[2]};await assert.rejects(()=>resign(game.id),/Not a player/);
+        currentUser={id:people[0]};const result=await resign(game.id);assert.equal(result.status,status);assert.equal(result.reason,'resignation');const repeated=await resign(game.id);assert.equal(repeated.reason,'resignation');
+        assert.equal((await query('SELECT count(*)::int AS count FROM match_results WHERE game_id=$1',[game.id])).rows[0].count,1);
+      }
+    });
     assert.equal(chessActions.processChessGameEnd,undefined); console.log(`All ${checks} integrity checks passed.`);
   } finally {
     const ids=games.map(([,id])=>id);

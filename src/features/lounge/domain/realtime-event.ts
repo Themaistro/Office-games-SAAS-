@@ -5,6 +5,7 @@ export type MatchEvent = {
     fen?: string;
     pgn?: string;
     status?: string;
+    reason?: string;
     text?: string;
     last_move_timestamp?: string;
     white_time_ms?: number;
@@ -32,7 +33,14 @@ export function parseMatchEvent(value: unknown): MatchEvent | null {
       return null;
     const payload = { ...event.payload } as Record<string, unknown>;
     event.payload = payload;
-    for (const key of ["fen", "pgn", "status", "text", "last_move_timestamp"])
+    for (const key of [
+      "fen",
+      "pgn",
+      "status",
+      "text",
+      "reason",
+      "last_move_timestamp",
+    ])
       if (payload[key] !== undefined && typeof payload[key] !== "string")
         return null;
     for (const key of ["white_time_ms", "black_time_ms"]) {

@@ -66,6 +66,7 @@ export default async function TttGamePage({
   return (
     <div>
       <TttBoardClient
+        key={game.id}
         initialGame={game}
         currentUserId={user.id}
         matchupScore={matchupScore}

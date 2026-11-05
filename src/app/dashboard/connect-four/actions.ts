@@ -1,4 +1,5 @@
 "use server";
+import { resignMatch } from "@/features/lounge/public-server";
 import { cancelWaitingMatch } from "@/features/lounge/public-server";
 
 import { dashboardConnectFourActionsQueries } from "@/features/lounge/composition";
@@ -123,22 +124,12 @@ export async function makeConnectFourMove(gameId: string, column: number) {
 
 export async function resignConnectFourGame(gameId: string) {
   const user = await player();
-  await withTransaction(async (client) => {
-    const { rows } = await lockedMatch(client, "connect-four", gameId);
-    const game = rows[0];
-    if (!game || ![game.red_player_id, game.yellow_player_id].includes(user.id))
-      throw new Error("Not a player");
-    if (game.status !== "in_progress") return;
-    await settleMatch(
-      client,
-      "connect-four",
-      game,
-      user.id === game.red_player_id ? "yellow_won" : "red_won",
-      "resignation",
-    );
-  });
+  if (!user) throw new Error("Unauthorized");
+  const result = await resignMatch("connect-four", gameId, user.id);
   await publishGameEvent("connect-four", gameId, {
     type: "game_finished",
+    senderId: user.id,
+    payload: result,
   }).catch(() => undefined);
-  revalidatePath(`/dashboard/connect-four/${gameId}`);
+  return { ...result, success: true };
 }

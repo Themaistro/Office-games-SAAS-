@@ -1,4 +1,5 @@
 import "server-only";
+export { resignMatch } from "./infrastructure/postgres-match-service";
 export { getMatchResult } from "./infrastructure/postgres-match-service";
 export { listParties } from "./infrastructure/postgres-party-service";
 export { partySnapshot } from "./infrastructure/postgres-party-service";

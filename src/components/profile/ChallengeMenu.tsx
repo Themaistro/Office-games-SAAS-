@@ -1,4 +1,5 @@
 "use client";
+import { trackSentInvitation } from "@/lib/sent-invitation";
 
 import {
   cancelChessGame,
@@ -32,7 +33,7 @@ export default function ChallengeMenu({
   const [acceptedType, setAcceptedType] = useState<GameType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const navigatingRef = useRef<string | null>(null);
+
   useEffect(() => {
     let active = true;
     const loadPending = async () => {
@@ -47,17 +48,6 @@ export default function ChallengeMenu({
         setAcceptedType(pending[0].type);
         setPendingId(null);
         setSent(null);
-        // The recipient accepting a direct challenge starts the match for both
-        // players. Move the sender into that match immediately instead of
-        // making them discover a second "Return" action.
-        const destination = getGamePath(pending[0].type, pending[0].id);
-        if (
-          navigatingRef.current !== destination &&
-          window.location.pathname !== destination
-        ) {
-          navigatingRef.current = destination;
-          router.push(destination);
-        }
       } else if (pending[0]) {
         setPendingId(pending[0].id);
         setSent(pending[0].type);
@@ -107,6 +97,7 @@ export default function ChallengeMenu({
       }
       setSent(type);
       setPendingId(result.id);
+      trackSentInvitation(type, result.id);
       setIsOpen(false);
       setLoading(null);
     } catch (err: any) {

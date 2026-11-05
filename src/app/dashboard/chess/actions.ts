@@ -1,4 +1,5 @@
 "use server";
+import { resignMatch } from "@/features/lounge/public-server";
 import { cancelWaitingMatch } from "@/features/lounge/public-server";
 
 import {
@@ -169,29 +170,14 @@ export async function declareChessTimeout(gameId: string) {
 
 export async function resignChessGame(gameId: string) {
   const user = await getCurrentUser();
-  if (!user) return { success: false, error: "Unauthorized" };
-  await withTransaction(async (client) => {
-    const { rows } = await lockedMatch(client, "chess", gameId);
-    const game = rows[0];
-    if (
-      !game ||
-      ![game.white_player_id, game.black_player_id].includes(user.id)
-    )
-      throw new Error("Not a player");
-    if (game.status !== "in_progress") return;
-    await settleMatch(
-      client,
-      "chess",
-      game,
-      user.id === game.white_player_id ? "black_won" : "white_won",
-      "resignation",
-    );
-  });
-  await publishChessEvent(gameId, { type: "game_finished" }).catch(
-    () => undefined,
-  );
-  revalidatePath(`/dashboard/chess/${gameId}`);
-  return { success: true };
+  if (!user) throw new Error("Unauthorized");
+  const result = await resignMatch("chess", gameId, user.id);
+  await publishChessEvent(gameId, {
+    type: "game_finished",
+    senderId: user.id,
+    payload: result,
+  }).catch(() => undefined);
+  return { ...result, success: true };
 }
 
 // Calling once offers a draw; only the other player can accept it.

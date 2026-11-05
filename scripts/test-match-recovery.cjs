@@ -4,8 +4,12 @@ const {createSnapshotSync}=require('../src/features/lounge/application/snapshot-
 const {assertMatchSnapshot,isOlderSnapshot}=require('../src/features/lounge/domain/match-snapshot.ts');
 const {parseMatchEvent}=require('../src/features/lounge/domain/realtime-event.ts');
 const {remainingClock,elapsedMilliseconds}=require('../src/features/lounge/domain/match-clock.ts');
+const {acceptedSentInvitation}=require('../src/features/lounge/domain/accepted-invitation.ts');
 function deferred(){let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};}
 async function main(){
+ for(const type of ['chess','ttt','connect-four'])assert.equal(acceptedSentInvitation([{id:'rematch',type,status:'in_progress'}],new Set(['rematch'])).path,`/dashboard/${type}/rematch`);
+ assert.equal(acceptedSentInvitation([{id:'old',type:'chess',status:'in_progress'}],new Set(['new'])),null);
+ assert.equal(acceptedSentInvitation([{id:'new',type:'chess',status:'waiting'}],new Set(['new'])),null);
  let calls=0,applied=[],failed=0;const first=deferred();
  const sync=createSnapshotSync({read:()=>++calls===1?first.promise:Promise.resolve(2),apply:value=>applied.push(value),failed:()=>failed++});
  const pending=sync.refresh();const queued=sync.refresh();sync.refresh();assert.equal(calls,1);first.resolve(1);await pending;await queued;

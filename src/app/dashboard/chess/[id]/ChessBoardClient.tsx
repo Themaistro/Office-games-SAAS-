@@ -1,4 +1,5 @@
 "use client";
+import { trackSentInvitation } from "@/lib/sent-invitation";
 import { parseMatchEvent } from "@/features/lounge/domain/realtime-event";
 import { parseChessSnapshot } from "@/features/lounge/domain/match-snapshot";
 import { remainingClock as getCalculatedTime } from "@/features/lounge/domain/match-clock";
@@ -65,6 +66,11 @@ export default function ChessBoardClient({
     game.fen && game.fen !== "start" ? game.fen : chess.fen(),
   );
   const [gameStatus, setGameStatus] = useState(game.status);
+  const [matchResult, setMatchResult] = useState(game.result);
+  const [resultReason, setResultReason] = useState<string | undefined>(
+    game.result?.reason,
+  );
+  const [resigning, setResigning] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isOpponentConnected, setIsOpponentConnected] = useState(false);
   const [connectionIssue, setConnectionIssue] = useState(false);
@@ -181,7 +187,7 @@ export default function ChessBoardClient({
       setFen(chess.fen());
     }
 
-    if (game.status && game.status !== gameStatus) {
+    if (game.status) {
       setGameStatus(game.status);
     }
 
@@ -205,7 +211,7 @@ export default function ChessBoardClient({
         ),
       );
     }
-  }, [game, chess, gameStatus]);
+  }, [game, chess]);
 
   useEffect(() => {
     if (gameStatus !== "in_progress") return;
@@ -260,8 +266,7 @@ export default function ChessBoardClient({
   }, [game.id, gameStatus, fen, whiteTimeMs, blackTimeMs, chess]);
 
   useEffect(() => {
-    if (!game.id || ["white_won", "black_won", "draw"].includes(gameStatus))
-      return;
+    if (!game.id) return;
     let disposed = false;
     let pollInFlight = false;
     const controller = new AbortController();
@@ -301,10 +306,11 @@ export default function ChessBoardClient({
           if (event.event_type === "decline_draw") setDrawOfferedBy(null);
         }
         setSpectators(next.spectators || []);
+        setMatchResult(next.result);
+        if (next.result?.reason) setResultReason(next.result.reason);
         if (chess.pgn() !== requestedPosition) return;
         if (next.status !== gameStatus) {
           setGameStatus(next.status);
-          router.refresh();
         }
         if (typeof next.white_time_ms === "number")
           setWhiteTimeMs(
@@ -346,7 +352,10 @@ export default function ChessBoardClient({
     const focused = () => {
       if (document.visibilityState === "visible") void refreshSnapshot();
     };
-    const timer = window.setInterval(focused, 200);
+    const timer = window.setInterval(
+      focused,
+      ["white_won", "black_won", "draw"].includes(gameStatus) ? 2500 : 200,
+    );
     window.addEventListener("focus", focused);
     window.addEventListener("online", focused);
     document.addEventListener("visibilitychange", focused);
@@ -407,6 +416,8 @@ export default function ChessBoardClient({
       if (event.type === "decline_draw") setDrawOfferedBy(null);
       if (event.type === "game_finished" && event.payload?.status)
         setGameStatus(String(event.payload.status));
+      if (event.type === "game_finished" && event.payload?.reason)
+        setResultReason(event.payload.reason);
     };
     void channel.subscribe(handleMessage).catch(() => setConnectionIssue(true));
     return () => {
@@ -701,9 +712,22 @@ export default function ChessBoardClient({
   };
 
   const confirmResign = async () => {
+    if (resigning) return;
+    setResigning(true);
     setShowResignConfirm(false);
-    const res = await resignChessGame(game.id);
-    if (res && !res.success) toast("Failed to resign: " + res.error);
+    try {
+      const result = await resignChessGame(game.id);
+      setResultReason(result.reason);
+      setGameStatus(result.status);
+    } catch (error) {
+      toast(
+        error instanceof Error
+          ? error.message
+          : "Could not resign. Please retry.",
+      );
+    } finally {
+      setResigning(false);
+    }
   };
 
   const handleOfferDraw = async () => {
@@ -769,7 +793,7 @@ export default function ChessBoardClient({
       reason: "by Agreement or Stalemate",
     };
   }
-  if (derivedGameOver && game.result?.reason) {
+  if (derivedGameOver && resultReason) {
     const reasons: Record<string, string> = {
       checkmate: "Decided by checkmate",
       timeout: "Decided on time",
@@ -780,7 +804,7 @@ export default function ChessBoardClient({
       stalemate: "Draw by stalemate",
       draw: "Match drawn",
     };
-    derivedGameOver.reason = reasons[game.result.reason] || "Result recorded";
+    derivedGameOver.reason = reasons[resultReason] || "Result recorded";
   }
 
   return (
@@ -945,18 +969,18 @@ export default function ChessBoardClient({
               title={derivedGameOver.title}
               description={`${derivedGameOver.reason}. The final board stays open for review.`}
             >
-              {playerColor !== "spectator" && game.result && (
+              {playerColor !== "spectator" && matchResult && (
                 <span className="rounded-xl bg-card px-3 py-2 text-sm font-bold text-primary">
                   {Number(
-                    game.result.player1_id === currentUserId
-                      ? game.result.player1_lp_delta
-                      : game.result.player2_lp_delta,
+                    matchResult.player1_id === currentUserId
+                      ? matchResult.player1_lp_delta
+                      : matchResult.player2_lp_delta,
                   ) >= 0
                     ? "+"
                     : ""}
-                  {game.result.player1_id === currentUserId
-                    ? game.result.player1_lp_delta
-                    : game.result.player2_lp_delta}{" "}
+                  {matchResult.player1_id === currentUserId
+                    ? matchResult.player1_lp_delta
+                    : matchResult.player2_lp_delta}{" "}
                   Lounge LP
                 </span>
               )}
@@ -967,12 +991,13 @@ export default function ChessBoardClient({
                   onClick={async () => {
                     setRematchBusy(true);
                     try {
-                      await challengeUserToChess(
+                      const invitation = await challengeUserToChess(
                         playerColor === "white"
                           ? game.black_player_id
                           : game.white_player_id,
                         600000,
                       );
+                      trackSentInvitation("chess", invitation.id);
                       setRematchSent(true);
                       toast("Rematch invite sent.");
                     } catch (error) {
@@ -1090,6 +1115,7 @@ export default function ChessBoardClient({
               <div className="flex gap-2">
                 <button
                   onClick={handleResign}
+                  disabled={resigning}
                   className="match-button match-button-danger flex-1"
                 >
                   <Flag size={14} /> Resign match

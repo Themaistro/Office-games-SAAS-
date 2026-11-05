@@ -45,6 +45,12 @@ export function isOlderSnapshot(next: MatchIdentity, current: MatchIdentity) {
 }
 
 export type ChessSnapshot = MatchIdentity & {
+  result: {
+    reason: string;
+    player1_id: string;
+    player1_lp_delta: number;
+    player2_lp_delta: number;
+  } | null;
   pgn: string | null;
   fen: string;
   white_player_id: string | null;

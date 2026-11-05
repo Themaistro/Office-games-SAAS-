@@ -25,5 +25,11 @@ export default async function ConnectFourPage({
       game.yellow_player_id !== user.id)
   )
     redirect("/dashboard");
-  return <ConnectFourClient initialGame={game} currentUserId={user.id} />;
+  return (
+    <ConnectFourClient
+      key={game.id}
+      initialGame={game}
+      currentUserId={user.id}
+    />
+  );
 }

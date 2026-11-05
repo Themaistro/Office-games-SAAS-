@@ -1,4 +1,5 @@
 "use server";
+import { resignMatch } from "@/features/lounge/public-server";
 import { cancelWaitingMatch } from "@/features/lounge/public-server";
 
 import { dashboardTttActionsQueries } from "@/features/lounge/composition";
@@ -116,24 +117,14 @@ export async function makeTttMove(gameId: string, index: number) {
 }
 export async function resignTttGame(gameId: string) {
   const user = await player();
-  await withTransaction(async (client) => {
-    const { rows } = await lockedMatch(client, "ttt", gameId);
-    const game = rows[0];
-    if (!game || ![game.x_player_id, game.o_player_id].includes(user.id))
-      throw new Error("Not a player");
-    if (game.status !== "in_progress") return;
-    await settleMatch(
-      client,
-      "ttt",
-      game,
-      game.x_player_id === user.id ? "o_won" : "x_won",
-      "resignation",
-    );
-  });
-  await publishGameEvent("ttt", gameId, { type: "game_finished" }).catch(
-    () => undefined,
-  );
-  revalidatePath(`/dashboard/ttt/${gameId}`);
+  if (!user) throw new Error("Unauthorized");
+  const result = await resignMatch("ttt", gameId, user.id);
+  await publishGameEvent("ttt", gameId, {
+    type: "game_finished",
+    senderId: user.id,
+    payload: result,
+  }).catch(() => undefined);
+  return { ...result, success: true };
 }
 export async function createTttRematch(oldGameId: string) {
   const user = await player();

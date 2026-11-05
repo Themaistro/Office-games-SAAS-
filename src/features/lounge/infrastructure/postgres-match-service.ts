@@ -9,6 +9,40 @@ import type { PoolClient } from "pg";
 import "server-only";
 
 // All games use the same participant locks, lifecycle and rank settlement.
+export async function resignMatch(
+  type: GameType,
+  gameId: string,
+  userId: string,
+) {
+  return withTransaction(async (client) => {
+    const { rows } = await lockedMatch(client, type, gameId),
+      game = rows[0],
+      definition = GAME_REGISTRY[type];
+    if (
+      !game ||
+      !definition.playerColumns.some((column) => game[column] === userId)
+    )
+      throw new Error("Not a player");
+    if (game.status === "waiting")
+      throw new Error("This match has not started");
+    if (game.status !== "in_progress") {
+      const result = await client.query<{ reason: string }>(
+        "SELECT reason FROM match_results WHERE game_type=$1 AND game_id=$2",
+        [type, gameId],
+      );
+      return {
+        status: String(game.status),
+        reason: result.rows[0]?.reason || "completed",
+      };
+    }
+    const status =
+      game[definition.playerColumns[0]] === userId
+        ? definition.winStatuses[1]
+        : definition.winStatuses[0];
+    await settleMatch(client, type, game, status, "resignation");
+    return { status, reason: "resignation" };
+  });
+}
 export async function createWaitingMatch(
   type: GameType,
   userId: string,

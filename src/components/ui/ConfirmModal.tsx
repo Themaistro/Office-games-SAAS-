@@ -57,11 +57,13 @@ export default function ConfirmModal({
     };
     if (isOpen) {
       window.addEventListener("keydown", handleEscape);
-      dialog.current?.querySelector<HTMLElement>("button")?.focus();
+      dialog.current
+        ?.querySelector<HTMLElement>("button")
+        ?.focus({ preventScroll: true });
     }
     return () => {
       window.removeEventListener("keydown", handleEscape);
-      if (isOpen) previous?.focus();
+      if (isOpen) previous?.focus({ preventScroll: true });
     };
   }, [isOpen]);
 

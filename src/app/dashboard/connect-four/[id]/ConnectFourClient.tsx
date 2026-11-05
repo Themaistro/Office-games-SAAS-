@@ -1,4 +1,6 @@
 "use client";
+import { matchResultDescription } from "@/features/lounge/domain/match-result";
+import { trackSentInvitation } from "@/lib/sent-invitation";
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, CircleDot } from "lucide-react";
@@ -211,7 +213,10 @@ export default function ConnectFourClient({
             </p>
           </section>
           {over && (
-            <MatchResult title={status}>
+            <MatchResult
+              title={status}
+              description={matchResultDescription(ledger?.reason)}
+            >
               {me && delta !== null && (
                 <span className="text-sm font-bold text-primary">
                   {delta >= 0 ? "+" : ""}
@@ -223,9 +228,10 @@ export default function ConnectFourClient({
                   disabled={busy || rematchSent}
                   onClick={() =>
                     void action(async () => {
-                      await challengeUserToConnectFour(
+                      const invitation = await challengeUserToConnectFour(
                         me === "R" ? game.yellow_player_id : game.red_player_id,
                       );
+                      trackSentInvitation("connect-four", invitation.id);
                       setRematchSent(true);
                       toast("Rematch invite sent.");
                     })

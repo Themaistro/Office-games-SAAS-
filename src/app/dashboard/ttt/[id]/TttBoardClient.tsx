@@ -1,4 +1,6 @@
 "use client";
+import { matchResultDescription } from "@/features/lounge/domain/match-result";
+import { trackSentInvitation } from "@/lib/sent-invitation";
 
 import { useState } from "react";
 import { Circle, X } from "lucide-react";
@@ -167,7 +169,10 @@ export default function TttBoardClient({
             </p>
           </section>
           {over && (
-            <MatchResult title={status}>
+            <MatchResult
+              title={status}
+              description={matchResultDescription(ledger?.reason)}
+            >
               {me && delta !== null && (
                 <span className="text-sm font-bold text-primary">
                   {delta >= 0 ? "+" : ""}
@@ -179,7 +184,8 @@ export default function TttBoardClient({
                   disabled={busy || rematchSent}
                   onClick={() =>
                     void action(async () => {
-                      await createTttRematch(game.id);
+                      const invitationId = await createTttRematch(game.id);
+                      trackSentInvitation("ttt", invitationId);
                       setRematchSent(true);
                       toast(
                         "Rematch invite sent. Your opponent can accept or decline.",

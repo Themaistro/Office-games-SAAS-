@@ -97,6 +97,7 @@ export default async function ChessGamePage(props: {
   return (
     <div>
       <ChessBoardClient
+        key={game.id}
         game={game}
         currentUserId={user.id}
         currentUserProfile={{

@@ -11,7 +11,7 @@ if (!['localhost','127.0.0.1'].includes(base.hostname) || !['localhost','127.0.0
 const percentile = (values, p) => values[Math.max(0, Math.ceil(values.length * p) - 1)];
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL }), people = [], games = [], chessGames=[];
+  const client = new Client({ connectionString: process.env.DATABASE_URL }), people = [], games = [], chessGames=[], spectatorGames=[];
   await client.connect();
   try {
     assert.equal((await fetch(new URL('/api/health',base))).status, 200, 'Production server must be ready');
@@ -37,6 +37,15 @@ async function main() {
     const chessResponse=await fetch(new URL('/api/chess/'+fixture.id,base),{headers:headersFor(people[0])});assert.equal(chessResponse.status,200);const snapshot=parseChessSnapshot(await chessResponse.json(),fixture.id);assert.equal(snapshot.white_time_ms,0);
     const boardResponse=await fetch(new URL('/api/ttt/'+games[0],base),{headers:headersFor(people[0])});assert.equal(boardResponse.status,200);assertMatchSnapshot(await boardResponse.json(),'ttt',games[0]);
     await client.query('DELETE FROM chess_games WHERE id=$1',[fixture.id]);
+    for(const [type,table,left,right]of [['chess','chess_games','white_player_id','black_player_id'],['ttt','ttt_games','x_player_id','o_player_id'],['connect-four','connect_four_games','red_player_id','yellow_player_id']]){
+      const match=(await client.query(`INSERT INTO ${table}(${left},${right},status) VALUES($1,$2,'in_progress') RETURNING id`,[people[0].id,people[1].id])).rows[0];spectatorGames.push([table,match.id]);
+      const watched=await fetch(new URL(`/api/${type}/${match.id}`,base),{headers:headersFor(people[2])});assert.equal(watched.status,200);const snapshot=await watched.json();assert(snapshot.spectators.some(person=>person.id===people[2].id),'Spectator was not registered');
+      if(type==='chess'){const forbidden=await fetch(new URL(`/api/chess/${match.id}`,base),{method:'POST',headers:headersFor(people[2]),body:JSON.stringify({eventType:'offer_draw'})});assert.equal(forbidden.status,403,'Spectator changed an active match');}
+      await client.query(`UPDATE ${table} SET status=$2,updated_at=now() WHERE id=$1`,[match.id,type==='chess'?'white_won':type==='ttt'?'x_won':'red_won']);
+      const ended=await(await fetch(new URL(`/api/${type}/${match.id}`,base),{headers:headersFor(people[2])})).json();assert.notEqual(ended.status,'in_progress','Spectator did not receive final state');
+      if(type==='chess'){const forbidden=await fetch(new URL(`/api/chess/${match.id}`,base),{method:'POST',headers:headersFor(people[2]),body:JSON.stringify({eventType:'offer_draw'})});assert.equal(forbidden.status,403);}
+      await client.query(`DELETE FROM ${table} WHERE id=$1`,[match.id]);
+    }
     assert.equal((await fetch(new URL('/api/presence',base),{method:'POST',headers:headersFor(people[0])})).status,200);
     const sent=await fetch(new URL('/api/messages',base),{method:'POST',headers:headersFor(people[0]),body:JSON.stringify({recipientId:people[1].id,body:'Architecture QA message'})});
     assert.equal(sent.status,201);const message=await sent.json();
@@ -89,6 +98,7 @@ async function main() {
     fs.mkdirSync(path.join(root,'output'),{recursive:true});fs.writeFileSync(path.join(root,'output',process.env.LOAD_TEST_REPORT==='container-capacity.json'?'container-capacity.json':'local-capacity.json'),JSON.stringify(output,null,2));
     console.table(report); console.log('PASS lobby/privacy HTTP regressions; temporary identities and games removed on exit.');
   } finally {
+    for(const [table,id]of spectatorGames)await client.query(`DELETE FROM ${table} WHERE id=$1`,[id]);
     if(chessGames.length)await client.query('DELETE FROM chess_games WHERE id=ANY($1::uuid[])',[chessGames]);
     if(games.length) await client.query('DELETE FROM ttt_games WHERE id=ANY($1::uuid[])',[games]);
     for(const person of people) await client.query('DELETE FROM users WHERE id=$1',[person.id]);
