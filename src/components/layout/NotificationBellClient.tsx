@@ -2,7 +2,7 @@
 
 import { useInvitationActions } from "@/hooks/useInvitationActions";
 import DirectMessagePopup from "@/components/messaging/DirectMessagePopup";
-import ConfirmModal from "@/components/ui/ConfirmModal";
+import InviteSwitchConfirmation from "@/components/game/InviteSwitchConfirmation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Bell, CircleDot, Swords, X as XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -374,20 +374,12 @@ export default function NotificationBellClient({
           }}
         />
       )}
-      <ConfirmModal
-        isOpen={Boolean(challengeConfirmation)}
-        title="Accept this challenge?"
-        message={
-          challengeConfirmation?.inDailyMission
-            ? "Your Daily Mission progress will be saved, but you will leave the mission to join this match."
-            : "Accepting this challenge will resign your current live game and count as a loss."
-        }
-        confirmText="Accept challenge"
-        cancelText="Stay here"
-        isDestructive={Boolean(challengeConfirmation?.inLiveMatch)}
+      <InviteSwitchConfirmation
+        confirmation={challengeConfirmation}
         onClose={() => setChallengeConfirmation(null)}
         onConfirm={() => {
           const confirmation = challengeConfirmation;
+          setChallengeConfirmation(null);
           if (confirmation)
             void acceptChallengeNow(
               confirmation.challenge,

@@ -1,17 +1,12 @@
 "use client";
 import { matchResultDescription } from "@/features/lounge/domain/match-result";
-import { trackSentInvitation } from "@/lib/sent-invitation";
+import RematchControls from "@/components/game/RematchControls";
 
 import { useState } from "react";
 import { Circle, X } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import {
-  makeTttMove,
-  resignTttGame,
-  cancelTttGame,
-  createTttRematch,
-} from "../actions";
+import { makeTttMove, resignTttGame, cancelTttGame } from "../actions";
 import { useMatchAction } from "@/hooks/useMatchAction";
 import { useMatchSync } from "@/hooks/useMatchSync";
 import {
@@ -35,8 +30,7 @@ export default function TttBoardClient({
 }) {
   const { game, setGame, refresh, connectionIssue, pauseSync, resumeSync } =
     useMatchSync(initialGame, "ttt");
-  const [confirm, setConfirm] = useState(false),
-    [rematchSent, setRematchSent] = useState(false);
+  const [confirm, setConfirm] = useState(false);
   const reduced = useReducedMotion(),
     router = useRouter(),
     { toast } = useToast();
@@ -179,24 +173,7 @@ export default function TttBoardClient({
                   {delta} Lounge LP
                 </span>
               )}
-              {me && (
-                <button
-                  disabled={busy || rematchSent}
-                  onClick={() =>
-                    void action(async () => {
-                      const invitationId = await createTttRematch(game.id);
-                      trackSentInvitation("ttt", invitationId);
-                      setRematchSent(true);
-                      toast(
-                        "Rematch invite sent. Your opponent can accept or decline.",
-                      );
-                    })
-                  }
-                  className="match-button match-button-primary"
-                >
-                  {rematchSent ? "Invite sent" : "Invite to rematch"}
-                </button>
-              )}
+              {me && <RematchControls type="ttt" sourceId={game.id} />}
             </MatchResult>
           )}
           {me && game.status === "in_progress" && (

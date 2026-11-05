@@ -2,6 +2,7 @@
 import { resignMatch } from "@/features/lounge/public-server";
 import { cancelWaitingMatch } from "@/features/lounge/public-server";
 
+import { requestRematch } from "@/features/lounge/composition";
 import { dashboardTttActionsQueries } from "@/features/lounge/composition";
 import { ticTacToeWinner as winner } from "@/features/lounge/domain/board-rules";
 import { getCurrentUser } from "@/features/identity/public-server";
@@ -16,17 +17,8 @@ import { publishGameEvent } from "@/server/realtime/publisher";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-const { updateTttGamesForMakeTttMove, selectTttGamesForCreateTttRematch } =
-  dashboardTttActionsQueries;
+const { updateTttGamesForMakeTttMove } = dashboardTttActionsQueries;
 
-type Game = {
-  id: string;
-  x_player_id: string | null;
-  o_player_id: string | null;
-  board_state: string;
-  current_turn: "X" | "O";
-  status: string;
-};
 async function player() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
@@ -128,15 +120,5 @@ export async function resignTttGame(gameId: string) {
 }
 export async function createTttRematch(oldGameId: string) {
   const user = await player();
-  const { rows } = await selectTttGamesForCreateTttRematch<Game>([oldGameId]);
-  const old = rows[0];
-  if (!old || ![old.x_player_id, old.o_player_id].includes(user.id))
-    throw new Error("Not a player");
-  if (!["x_won", "o_won", "draw"].includes(old.status))
-    throw new Error("Finish this match first");
-  const target =
-    old.x_player_id === user.id ? old.o_player_id : old.x_player_id;
-  if (!target) throw new Error("Opponent unavailable");
-  const invitation = await challengeUserToTtt(target);
-  return invitation.id;
+  return (await requestRematch("ttt", oldGameId, user.id)).id;
 }

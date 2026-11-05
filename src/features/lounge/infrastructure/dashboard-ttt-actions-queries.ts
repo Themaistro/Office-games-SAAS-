@@ -13,9 +13,3 @@ export function updateTttGamesForMakeTttMove<
     values,
   );
 }
-
-export function selectTttGamesForCreateTttRematch<
-  T extends QueryResultRow = QueryResultRow,
->(values: unknown[] = [], executor: SqlExecutor = database) {
-  return executor.query<T>("SELECT * FROM ttt_games WHERE id=$1", values);
-}

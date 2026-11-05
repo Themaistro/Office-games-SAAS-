@@ -22,6 +22,7 @@ if (process.argv.includes('--database')) commands.push(
   ['scripts/test-database-concurrency.cjs'],
   ['scripts/test-mission-configuration.cjs'],
   ['scripts/test-match-integrity.cjs'],
+  ['scripts/test-rematches.cjs'],
   ['scripts/test-connect-four-integrity.cjs'],
   ['scripts/test-invitations.cjs'],
   ['scripts/test-parties.cjs'],

@@ -1,5 +1,5 @@
 "use client";
-import { trackSentInvitation } from "@/lib/sent-invitation";
+import RematchControls from "@/components/game/RematchControls";
 import { parseMatchEvent } from "@/features/lounge/domain/realtime-event";
 import { parseChessSnapshot } from "@/features/lounge/domain/match-snapshot";
 import { remainingClock as getCalculatedTime } from "@/features/lounge/domain/match-clock";
@@ -18,7 +18,6 @@ import {
   drawChessGame,
   declareChessTimeout,
   cancelChessGame,
-  challengeUserToChess,
 } from "../actions";
 import {
   Loader2,
@@ -112,8 +111,6 @@ export default function ChessBoardClient({
 
   // Modal State
   const [showResignConfirm, setShowResignConfirm] = useState(false);
-  const [rematchSent, setRematchSent] = useState(false);
-  const [rematchBusy, setRematchBusy] = useState(false);
 
   const [optionSquares, setOptionSquares] = useState<
     Record<string, React.CSSProperties>
@@ -985,38 +982,7 @@ export default function ChessBoardClient({
                 </span>
               )}
               {playerColor !== "spectator" && (
-                <button
-                  className="match-button match-button-primary"
-                  disabled={rematchBusy || rematchSent}
-                  onClick={async () => {
-                    setRematchBusy(true);
-                    try {
-                      const invitation = await challengeUserToChess(
-                        playerColor === "white"
-                          ? game.black_player_id
-                          : game.white_player_id,
-                        600000,
-                      );
-                      trackSentInvitation("chess", invitation.id);
-                      setRematchSent(true);
-                      toast("Rematch invite sent.");
-                    } catch (error) {
-                      toast(
-                        error instanceof Error
-                          ? error.message
-                          : "Could not send rematch",
-                      );
-                    } finally {
-                      setRematchBusy(false);
-                    }
-                  }}
-                >
-                  {rematchSent
-                    ? "Invite sent"
-                    : rematchBusy
-                      ? "Sending…"
-                      : "Rematch · 10 min"}
-                </button>
+                <RematchControls type="chess" sourceId={game.id} />
               )}
             </MatchResult>
           )}

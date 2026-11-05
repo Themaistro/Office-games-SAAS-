@@ -1,4 +1,9 @@
 import "server-only";
+export {
+  requestRematch,
+  readRematch,
+  cancelRematch,
+} from "./infrastructure/rematches";
 
 export * as apiChallengesRouteQueries from "./infrastructure/api-challenges-route-queries";
 

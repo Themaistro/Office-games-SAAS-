@@ -1,6 +1,6 @@
 "use client";
 import { matchResultDescription } from "@/features/lounge/domain/match-result";
-import { trackSentInvitation } from "@/lib/sent-invitation";
+import RematchControls from "@/components/game/RematchControls";
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowDown, CircleDot } from "lucide-react";
@@ -10,7 +10,6 @@ import {
   cancelConnectFourGame,
   makeConnectFourMove,
   resignConnectFourGame,
-  challengeUserToConnectFour,
 } from "../actions";
 import { useMatchAction } from "@/hooks/useMatchAction";
 import { useMatchSync } from "@/hooks/useMatchSync";
@@ -36,8 +35,7 @@ export default function ConnectFourClient({
     useMatchSync(initialGame, "connect-four");
   const [confirm, setConfirm] = useState(false),
     [hover, setHover] = useState<number | null>(null),
-    [last, setLast] = useState<number | null>(null),
-    [rematchSent, setRematchSent] = useState(false);
+    [last, setLast] = useState<number | null>(null);
   const previous = useRef(initialGame.board_state),
     reduced = useReducedMotion(),
     router = useRouter(),
@@ -223,24 +221,7 @@ export default function ConnectFourClient({
                   {delta} Lounge LP
                 </span>
               )}
-              {me && (
-                <button
-                  disabled={busy || rematchSent}
-                  onClick={() =>
-                    void action(async () => {
-                      const invitation = await challengeUserToConnectFour(
-                        me === "R" ? game.yellow_player_id : game.red_player_id,
-                      );
-                      trackSentInvitation("connect-four", invitation.id);
-                      setRematchSent(true);
-                      toast("Rematch invite sent.");
-                    })
-                  }
-                  className="match-button match-button-primary"
-                >
-                  {rematchSent ? "Invite sent" : "Invite to rematch"}
-                </button>
-              )}
+              {me && <RematchControls type="connect-four" sourceId={game.id} />}
             </MatchResult>
           )}
           {me && game.status === "in_progress" && (

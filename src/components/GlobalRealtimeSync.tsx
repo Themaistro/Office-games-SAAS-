@@ -1,7 +1,10 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getGameDefinition } from "@/features/lounge/domain/game-registry";
+import {
+  getGameDefinition,
+  getGamePath,
+} from "@/features/lounge/domain/game-registry";
 import { acceptedSentInvitation } from "@/features/lounge/domain/accepted-invitation";
 import { SENT_INVITATION_EVENT } from "@/lib/sent-invitation";
 
@@ -11,6 +14,13 @@ export default function GlobalRealtimeSync({ userId }: { userId?: string }) {
     if (!userId) return;
     let active = true,
       busy = false;
+    let navigating: string | null = null;
+    const open = (path: string) => {
+      if (window.location.pathname !== path && navigating !== path) {
+        navigating = path;
+        router.push(path, { scroll: false });
+      }
+    };
     const controller = new AbortController(),
       key = `office-games:sent-invitations:${userId}`;
     let tracked = new Set<string>();
@@ -82,8 +92,7 @@ export default function GlobalRealtimeSync({ userId }: { userId?: string }) {
         if (accepted) {
           tracked.delete(accepted.id);
           save();
-          if (window.location.pathname !== accepted.path)
-            router.push(accepted.path, { scroll: false });
+          open(accepted.path);
           return;
         }
         const present = new Set(rows.map((row) => row?.id));
@@ -95,8 +104,17 @@ export default function GlobalRealtimeSync({ userId }: { userId?: string }) {
       }
     };
     const sent = (event: Event) => {
-      const value = (event as CustomEvent<{ id?: string }>).detail;
+      const value = (
+        event as CustomEvent<{ id?: string; type?: string; accepted?: boolean }>
+      ).detail;
       if (value?.id) {
+        if (value.accepted && value.type && getGameDefinition(value.type)) {
+          tracked.delete(value.id);
+          save();
+          const path = getGamePath(value.type, value.id);
+          open(path);
+          return;
+        }
         tracked.add(value.id);
         save();
         void update();
