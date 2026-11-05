@@ -1,6 +1,34 @@
-export type Difficulty = 'easy' | 'medium' | 'hard';
+import type {
+  QuestionContent,
+  ChallengePayloads,
+} from "@/features/challenges/domain/question-content";
+export type Difficulty = "easy" | "medium" | "hard";
 
-export type GameTypeSlug = 'logic' | 'word' | 'memory' | 'observation' | 'speed' | 'trivia' | 'company_trivia' | 'reaction' | 'stroop' | 'sequence' | 'card_match' | 'card-match' | 'sudoku_lite' | 'sudoku-lite' | 'odd_object' | 'odd-object' | 'unscramble' | 'word-unscramble' | 'typing' | 'typing-challenge' | 'mental_math' | 'mental-math' | 'math' | 'coding';
+export type GameTypeSlug =
+  | "logic"
+  | "word"
+  | "memory"
+  | "observation"
+  | "speed"
+  | "trivia"
+  | "company_trivia"
+  | "reaction"
+  | "stroop"
+  | "sequence"
+  | "card_match"
+  | "card-match"
+  | "sudoku_lite"
+  | "sudoku-lite"
+  | "odd_object"
+  | "odd-object"
+  | "unscramble"
+  | "word-unscramble"
+  | "typing"
+  | "typing-challenge"
+  | "mental_math"
+  | "mental-math"
+  | "math"
+  | "coding";
 
 export interface GameType {
   id: string;
@@ -14,13 +42,17 @@ export interface Question {
   game_type_id: string;
   game_type: GameType;
   difficulty: Difficulty;
-  content: any; // Format depends on game type
-  options: any[]; // Usually string[]
+  content: QuestionContent;
+  options: string[];
   correct_answer: string;
   hint_options?: string[];
   explanation?: string;
   base_xp: number;
 }
+export type QuestionFor<T extends keyof ChallengePayloads> = Omit<
+  Question,
+  "content"
+> & { content: ChallengePayloads[T] };
 
 export interface SessionQuestion {
   id: string;
@@ -37,20 +69,22 @@ export interface SessionQuestion {
 export interface GameProps {
   question: Question;
   onAnswer: (
-    answer: string, 
-    optionsOrIsCorrect?: boolean | { 
-      customIsCorrect?: boolean; 
-      customTimeSpent?: number; 
+    answer: string,
+    options?: {
+      customIsCorrect?: boolean;
+      customTimeSpent?: number;
       isPerfect?: boolean;
       isSkipped?: boolean;
       dynamicCorrectAnswer?: string;
-      customScoreModifiers?: { mistakes?: number; customSpeedBonus?: number; accuracy?: number };
-    }, 
-    timeTakenSeconds?: number
+      customScoreModifiers?: {
+        mistakes?: number;
+        customSpeedBonus?: number;
+        accuracy?: number;
+      };
+    },
   ) => void;
   isSubmitting?: boolean;
   showHint?: boolean;
 }
 
 export type GameComponentProps = GameProps;
-

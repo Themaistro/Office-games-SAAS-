@@ -52,10 +52,30 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    image: daily-brain-arena:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID: ${NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
+    command: ["sh", "-c", "node scripts/migrate.cjs && node scripts/provision-company.cjs --allow-remote && node scripts/seed-content.cjs --allow-remote && if [ -n \"$$RUNTIME_DATABASE_ROLE\" ]; then node scripts/provision-runtime-role.cjs --allow-remote; fi"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${MIGRATION_DATABASE_URL:-${DATABASE_URL:-postgresql://brain_arena:change-me-local-only@postgres:5432/daily_brain_arena}}
+      OFFICE_GAMES_COMPANY_ID: ${OFFICE_GAMES_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
+      OFFICE_GAMES_COMPANY_NAME: ${OFFICE_GAMES_COMPANY_NAME:-Office Games}
+      RUNTIME_DATABASE_ROLE: ${RUNTIME_DATABASE_ROLE:-}
+      RUNTIME_DATABASE_PASSWORD: ${RUNTIME_DATABASE_PASSWORD:-}
+
   daily-brain-arena:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID: ${NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
     image: daily-brain-arena:latest
     container_name: daily-brain-arena
     restart: always
@@ -64,10 +84,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       # These are used at runtime
       - DATABASE_URL=${DATABASE_URL:-postgresql://brain_arena:change-me-local-only@postgres:5432/daily_brain_arena}
       - NODE_ENV=production
+      - OFFICE_GAMES_COMPANY_ID=${OFFICE_GAMES_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
+      - NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID=${NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
+      - ABLY_API_KEY=${ABLY_API_KEY:-}
     # If using a `.env` file, uncomment the line below:
     # env_file:
     #   - .env

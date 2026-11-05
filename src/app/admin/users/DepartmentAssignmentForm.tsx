@@ -7,7 +7,15 @@ import { useToast } from "@/components/ui/ToastProvider";
 
 type Department = { id: string; name: string };
 
-export default function DepartmentAssignmentForm({ userId, currentDepartment, departments }: { userId: string; currentDepartment?: string | null; departments: Department[] }) {
+export default function DepartmentAssignmentForm({
+  userId,
+  currentDepartment,
+  departments,
+}: {
+  userId: string;
+  currentDepartment?: string | null;
+  departments: Department[];
+}) {
   const router = useRouter();
   const [value, setValue] = useState(currentDepartment || "");
   const [saving, setSaving] = useState(false);
@@ -23,7 +31,9 @@ export default function DepartmentAssignmentForm({ userId, currentDepartment, de
       await updateUserDepartment(formData);
       router.refresh();
     } catch (error) {
-      toast(error instanceof Error ? error.message : "Unable to update department.");
+      toast(
+        error instanceof Error ? error.message : "Unable to update department.",
+      );
     } finally {
       setSaving(false);
     }
@@ -40,9 +50,17 @@ export default function DepartmentAssignmentForm({ userId, currentDepartment, de
         aria-label="Player department"
       >
         <option value="">Unassigned</option>
-        {departments.map((department) => <option key={department.id} value={department.name}>{department.name}</option>)}
+        {departments.map((department) => (
+          <option key={department.id} value={department.name}>
+            {department.name}
+          </option>
+        ))}
       </select>
-      <button type="submit" disabled={saving} className="text-xs text-primary hover:underline px-2 py-1 disabled:opacity-50">
+      <button
+        type="submit"
+        disabled={saving}
+        className="text-xs text-primary hover:underline px-2 py-1 disabled:opacity-50"
+      >
         {saving ? "Saving…" : "Save"}
       </button>
     </form>

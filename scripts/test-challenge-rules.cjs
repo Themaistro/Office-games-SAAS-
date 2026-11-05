@@ -1,8 +1,8 @@
 const fs=require('node:fs'),ts=require('typescript'),assert=require('node:assert/strict');
 require.extensions['.ts']=(module,filename)=>module._compile(ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,filename);
-const {validateChallenge}=require('../src/lib/challenge-validation.ts');
-const {generateSudoku}=require('../src/lib/sudoku.ts');
-const {seededNumber,seededShuffle}=require('../src/lib/challenge-seed.ts');
+const {validateChallenge}=require('../src/features/challenges/domain/challenge-validation.ts');
+const {generateSudoku}=require('../src/features/challenges/domain/sudoku.ts');
+const {seededNumber,seededShuffle}=require('../src/features/challenges/domain/challenge-seed.ts');
 const q=(slug,content={},difficulty='easy',correctAnswer='42')=>({id:'rule-fixture',slug,content,difficulty,correctAnswer});
 assert.equal(validateChallenge(q('logic'),'wrong',1).correct,false);
 assert.equal(validateChallenge(q('logic'),'42',1).correct,true);

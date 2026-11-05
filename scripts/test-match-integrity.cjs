@@ -14,7 +14,7 @@ const originalLoad = Module._load;
 const originalResolve = Module._resolveFilename;
 Module._load = function (name, parent, main) {
   if (name === 'server-only') return {};
-  if (name === '@/lib/auth') return { getCurrentUser: async () => currentUser };
+  if (name === '@/features/identity/infrastructure/authentication') return { getCurrentUser: async () => currentUser };
   if (name === 'next/cache') return { revalidatePath() {} };
   if (name === 'next/navigation') return { redirect(location) { throw Object.assign(new Error('REDIRECT'), { location }); } };
   return originalLoad.call(this, name, parent, main);
@@ -24,8 +24,8 @@ Module._resolveFilename = function (name, parent, ...args) {
   return originalResolve.call(this, name, parent, ...args);
 };
 require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText, filename);
-const { query, withTransaction } = require('../src/lib/db.ts');
-const { activateMatch, settleMatch, createWaitingMatch } = require('../src/lib/match-service.ts');
+const { query, withTransaction } = require('../src/server/database/connection.ts');
+const { activateMatch, settleMatch, createWaitingMatch, cancelWaitingMatch } = require('../src/features/lounge/infrastructure/postgres-match-service.ts');
 const chessActions = require('../src/app/dashboard/chess/actions.ts');
 const tttActions = require('../src/app/dashboard/ttt/actions.ts');
 const missionActions = require('../src/app/play/actions.ts');
@@ -99,7 +99,7 @@ async function main() {
       await closeFixtures();
     });
     await check('mission ownership, hints, expiry and final settlement stay authoritative',async()=>{
-      const question=(await query('SELECT id FROM questions LIMIT 1')).rows[0];
+      const question=(await query("SELECT q.id FROM questions q JOIN game_types g ON g.id=q.game_type_id WHERE g.slug IN ('logic','trivia','word') LIMIT 1")).rows[0];
       assert.ok(question,'A local question bank is required');
       const session=(await query("INSERT INTO daily_sessions(user_id,date,allowed_duration_seconds) VALUES($1,current_date,600) RETURNING id",[people[0]])).rows[0].id;
       const sq=(await query('INSERT INTO session_questions(session_id,question_id,order_index) VALUES($1,$2,0) RETURNING id',[session,question.id])).rows[0].id;
@@ -139,6 +139,21 @@ async function main() {
       assert.equal(row.white_player_id,null);assert.equal(row.black_player_id,people[0]);
       const repeated=await Promise.all([createWaitingMatch('chess',people[0],{firstSeat:false}),createWaitingMatch('chess',people[0],{firstSeat:false})]);
       assert.ok(repeated.every(item=>item.id===lobby.id),'Repeated creation reuses the same public lobby');
+    });
+    await check('all registered games cancel once and serialize cancellation against acceptance',async()=>{
+      for(const [type,table]of [['chess','chess_games'],['ttt','ttt_games'],['connect-four','connect_four_games']]){
+        await closeFixtures();
+        const first=await createWaitingMatch(type,people[0],{targetId:people[1]});games.push([table,first.id]);
+        assert.equal(await cancelWaitingMatch(type,first.id,people[2]),false,'Outsider cancelled an invitation');
+        const duplicates=await Promise.all([1,2,3].map(()=>cancelWaitingMatch(type,first.id,people[0])));
+        assert.equal(duplicates.filter(Boolean).length,1);
+        assert.equal((await query("SELECT count(*)::int AS count FROM challenge_events WHERE game_id=$1 AND event_type='cancelled'",[first.id])).rows[0].count,1);
+        const racing=await createWaitingMatch(type,people[0],{targetId:people[1]});games.push([table,racing.id]);
+        const results=await Promise.allSettled([activateMatch(type,racing.id,people[1],true),cancelWaitingMatch(type,racing.id,people[0])]);
+        const cancelled=results[1].status==='fulfilled'&&results[1].value;
+        const row=(await query(`SELECT status FROM ${table} WHERE id=$1`,[racing.id])).rows[0];
+        if(cancelled)assert.equal(row,undefined);else assert.equal(row?.status,'in_progress');
+      }
     });
     assert.equal(chessActions.processChessGameEnd,undefined); console.log(`All ${checks} integrity checks passed.`);
   } finally {

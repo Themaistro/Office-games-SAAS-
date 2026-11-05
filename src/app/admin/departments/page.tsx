@@ -1,42 +1,57 @@
-import { query } from "@/lib/db";
-import { addDepartment } from "./actions";
+import { adminDepartmentsPageQueries } from "@/features/administration/composition";
+import { requireAdminPage } from "@/features/identity/composition";
 import { Building } from "lucide-react";
+import { addDepartment } from "./actions";
 import DepartmentManager from "./DepartmentManager";
+
+const {
+  selectDepartmentsForDepartmentsManagementPage,
+  selectProfilesForDepartmentsManagementPage,
+} = adminDepartmentsPageQueries;
 
 export const dynamic = "force-dynamic";
 
 export default async function DepartmentsManagementPage() {
-  const { rows: departmentsData } = await query("SELECT * FROM departments ORDER BY sort_order ASC, name ASC");
+  await requireAdminPage();
+
+  const { rows: departmentsData } =
+    await selectDepartmentsForDepartmentsManagementPage([]);
 
   // Get player counts
-  const { rows: profiles } = await query<{ department: string | null }>("SELECT department FROM profiles");
-  
+  const { rows: profiles } = await selectProfilesForDepartmentsManagementPage<{
+    department: string | null;
+  }>([]);
+
   const departmentCounts: Record<string, number> = {};
   if (profiles) {
-    profiles.forEach(p => {
+    profiles.forEach((p) => {
       if (p.department) {
-        departmentCounts[p.department] = (departmentCounts[p.department] || 0) + 1;
+        departmentCounts[p.department] =
+          (departmentCounts[p.department] || 0) + 1;
       }
     });
   }
 
-  const departments = (departmentsData || []).map(d => ({
+  const departments = (departmentsData || []).map((d) => ({
     id: d.id,
     name: d.name,
     is_active: d.is_active,
     sort_order: d.sort_order || 0,
-    playerCount: departmentCounts[d.name] || 0
+    playerCount: departmentCounts[d.name] || 0,
   }));
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Departments</h1>
-        <p className="text-muted-foreground mt-1">Manage the list of departments available during employee registration.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          Departments
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Manage the list of departments available during employee registration.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        
         {/* Form to add a new department */}
         <div className="md:col-span-1 bg-card border border-border rounded-xl shadow-sm p-6 self-start">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -45,17 +60,22 @@ export default async function DepartmentsManagementPage() {
           </h2>
           <form action={addDepartment} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Department Name</label>
-              <input 
-                type="text" 
-                name="name" 
-                required 
+              <label className="block text-sm font-medium mb-1">
+                Department Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                required
                 className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 placeholder="e.g. Data Science"
               />
             </div>
-            
-            <button type="submit" className="w-full mt-4 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-colors">
+
+            <button
+              type="submit"
+              className="w-full mt-4 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
               Add Department
             </button>
           </form>
@@ -67,9 +87,7 @@ export default async function DepartmentsManagementPage() {
             <DepartmentManager initialDepartments={departments} />
           </div>
         </div>
-
       </div>
     </div>
   );
 }
-

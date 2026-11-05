@@ -1,15 +1,21 @@
-import { destroySession, getCurrentUser } from "@/lib/auth";
-import { query } from "@/lib/db";
+import {
+  destroySession,
+  getCurrentUser,
+} from "@/features/identity/public-server";
+import { navigationProfile } from "@/features/players/composition";
 import { redirect } from "next/navigation";
 import NavbarClient from "./NavbarClient";
 
-export default async function Navbar({ adminView = false }: { adminView?: boolean }) {
+export default async function Navbar({
+  adminView = false,
+}: {
+  adminView?: boolean;
+}) {
   const user = await getCurrentUser();
 
   let profile = null;
   if (user) {
-    const { rows } = await query("SELECT * FROM profiles WHERE id = $1", [user.id]);
-    profile = rows[0] ?? null;
+    profile = await navigationProfile(user.id);
   }
 
   const handleSignOut = async () => {
@@ -18,6 +24,12 @@ export default async function Navbar({ adminView = false }: { adminView?: boolea
     redirect("/login");
   };
 
-  return <NavbarClient user={user} profile={profile} onSignOut={handleSignOut} adminView={adminView} />;
+  return (
+    <NavbarClient
+      user={user}
+      profile={profile}
+      onSignOut={handleSignOut}
+      adminView={adminView}
+    />
+  );
 }
-

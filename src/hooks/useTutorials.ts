@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
-
+import { useEffect } from "react";
 
 export function useDashboardTutorial() {
   useEffect(() => {
@@ -15,7 +14,10 @@ export function useDashboardTutorial() {
     let activeDriver: ReturnType<typeof driver> | undefined;
     const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
+      const response = await fetch("/api/me/games-played", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
 
@@ -29,65 +31,73 @@ export function useDashboardTutorial() {
           showProgress: true,
           animate: true,
           allowClose: true,
-          showButtons: ['next', 'previous', 'close'],
-          doneBtnText: 'Finish Tour',
-          nextBtnText: 'Next',
-          prevBtnText: 'Back',
+          showButtons: ["next", "previous", "close"],
+          doneBtnText: "Finish Tour",
+          nextBtnText: "Next",
+          prevBtnText: "Back",
           steps: [
             {
               popover: {
                 title: "Welcome to Office Games! 🧠",
-                description: "Welcome! Let's take a quick tour to learn the ropes. You can skip this at any time.",
+                description:
+                  "Welcome! Let's take a quick tour to learn the ropes. You can skip this at any time.",
                 nextBtnText: "Start Tour",
-              }
+              },
             },
             {
               element: "#tour-daily-mission",
               popover: {
                 title: "Your Daily Mission 🎯",
-                description: "This is your main objective! Complete the daily mission to earn XP, level up, and keep your streak alive.",
+                description:
+                  "This is your main objective! Complete the daily mission to earn XP, level up, and keep your streak alive.",
                 side: "bottom",
-                align: "center"
-              }
+                align: "center",
+              },
             },
             {
               element: "#tour-office-lounge",
               popover: {
                 title: "The Office Lounge 🛋️",
-                description: "Want to challenge a coworker? Create a Chess or Tic-Tac-Toe lobby here. Anyone on your team can join your open games!",
+                description:
+                  "Want to challenge a coworker? Create a Chess or Tic-Tac-Toe lobby here. Anyone on your team can join your open games!",
                 side: "top",
-                align: "center"
-              }
+                align: "center",
+              },
             },
             {
               element: "#tour-leaderboard",
               popover: {
                 title: "The Leaderboard 🏆",
-                description: "Click here to see how you stack up against the rest of the company. Compete for the top spot every season!",
+                description:
+                  "Click here to see how you stack up against the rest of the company. Compete for the top spot every season!",
                 side: "bottom",
-                align: "start"
-              }
+                align: "start",
+              },
             },
             {
               element: "#tour-profile-menu",
               popover: {
                 title: "Your Profile 👤",
-                description: "Click here to customize your avatar, view your match history, and check your ELO rating.",
+                description:
+                  "Click here to customize your avatar, view your match history, and check your ELO rating.",
                 side: "bottom",
-                align: "end"
-              }
-            }
+                align: "end",
+              },
+            },
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            if (!disposed) localStorage.setItem("has_seen_dashboard_tutorial_v2", "true");
-          }
+            if (!disposed)
+              localStorage.setItem("has_seen_dashboard_tutorial_v2", "true");
+          },
         });
         activeDriver = driverObj;
         driverObj.drive();
       }, 1500);
     };
-    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    void checkFirstTime().catch(() => {
+      /* Optional tours must not interrupt the page. */
+    });
     return () => {
       disposed = true;
       controller.abort();
@@ -107,77 +117,87 @@ export function useGameTutorial() {
     let activeDriver: ReturnType<typeof driver> | undefined;
     const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
+      const response = await fetch("/api/me/games-played", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
 
       timer = setTimeout(() => {
         if (disposed || document.querySelector(".driver-overlay")) return;
-      const hintEl = document.getElementById("tour-hint-button");
-      const skipEl = document.getElementById("tour-skip-button");
-      
-      if (!hintEl && !skipEl) return;
+        const hintEl = document.getElementById("tour-hint-button");
+        const skipEl = document.getElementById("tour-skip-button");
 
-      const steps: any[] = [
-        {
-          popover: {
-            title: "Your First Daily Mission! 🎯",
-            description: "Welcome to your first mission! Let's take a quick look at the tools you have.",
-            nextBtnText: "Start Tour",
-          }
-        },
-        {
-          popover: {
-            title: "Speed Matters! ⚡",
-            description: "There's a timer running in the background. The faster you solve a challenge, the higher your Speed Bonus! Your mission deadline keeps running when you leave the page. Saved answers remain available when you return.",
-            nextBtnText: "Next",
-          }
-        }
-      ];
-      if (hintEl) {
-        steps.push({
-          element: "#tour-hint-button",
-          popover: {
-            title: "Stuck? Use a Hint! 💡",
-            description: "You get 3 hints per session. Use them if you're stuck, but remember that solving without hints grants bonus XP!",
-            side: "top",
-            align: "center"
-          }
-        });
-      }
-      
-      if (skipEl) {
-        steps.push({
-          element: "#tour-skip-button",
-          popover: {
-            title: "Skip if needed ⏭️",
-            description: "If a question is too hard, you can skip it. Be careful though, check the displayed skip cost before confirming.",
-            side: "top",
-            align: "center"
-          }
-        });
-      }
+        if (!hintEl && !skipEl) return;
 
-      const driverObj = driver({
-        showProgress: true,
-        animate: true,
-        allowClose: true,
-        showButtons: ['next', 'previous', 'close'],
-        doneBtnText: 'Finish Tour',
-        nextBtnText: 'Next',
-        prevBtnText: 'Back',
-        steps,
-        onDestroyStarted: () => {
-          driverObj.destroy();
-          if (!disposed) localStorage.setItem("has_seen_game_tutorial_v2", "true");
+        const steps: any[] = [
+          {
+            popover: {
+              title: "Your First Daily Mission! 🎯",
+              description:
+                "Welcome to your first mission! Let's take a quick look at the tools you have.",
+              nextBtnText: "Start Tour",
+            },
+          },
+          {
+            popover: {
+              title: "Speed Matters! ⚡",
+              description:
+                "There's a timer running in the background. The faster you solve a challenge, the higher your Speed Bonus! Your mission deadline keeps running when you leave the page. Saved answers remain available when you return.",
+              nextBtnText: "Next",
+            },
+          },
+        ];
+        if (hintEl) {
+          steps.push({
+            element: "#tour-hint-button",
+            popover: {
+              title: "Stuck? Use a Hint! 💡",
+              description:
+                "You get 3 hints per session. Use them if you're stuck, but remember that solving without hints grants bonus XP!",
+              side: "top",
+              align: "center",
+            },
+          });
         }
-      });
-      
-      activeDriver = driverObj;
+
+        if (skipEl) {
+          steps.push({
+            element: "#tour-skip-button",
+            popover: {
+              title: "Skip if needed ⏭️",
+              description:
+                "If a question is too hard, you can skip it. Be careful though, check the displayed skip cost before confirming.",
+              side: "top",
+              align: "center",
+            },
+          });
+        }
+
+        const driverObj = driver({
+          showProgress: true,
+          animate: true,
+          allowClose: true,
+          showButtons: ["next", "previous", "close"],
+          doneBtnText: "Finish Tour",
+          nextBtnText: "Next",
+          prevBtnText: "Back",
+          steps,
+          onDestroyStarted: () => {
+            driverObj.destroy();
+            if (!disposed)
+              localStorage.setItem("has_seen_game_tutorial_v2", "true");
+          },
+        });
+
+        activeDriver = driverObj;
         driverObj.drive();
       }, 1500);
     };
-    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    void checkFirstTime().catch(() => {
+      /* Optional tours must not interrupt the page. */
+    });
     return () => {
       disposed = true;
       controller.abort();
@@ -197,7 +217,10 @@ export function useProfileTutorial() {
     let activeDriver: ReturnType<typeof driver> | undefined;
     const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
+      const response = await fetch("/api/me/games-played", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
 
@@ -210,48 +233,54 @@ export function useProfileTutorial() {
           showProgress: true,
           animate: true,
           allowClose: true,
-          showButtons: ['next', 'previous', 'close'],
-          doneBtnText: 'Finish Tour',
-          nextBtnText: 'Next',
-          prevBtnText: 'Back',
+          showButtons: ["next", "previous", "close"],
+          doneBtnText: "Finish Tour",
+          nextBtnText: "Next",
+          prevBtnText: "Back",
           steps: [
             {
               popover: {
                 title: "Your Public Profile 👤",
-                description: "This is what other players see when they click on your name.",
+                description:
+                  "This is what other players see when they click on your name.",
                 nextBtnText: "Start Tour",
-              }
+              },
             },
             {
               element: "#tour-profile-edit",
               popover: {
                 title: "Customize Your Avatar & Division",
-                description: "Click here to pick a custom avatar and assign yourself to a Division (like Engineering or Sales) to show off on the Leaderboard!",
+                description:
+                  "Click here to pick a custom avatar and assign yourself to a Division (like Engineering or Sales) to show off on the Leaderboard!",
                 side: "bottom",
-                align: "center"
-              }
+                align: "center",
+              },
             },
             {
               element: "#tour-profile-stats",
               popover: {
                 title: "Your Statistics 📊",
-                description: "Track your Elo ratings in Chess and Tic-Tac-Toe, your total XP, and your best streak.",
+                description:
+                  "Track your Elo ratings in Chess and Tic-Tac-Toe, your total XP, and your best streak.",
                 side: "top",
-                align: "start"
-              }
-            }
+                align: "start",
+              },
+            },
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            if (!disposed) localStorage.setItem("has_seen_profile_tutorial_v2", "true");
-          }
+            if (!disposed)
+              localStorage.setItem("has_seen_profile_tutorial_v2", "true");
+          },
         });
-        
+
         activeDriver = driverObj;
         driverObj.drive();
       }, 1500);
     };
-    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    void checkFirstTime().catch(() => {
+      /* Optional tours must not interrupt the page. */
+    });
     return () => {
       disposed = true;
       controller.abort();
@@ -271,7 +300,10 @@ export function useLeaderboardTutorial() {
     let activeDriver: ReturnType<typeof driver> | undefined;
     const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
+      const response = await fetch("/api/me/games-played", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
 
@@ -284,39 +316,44 @@ export function useLeaderboardTutorial() {
           showProgress: true,
           animate: true,
           allowClose: true,
-          showButtons: ['next', 'previous', 'close'],
-          doneBtnText: 'Finish Tour',
-          nextBtnText: 'Next',
-          prevBtnText: 'Back',
+          showButtons: ["next", "previous", "close"],
+          doneBtnText: "Finish Tour",
+          nextBtnText: "Next",
+          prevBtnText: "Back",
           steps: [
             {
               popover: {
                 title: "The Leaderboard 🏆",
-                description: "Welcome to the Leaderboard! This is where you compete with the entire company.",
+                description:
+                  "Welcome to the Leaderboard! This is where you compete with the entire company.",
                 nextBtnText: "Start Tour",
-              }
+              },
             },
             {
               element: "#tour-leaderboard-players",
               popover: {
                 title: "Challenge Other Players ⚔️",
-                description: "You can click on any player's name here to view their profile. From their profile page, you can send them a direct challenge for a match of Chess or Tic-Tac-Toe!",
+                description:
+                  "You can click on any player's name here to view their profile. From their profile page, you can send them a direct challenge for a match of Chess or Tic-Tac-Toe!",
                 side: "top",
-                align: "center"
-              }
-            }
+                align: "center",
+              },
+            },
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            if (!disposed) localStorage.setItem("has_seen_leaderboard_tutorial_v2", "true");
-          }
+            if (!disposed)
+              localStorage.setItem("has_seen_leaderboard_tutorial_v2", "true");
+          },
         });
-        
+
         activeDriver = driverObj;
         driverObj.drive();
       }, 1500);
     };
-    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    void checkFirstTime().catch(() => {
+      /* Optional tours must not interrupt the page. */
+    });
     return () => {
       disposed = true;
       controller.abort();
@@ -336,7 +373,10 @@ export function useChallengeTutorial() {
     let activeDriver: ReturnType<typeof driver> | undefined;
     const controller = new AbortController();
     const checkFirstTime = async () => {
-      const response = await fetch("/api/me/games-played", { cache: "no-store", signal: controller.signal });
+      const response = await fetch("/api/me/games-played", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
 
@@ -349,32 +389,36 @@ export function useChallengeTutorial() {
           showProgress: true,
           animate: true,
           allowClose: true,
-          showButtons: ['next', 'previous', 'close'],
-          doneBtnText: 'Finish Tour',
-          nextBtnText: 'Next',
-          prevBtnText: 'Back',
+          showButtons: ["next", "previous", "close"],
+          doneBtnText: "Finish Tour",
+          nextBtnText: "Next",
+          prevBtnText: "Back",
           steps: [
             {
               element: "#tour-challenge-menu",
               popover: {
                 title: "Issue a Challenge! ⚔️",
-                description: "You've found another player's profile! Click this button to instantly send them a challenge. If they accept, you'll jump right into a match together.",
+                description:
+                  "You've found another player's profile! Click this button to instantly send them a challenge. If they accept, you'll jump right into a match together.",
                 side: "left",
-                align: "center"
-              }
-            }
+                align: "center",
+              },
+            },
           ],
           onDestroyStarted: () => {
             driverObj.destroy();
-            if (!disposed) localStorage.setItem("has_seen_challenge_tutorial_v2", "true");
-          }
+            if (!disposed)
+              localStorage.setItem("has_seen_challenge_tutorial_v2", "true");
+          },
         });
-        
+
         activeDriver = driverObj;
         driverObj.drive();
       }, 1500);
     };
-    void checkFirstTime().catch(() => { /* Optional tours must not interrupt the page. */ });
+    void checkFirstTime().catch(() => {
+      /* Optional tours must not interrupt the page. */
+    });
     return () => {
       disposed = true;
       controller.abort();
@@ -383,4 +427,3 @@ export function useChallengeTutorial() {
     };
   }, []);
 }
-

@@ -7,5 +7,11 @@
   "db/migrations/migration22_result_identity_retention.sql",
   "db/migrations/migration23_mission_legacy_unique_index.sql",
   "db/migrations/migration24_lounge_parties.sql",
-  "db/migrations/migration25_party_spectators.sql"
+  "db/migrations/migration25_party_spectators.sql",
+  "db/migrations/migration26_daily_mission_game_selection.sql",
+  "db/migrations/migration27_mission_schedule.sql",
+  "db/migrations/migration28_user_mission_rotation.sql",
+  "db/migrations/migration29_player_lookup_indexes.sql",
+  "db/migrations/migration30_company_database_identity.sql",
+  "db/migrations/migration31_default_game_catalog.sql"
 ]

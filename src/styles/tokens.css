@@ -1,0 +1,55 @@
+:root {
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
+
+  --primary: #4f46e5; /* indigo-600 */
+  --primary-foreground: #ffffff;
+
+  --secondary: #e2e8f0; /* slate-200 */
+  --secondary-foreground: #0f172a;
+
+  --accent: #8b5cf6; /* violet-500 */
+  --accent-foreground: #ffffff;
+
+  --destructive: #ef4444; /* red-500 */
+  --destructive-foreground: #ffffff;
+
+  --muted: #f1f5f9; /* slate-100 */
+  --muted-foreground: #64748b; /* slate-500 */
+
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  --border: #e2e8f0; /* slate-200 */
+
+  --radius: 0.75rem;
+}
+
+/* Root-level appearance also reaches dialogs and chat rendered in portals.
+   Do not change game pieces, answer states, or destructive-action colours. */
+:root[data-office-theme="combined"] {
+  --background: #f8f7f4;
+  --foreground: #303447;
+  --card: #fffefa;
+  --card-foreground: #303447;
+  --secondary: #e7e5ee;
+  --secondary-foreground: #303447;
+  --muted: #efeeeb;
+  --muted-foreground: #5d6475;
+  --border: #e1e0e6;
+}
+html[data-office-theme="combined"] :is(h1, h2) {
+  font-weight: 750;
+}
+html[data-office-theme="combined"] .shadow-xl {
+  box-shadow: 0 8px 24px rgb(48 52 71 / 5%);
+}
+html[data-office-theme="combined"] .shadow-2xl {
+  box-shadow: 0 10px 32px rgb(48 52 71 / 6%);
+}
+html[data-office-theme="combined"] .match-panel {
+  box-shadow: 0 4px 16px rgb(48 52 71 / 3%);
+}
+html[data-office-theme="combined"] .match-result {
+  background: color-mix(in srgb, var(--primary) 3%, var(--card));
+}

@@ -1,0 +1,15 @@
+{
+  "isolation": "one-company-per-database",
+  "owners": {
+    "companies": ["deployment_identity"],
+    "identity": ["users", "sessions", "oauth_accounts", "invitations"],
+    "players": ["profiles"],
+    "content": ["game_types", "questions", "game_content_catalog", "master_trivia_bank", "master_word_bank", "master_typing_bank", "master_odd_object_bank", "company_trivia", "trivia_review_sources"],
+    "missions": ["daily_sessions", "session_questions", "question_attempts", "question_history", "daily_mission_lineups", "daily_mission_overrides", "user_daily_mission_lineups"],
+    "lounge": ["chess_games", "ttt_games", "connect_four_games", "chess_events", "challenge_events", "game_spectators", "match_results", "lounge_rooms", "lounge_room_players", "lounge_room_rounds", "lounge_room_answers", "lounge_room_invites", "lounge_room_spectators"],
+    "social": ["direct_messages", "presence"],
+    "administration": ["departments", "teams", "system_settings", "announcements", "prizes", "seasons", "season_snapshots", "season_winners"],
+    "reporting": ["activity_feed", "leaderboards"],
+    "platform": ["schema_migrations"]
+  }
+}

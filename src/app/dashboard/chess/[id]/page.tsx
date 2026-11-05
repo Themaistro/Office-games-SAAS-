@@ -1,15 +1,23 @@
-import { getCurrentUser } from "@/lib/auth";
-import { query } from "@/lib/db";
+import { dashboardChessIdPageQueries } from "@/features/lounge/composition";
+import { getCurrentUser } from "@/features/identity/public-server";
 import { redirect } from "next/navigation";
 import ChessBoardClient from "./ChessBoardClient";
-import { getMatchResult } from "@/lib/match-service";
+import { getMatchResult } from "@/features/lounge/public-server";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+
+const {
+  selectProfilesForChessGamePage,
+  selectChessGamesForChessGamePage,
+  updateChessGamesForChessGamePage,
+} = dashboardChessIdPageQueries;
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function ChessGamePage(props: { params: Promise<{ id: string }> }) {
+export default async function ChessGamePage(props: {
+  params: Promise<{ id: string }>;
+}) {
   const params = await props.params;
   const gameId = params.id;
   const user = await getCurrentUser();
@@ -19,10 +27,8 @@ export default async function ChessGamePage(props: { params: Promise<{ id: strin
   }
 
   const [{ rows: profiles }, { rows: games }] = await Promise.all([
-    query<any>("SELECT id, full_name, avatar_url, chess_elo, lounge_lp FROM profiles WHERE id = $1", [user.id]),
-    query<any>(`SELECT g.*, jsonb_build_object('id', w.id, 'full_name', w.full_name, 'avatar_url', w.avatar_url, 'lounge_lp', w.lounge_lp, 'chess_elo', w.chess_elo) AS white,
-      jsonb_build_object('id', b.id, 'full_name', b.full_name, 'avatar_url', b.avatar_url, 'lounge_lp', b.lounge_lp, 'chess_elo', b.chess_elo) AS black
-      FROM chess_games g LEFT JOIN profiles w ON w.id = g.white_player_id LEFT JOIN profiles b ON b.id = g.black_player_id WHERE g.id = $1`, [gameId]),
+    selectProfilesForChessGamePage<any>([user.id]),
+    selectChessGamesForChessGamePage<any>([gameId]),
   ]);
   const profile = profiles[0];
   const game = games[0];
@@ -32,8 +38,13 @@ export default async function ChessGamePage(props: { params: Promise<{ id: strin
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Game Not Found</h1>
-        <p className="text-muted-foreground mb-8">This chess game doesn't exist or has been removed.</p>
-        <Link href="/dashboard" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium">
+        <p className="text-muted-foreground mb-8">
+          This chess game doesn't exist or has been removed.
+        </p>
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium"
+        >
           <ArrowLeft size={16} /> Return to Dashboard
         </Link>
       </div>
@@ -52,9 +63,9 @@ export default async function ChessGamePage(props: { params: Promise<{ id: strin
       const updateData: any = {
         status: "in_progress",
         updated_at: new Date().toISOString(),
-        last_move_timestamp: new Date().toISOString()
+        last_move_timestamp: new Date().toISOString(),
       };
-      
+
       if (!game.white_player_id) {
         updateData.white_player_id = user.id;
         playerColor = "white";
@@ -63,7 +74,11 @@ export default async function ChessGamePage(props: { params: Promise<{ id: strin
         playerColor = "black";
       }
 
-      await query("UPDATE chess_games SET status = 'in_progress', white_player_id = COALESCE(white_player_id, $1), black_player_id = COALESCE(black_player_id, $2), updated_at = now(), last_move_timestamp = now() WHERE id = $3 AND status = 'waiting'", [updateData.white_player_id ?? null, updateData.black_player_id ?? null, gameId]);
+      await updateChessGamesForChessGamePage([
+        updateData.white_player_id ?? null,
+        updateData.black_player_id ?? null,
+        gameId,
+      ]);
 
       // Update local game object so child component has the new player
       if (playerColor === "white") {
@@ -81,17 +96,16 @@ export default async function ChessGamePage(props: { params: Promise<{ id: strin
   game.result = await getMatchResult("chess", gameId);
   return (
     <div>
-
-      <ChessBoardClient 
-        game={game} 
+      <ChessBoardClient
+        game={game}
         currentUserId={user.id}
         currentUserProfile={{
-          full_name: profile?.full_name || user.email?.split('@')[0] || "Spectator",
-          avatar_url: profile?.avatar_url
+          full_name:
+            profile?.full_name || user.email?.split("@")[0] || "Spectator",
+          avatar_url: profile?.avatar_url,
         }}
-        playerColor={playerColor} 
+        playerColor={playerColor}
       />
     </div>
   );
 }
-

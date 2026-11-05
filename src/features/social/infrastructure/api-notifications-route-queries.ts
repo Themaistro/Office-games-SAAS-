@@ -1,0 +1,45 @@
+import { query } from "@/server/database/connection";
+import type { SqlExecutor } from "@/server/database/executor";
+import type { QueryResultRow } from "pg";
+import "server-only";
+
+const database: SqlExecutor = { query };
+
+export function selectDirectMessagesForGET<
+  T extends QueryResultRow = QueryResultRow,
+>(values: unknown[] = [], executor: SqlExecutor = database) {
+  return executor.query<T>(
+    `SELECT m.id::text, 'message' AS kind, m.created_at, p.full_name AS actor_name,
+            p.avatar_url AS actor_avatar, 'Message from ' || p.full_name AS title,
+            left(m.body, 120) AS description, (m.read_at IS NULL) AS unread
+       FROM direct_messages m JOIN profiles p ON p.id = m.sender_id
+      WHERE m.recipient_id = $1 ORDER BY m.created_at DESC LIMIT 50`,
+    values,
+  );
+}
+
+export function selectChallengeEventsForGET<
+  T extends QueryResultRow = QueryResultRow,
+>(values: unknown[] = [], executor: SqlExecutor = database) {
+  return executor.query<T>(
+    `SELECT e.id::text, 'challenge' AS kind, e.created_at,
+            COALESCE(p.full_name, 'A coworker') AS actor_name, p.avatar_url AS actor_avatar,
+            initcap(replace(e.event_type, '_', ' ')) || ' ' ||
+              initcap(replace(e.game_type, '-', ' ')) AS title,
+            'Game challenge activity' AS description, false AS unread
+       FROM challenge_events e
+       LEFT JOIN profiles p ON p.id = COALESCE(e.actor_id, e.challenger_id)
+      WHERE e.challenger_id = $1 OR e.challenged_id = $1
+      ORDER BY e.created_at DESC LIMIT 50`,
+    values,
+  );
+}
+
+export function selectLoungeRoomInvitesForGET<
+  T extends QueryResultRow = QueryResultRow,
+>(values: unknown[] = [], executor: SqlExecutor = database) {
+  return executor.query<T>(
+    "SELECT i.id::text,'challenge' AS kind,i.created_at,p.full_name AS actor_name,p.avatar_url AS actor_avatar,'Party invitation · '||i.status AS title,CASE WHEN r.format='trivia' THEN 'Trivia' ELSE 'Mixed Challenges' END AS description,(i.recipient_id=$1 AND i.status='pending' AND i.expires_at>now() AND r.status='waiting') AS unread FROM lounge_room_invites i JOIN lounge_rooms r ON r.id=i.room_id JOIN profiles p ON p.id=i.sender_id WHERE i.recipient_id=$1 OR i.sender_id=$1 ORDER BY i.created_at DESC LIMIT 50",
+    values,
+  );
+}

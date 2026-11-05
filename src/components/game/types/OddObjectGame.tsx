@@ -1,63 +1,91 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { GameProps } from '@/types/game';
-import { Target, Clock, Sparkles } from 'lucide-react';
-import { clsx } from 'clsx';
-import { seededNumber, seededShuffle } from '@/lib/challenge-seed';
+import {
+  seededNumber,
+  seededShuffle,
+} from "@/features/challenges/domain/challenge-seed";
+import { GameProps } from "@/types/game";
+import { clsx } from "clsx";
+import { Clock, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
-export default function OddObjectGame({ question, onAnswer, isSubmitting, showHint }: GameProps) {
-  const [grid, setGrid] = useState<{ id: number, isOdd: boolean, emoji: string, isEliminated: boolean }[]>([]);
+export default function OddObjectGame({
+  question,
+  onAnswer,
+  isSubmitting,
+  showHint,
+}: GameProps) {
+  const [grid, setGrid] = useState<
+    { id: number; isOdd: boolean; emoji: string; isEliminated: boolean }[]
+  >([]);
   const [timeLeft, setTimeLeft] = useState(15);
   const [startTime, setStartTime] = useState(Date.now());
   const [failed, setFailed] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
-  
-  const difficulty = question?.difficulty || 'medium';
-  const cols = difficulty === 'easy' ? 5 : difficulty === 'medium' ? 7 : 9;
+
+  const difficulty = question?.difficulty || "medium";
+  const cols = difficulty === "easy" ? 5 : difficulty === "medium" ? 7 : 9;
   const gridSize = cols * cols;
-  const emojiSize = cols >= 9 ? 'text-xl sm:text-3xl' : cols >= 7 ? 'text-2xl sm:text-4xl' : 'text-3xl sm:text-5xl';
+  const emojiSize =
+    cols >= 9
+      ? "text-xl sm:text-3xl"
+      : cols >= 7
+        ? "text-2xl sm:text-4xl"
+        : "text-3xl sm:text-5xl";
 
   useEffect(() => {
     const baseEmoji = question?.content?.even || "🍎";
     const oddEmoji = question?.content?.odd || "🍅";
 
     const challengeSeed = question?.content?.seed || question?.id;
-    const oddIndex = seededNumber(challengeSeed, 'odd-position', gridSize);
-    
+    const oddIndex = seededNumber(challengeSeed, "odd-position", gridSize);
+
     const newGrid = Array.from({ length: gridSize }).map((_, i) => {
       const isOdd = i === oddIndex;
-      return { 
-        id: i, 
-        isOdd, 
+      return {
+        id: i,
+        isOdd,
         emoji: isOdd ? oddEmoji : baseEmoji,
-        isEliminated: false
+        isEliminated: false,
       };
     });
-    
+
     setGrid(newGrid);
     setStartTime(Date.now());
     setTimeLeft(15);
     setFailed(false);
     setHintUsed(false);
-  }, [question, gridSize]);
+  }, [question.id, gridSize]);
 
   const useHint = useCallback(() => {
     if (hintUsed || isSubmitting || failed || grid.length === 0) return;
     setHintUsed(true);
-    
+
     // Eliminate about half of the incorrect emojis to make it much easier
-    setGrid(prev => {
-      const incorrectIdxs = prev.map((item, i) => !item.isOdd && !item.isEliminated ? i : -1).filter(i => i !== -1);
+    setGrid((prev) => {
+      const incorrectIdxs = prev
+        .map((item, i) => (!item.isOdd && !item.isEliminated ? i : -1))
+        .filter((i) => i !== -1);
       // Shuffle and take half
       const challengeSeed = question?.content?.seed || question?.id;
-      const toEliminate = seededShuffle(incorrectIdxs, challengeSeed, 'hint').slice(0, Math.floor(incorrectIdxs.length / 2));
-      
-      return prev.map((item, i) => 
-        toEliminate.includes(i) ? { ...item, isEliminated: true } : item
+      const toEliminate = seededShuffle(
+        incorrectIdxs,
+        challengeSeed,
+        "hint",
+      ).slice(0, Math.floor(incorrectIdxs.length / 2));
+
+      return prev.map((item, i) =>
+        toEliminate.includes(i) ? { ...item, isEliminated: true } : item,
       );
     });
-  }, [hintUsed, isSubmitting, failed, grid.length, question?.content?.seed, question?.id]);
+  }, [
+    hintUsed,
+    isSubmitting,
+    failed,
+    grid.length,
+    question?.content?.seed,
+    question?.id,
+  ]);
 
   useEffect(() => {
     if (showHint && !hintUsed) {
@@ -69,7 +97,7 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
     let timer: NodeJS.Timeout;
     if (!failed && !isSubmitting && timeLeft > 0) {
       timer = setInterval(() => {
-        setTimeLeft(prev => Math.max(0, prev - 1));
+        setTimeLeft((prev) => Math.max(0, prev - 1));
       }, 1000);
     }
     return () => {
@@ -80,21 +108,28 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
   useEffect(() => {
     if (timeLeft === 0 && !failed && !isSubmitting) {
       setFailed(true);
-      onAnswer("Time's up!", false, 15);
+      onAnswer("Time's up!", { customIsCorrect: false, customTimeSpent: 15 });
     }
   }, [timeLeft, failed, isSubmitting, onAnswer]);
 
   const handleSelect = (isOdd: boolean, index: number) => {
     if (isSubmitting || failed) return;
-    
+
     if (isOdd) {
       const timeTaken = (Date.now() - startTime) / 1000;
       const isPerfect = timeTaken < 3; // Perfect if found under 3 seconds
-      onAnswer(String(index), { customIsCorrect: true, isPerfect }, timeTaken);
+      onAnswer(String(index), {
+        customTimeSpent: timeTaken,
+        customIsCorrect: true,
+        isPerfect,
+      });
     } else {
       setFailed(true);
       const timeTaken = (Date.now() - startTime) / 1000;
-      onAnswer("Wrong Object", false, timeTaken);
+      onAnswer("Wrong Object", {
+        customIsCorrect: false,
+        customTimeSpent: timeTaken,
+      });
     }
   };
 
@@ -108,17 +143,28 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
         <Sparkles className="text-yellow-500" /> Spot the Imposter
       </h2>
       <p className="text-muted-foreground mb-6 text-center px-4 max-w-sm">
-        Find the <span className="font-bold text-foreground">one emoji</span> that doesn't match the rest.<br/>
+        Find the <span className="font-bold text-foreground">one emoji</span>{" "}
+        that doesn't match the rest.
+        <br />
         <span className="flex items-center justify-center gap-1 mt-3 text-primary font-bold bg-primary/10 w-max mx-auto px-3 py-1 rounded-full">
-          <Clock size={16} className={timeLeft <= 5 ? "text-destructive animate-pulse" : ""} /> 
-          <span className={timeLeft <= 5 ? "text-destructive animate-pulse" : ""}>{timeLeft}s</span>
+          <Clock
+            size={16}
+            className={timeLeft <= 5 ? "text-destructive animate-pulse" : ""}
+          />
+          <span
+            className={timeLeft <= 5 ? "text-destructive animate-pulse" : ""}
+          >
+            {timeLeft}s
+          </span>
         </span>
       </p>
 
-      <div className="grid gap-2 sm:gap-3 p-3 sm:p-5 bg-card/50 backdrop-blur-xl border border-border shadow-2xl rounded-3xl max-w-xl mx-auto w-full aspect-square"
-           style={{ 
-             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`
-           }}>
+      <div
+        className="grid gap-2 sm:gap-3 p-3 sm:p-5 bg-card/50 backdrop-blur-xl border border-border shadow-2xl rounded-3xl max-w-xl mx-auto w-full aspect-square"
+        style={{
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+        }}
+      >
         {grid.map((item) => (
           <button
             key={item.id}
@@ -127,13 +173,24 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
             className={clsx(
               "rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer select-none",
               emojiSize,
-              !failed && !item.isEliminated && "hover:bg-black/5 dark:hover:bg-white/5 hover:scale-110 hover:shadow-lg active:scale-95",
-              failed && item.isOdd && "bg-green-500/20 border-2 border-green-500 scale-110 shadow-green-500/20 shadow-xl z-20 animate-bounce",
+              !failed &&
+                !item.isEliminated &&
+                "hover:bg-black/5 dark:hover:bg-white/5 hover:scale-110 hover:shadow-lg active:scale-95",
+              failed &&
+                item.isOdd &&
+                "bg-green-500/20 border-2 border-green-500 scale-110 shadow-green-500/20 shadow-xl z-20 animate-bounce",
               failed && !item.isOdd && "opacity-30 scale-90 grayscale",
-              item.isEliminated && !failed && "opacity-10 scale-75 pointer-events-none grayscale"
+              item.isEliminated &&
+                !failed &&
+                "opacity-10 scale-75 pointer-events-none grayscale",
             )}
           >
-            <span className={clsx("drop-shadow-sm transition-all duration-300", item.isEliminated && "blur-sm")}>
+            <span
+              className={clsx(
+                "drop-shadow-sm transition-all duration-300",
+                item.isEliminated && "blur-sm",
+              )}
+            >
               {item.emoji}
             </span>
           </button>
@@ -142,4 +199,3 @@ export default function OddObjectGame({ question, onAnswer, isSubmitting, showHi
     </div>
   );
 }
-

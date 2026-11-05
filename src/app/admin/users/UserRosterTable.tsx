@@ -4,8 +4,21 @@ import { useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import SortableHeader from "./SortableHeader";
 import PlayerDrawer from "./PlayerDrawer";
-import { Search, SearchX, RotateCcw, Power, PowerOff, CheckSquare, Square } from "lucide-react";
-import { resetUserStreak, toggleUserStatus, bulkResetStreaks, bulkDeactivate } from "./actions";
+import {
+  Search,
+  SearchX,
+  RotateCcw,
+  Power,
+  PowerOff,
+  CheckSquare,
+  Square,
+} from "lucide-react";
+import {
+  resetUserStreak,
+  toggleUserStatus,
+  bulkResetStreaks,
+  bulkDeactivate,
+} from "./actions";
 import DepartmentAssignmentForm from "./DepartmentAssignmentForm";
 
 function formatRelativeTime(dateString: string | null) {
@@ -13,14 +26,26 @@ function formatRelativeTime(dateString: string | null) {
   const date = new Date(dateString);
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
+
   if (diffInSeconds < 60) return "Just now";
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
   return `${Math.floor(diffInSeconds / 86400)}d ago`;
 }
 
-export default function UserRosterTable({ users, departments, currentPage = 1, totalPages = 1, totalUsers = 0 }: { users: any[], departments: any[], currentPage?: number, totalPages?: number, totalUsers?: number }) {
+export default function UserRosterTable({
+  users,
+  departments,
+  currentPage = 1,
+  totalPages = 1,
+  totalUsers = 0,
+}: {
+  users: any[];
+  departments: any[];
+  currentPage?: number;
+  totalPages?: number;
+  totalUsers?: number;
+}) {
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [isBulkProcessing, setIsBulkProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -39,7 +64,7 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
     if (selectedUsers.size === users.length && users.length > 0) {
       setSelectedUsers(new Set());
     } else {
-      setSelectedUsers(new Set(users.map(u => u.id)));
+      setSelectedUsers(new Set(users.map((u) => u.id)));
     }
   };
 
@@ -82,22 +107,27 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
     <div className="space-y-4">
       {errorMsg && (
         <div className="bg-destructive/15 text-destructive border border-destructive px-4 py-3 rounded-lg text-sm font-medium">
-          Error: {errorMsg.includes("is_active") ? "You must run the SQL command to add 'is_active' column to the database." : errorMsg}
+          Error:{" "}
+          {errorMsg.includes("is_active")
+            ? "You must run the SQL command to add 'is_active' column to the database."
+            : errorMsg}
         </div>
       )}
 
       {selectedUsers.size > 0 && (
         <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg flex items-center justify-between">
-          <span className="text-sm font-medium text-primary">{selectedUsers.size} players selected</span>
+          <span className="text-sm font-medium text-primary">
+            {selectedUsers.size} players selected
+          </span>
           <div className="flex gap-2">
-            <button 
+            <button
               onClick={handleBulkReset}
               disabled={isBulkProcessing}
               className="text-xs font-semibold bg-background hover:bg-muted border border-border px-3 py-1.5 rounded transition-colors disabled:opacity-50"
             >
               Reset Streaks
             </button>
-            <button 
+            <button
               onClick={handleBulkDeactivate}
               disabled={isBulkProcessing}
               className="text-xs font-semibold bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20 px-3 py-1.5 rounded transition-colors disabled:opacity-50"
@@ -115,15 +145,34 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
               <tr>
                 <th className="px-4 py-4 w-10">
                   <button onClick={toggleAll} className="hover:text-foreground">
-                    {selectedUsers.size === users.length && users.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                    {selectedUsers.size === users.length && users.length > 0 ? (
+                      <CheckSquare size={18} />
+                    ) : (
+                      <Square size={18} />
+                    )}
                   </button>
                 </th>
-                <th className="px-6 py-4 font-semibold"><SortableHeader label="Player" sortKey="full_name" /></th>
-                <th className="px-6 py-4 font-semibold"><SortableHeader label="Department" sortKey="department" /></th>
-                <th className="px-6 py-4 font-semibold"><SortableHeader label="Level" sortKey="current_level" /></th>
-                <th className="px-6 py-4 font-semibold"><SortableHeader label="Total XP" sortKey="total_xp" /></th>
-                <th className="px-6 py-4 font-semibold"><SortableHeader label="Streak" sortKey="current_streak" /></th>
-                <th className="px-6 py-4 font-semibold"><SortableHeader label="Last Active" sortKey="last_played_at" /></th>
+                <th className="px-6 py-4 font-semibold">
+                  <SortableHeader label="Player" sortKey="full_name" />
+                </th>
+                <th className="px-6 py-4 font-semibold">
+                  <SortableHeader label="Department" sortKey="department" />
+                </th>
+                <th className="px-6 py-4 font-semibold">
+                  <SortableHeader label="Level" sortKey="current_level" />
+                </th>
+                <th className="px-6 py-4 font-semibold">
+                  <SortableHeader label="Total XP" sortKey="total_xp" />
+                </th>
+                <th className="px-6 py-4 font-semibold">
+                  <SortableHeader label="Streak" sortKey="current_streak" />
+                </th>
+                <th className="px-6 py-4 font-semibold">
+                  <SortableHeader
+                    label="Last Active"
+                    sortKey="last_played_at"
+                  />
+                </th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
@@ -136,7 +185,9 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
                         <SearchX size={32} />
                       </div>
                       <p className="text-lg font-medium">No players found</p>
-                      <p className="text-sm">Try adjusting your search or department filter.</p>
+                      <p className="text-sm">
+                        Try adjusting your search or department filter.
+                      </p>
                     </div>
                   </td>
                 </tr>
@@ -147,39 +198,75 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
                   const lastActiveTime = u.last_played_at || u.updated_at;
 
                   return (
-                    <tr key={u.id} className={`hover:bg-muted/30 transition-colors group ${isSelected ? 'bg-primary/5' : ''} ${!isActive ? 'opacity-60' : ''}`}>
+                    <tr
+                      key={u.id}
+                      className={`hover:bg-muted/30 transition-colors group ${isSelected ? "bg-primary/5" : ""} ${!isActive ? "opacity-60" : ""}`}
+                    >
                       <td className="px-4 py-4">
-                        <button onClick={() => toggleUser(u.id)} className="text-muted-foreground hover:text-foreground">
-                          {isSelected ? <CheckSquare size={18} className="text-primary" /> : <Square size={18} />}
+                        <button
+                          onClick={() => toggleUser(u.id)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          {isSelected ? (
+                            <CheckSquare size={18} className="text-primary" />
+                          ) : (
+                            <Square size={18} />
+                          )}
                         </button>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center font-bold ${isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                          <div
+                            className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center font-bold ${isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                          >
                             {u.full_name?.charAt(0) || "?"}
                           </div>
                           <div>
                             <div className="font-semibold text-foreground flex items-center gap-2">
                               {u.full_name || "Unknown"}
-                              {!isActive && <span className="text-[10px] uppercase bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Suspended</span>}
+                              {!isActive && (
+                                <span className="text-[10px] uppercase bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">
+                                  Suspended
+                                </span>
+                              )}
                             </div>
-                            <div className="text-xs text-muted-foreground">{u.email}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {u.email}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <DepartmentAssignmentForm userId={u.id} currentDepartment={u.department} departments={departments} />
+                        <DepartmentAssignmentForm
+                          userId={u.id}
+                          currentDepartment={u.department}
+                          departments={departments}
+                        />
                       </td>
-                      <td className="px-6 py-4 font-bold">{u.current_level || 1}</td>
-                      <td className="px-6 py-4 font-medium">{u.total_xp?.toLocaleString() || 0}</td>
+                      <td className="px-6 py-4 font-bold">
+                        {u.current_level || 1}
+                      </td>
+                      <td className="px-6 py-4 font-medium">
+                        {u.total_xp?.toLocaleString() || 0}
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <span className={`font-bold ${u.current_streak > 0 ? 'text-orange-500' : 'text-muted-foreground'}`}>
+                          <span
+                            className={`font-bold ${u.current_streak > 0 ? "text-orange-500" : "text-muted-foreground"}`}
+                          >
                             {u.current_streak || 0}
                           </span>
                           {u.current_streak > 0 && (
-                            <form action={async () => { await resetUserStreak(u.id); }}>
-                              <button type="submit" className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" title="Reset Streak">
+                            <form
+                              action={async () => {
+                                await resetUserStreak(u.id);
+                              }}
+                            >
+                              <button
+                                type="submit"
+                                className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Reset Streak"
+                              >
                                 <RotateCcw size={14} />
                               </button>
                             </form>
@@ -191,20 +278,38 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex flex-wrap items-center justify-end gap-2">
-                          <button 
+                          <button
                             type="button"
                             onClick={() => handleToggleStatus(u.id, isActive)}
-                            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${isActive ? 'border-destructive/20 text-destructive hover:bg-destructive/10' : 'border-primary/20 text-primary hover:bg-primary/10'}`}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${isActive ? "border-destructive/20 text-destructive hover:bg-destructive/10" : "border-primary/20 text-primary hover:bg-primary/10"}`}
                             title={isActive ? "Suspend User" : "Activate User"}
                           >
-                            {isActive ? <PowerOff size={16} /> : <Power size={16} />}
-                            <span className="hidden lg:inline">{isActive ? "Suspend" : "Activate"}</span>
+                            {isActive ? (
+                              <PowerOff size={16} />
+                            ) : (
+                              <Power size={16} />
+                            )}
+                            <span className="hidden lg:inline">
+                              {isActive ? "Suspend" : "Activate"}
+                            </span>
                           </button>
-                          <button type="button" onClick={() => setDrawerUserId(u.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary" title="View Profile">
+                          <button
+                            type="button"
+                            onClick={() => setDrawerUserId(u.id)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                            title="View Profile"
+                          >
                             <Search size={16} />
-                             <span className="hidden lg:inline">View profile</span>
+                            <span className="hidden lg:inline">
+                              View profile
+                            </span>
                           </button>
-                          {drawerUserId === u.id && <PlayerDrawer userId={drawerUserId!} onClose={() => setDrawerUserId(null)} />}
+                          {drawerUserId === u.id && (
+                            <PlayerDrawer
+                              userId={drawerUserId!}
+                              onClose={() => setDrawerUserId(null)}
+                            />
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -219,10 +324,11 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-2 text-sm text-muted-foreground">
           <div>
-            Showing {users.length > 0 ? (currentPage - 1) * 50 + 1 : 0} to {Math.min(currentPage * 50, totalUsers)} of {totalUsers} players
+            Showing {users.length > 0 ? (currentPage - 1) * 50 + 1 : 0} to{" "}
+            {Math.min(currentPage * 50, totalUsers)} of {totalUsers} players
           </div>
           <div className="flex gap-2">
-            <button 
+            <button
               disabled={currentPage <= 1}
               onClick={() => handlePageChange(currentPage - 1)}
               className="px-3 py-1 bg-card border border-border rounded hover:bg-muted disabled:opacity-50 transition-colors"
@@ -232,7 +338,7 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
             <span className="px-3 py-1 font-medium text-foreground">
               Page {currentPage} of {totalPages}
             </span>
-            <button 
+            <button
               disabled={currentPage >= totalPages}
               onClick={() => handlePageChange(currentPage + 1)}
               className="px-3 py-1 bg-card border border-border rounded hover:bg-muted disabled:opacity-50 transition-colors"
@@ -245,4 +351,3 @@ export default function UserRosterTable({ users, departments, currentPage = 1, t
     </div>
   );
 }
-

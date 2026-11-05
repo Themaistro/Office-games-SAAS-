@@ -1,0 +1,40 @@
+name: Verify platform
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: office_qa
+          POSTGRES_PASSWORD: local_ci_only
+          POSTGRES_DB: office_games_qa
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U office_qa -d office_games_qa"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Configure isolated test database
+        run: |
+          node -e "require('fs').writeFileSync('.env.local', 'DATABASE_URL=postgresql://office_qa:local_ci_only@127.0.0.1:5432/office_games_qa\nOFFICE_GAMES_COMPANY_ID=00000000-0000-4000-8000-000000000001\nNEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID=00000000-0000-4000-8000-000000000001\n')"
+      - run: npm run db:bootstrap -- --local
+      - run: npm run db:migrate -- --local
+      - run: npm run db:seed-content -- --local
+      - run: npm run verify -- --database --build
+      - run: npm run test:bootstrap
+      - run: node scripts/test-http-production.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: local-capacity-report
+          path: output/local-capacity.json
+          if-no-files-found: ignore

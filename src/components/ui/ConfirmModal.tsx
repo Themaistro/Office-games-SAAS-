@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useId, useRef } from "react";
 import { AlertCircle, X } from "lucide-react";
+import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface ConfirmModalProps {
@@ -30,7 +30,9 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   const dialog = useRef<HTMLDivElement>(null);
   const closeCallback = useRef(onClose);
-  useEffect(() => { closeCallback.current = onClose; }, [onClose]);
+  useEffect(() => {
+    closeCallback.current = onClose;
+  }, [onClose]);
   const titleId = useId();
   const messageId = useId();
   useEffect(() => {
@@ -38,26 +40,40 @@ export default function ConfirmModal({
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeCallback.current();
       if (e.key === "Tab") {
-        const nodes = dialog.current?.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]');
+        const nodes = dialog.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), [tabindex="0"]',
+        );
         if (!nodes?.length) return;
-        const first = nodes[0], last = nodes[nodes.length - 1];
-        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        const first = nodes[0],
+          last = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     if (isOpen) {
       window.addEventListener("keydown", handleEscape);
       dialog.current?.querySelector<HTMLElement>("button")?.focus();
     }
-    return () => { window.removeEventListener("keydown", handleEscape); if (isOpen) previous?.focus(); };
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      if (isOpen) previous?.focus();
+    };
   }, [isOpen]);
 
   if (!isOpen || typeof document === "undefined") return null;
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 ${offsetClassName}`}
-      onClick={(e) => { e.stopPropagation(); onClose(); }}
+      className={`fixed inset-0 layer-confirmation flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 ${offsetClassName}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
     >
       <div
         ref={dialog}
@@ -70,46 +86,60 @@ export default function ConfirmModal({
       >
         <div className="p-6">
           <div className="flex items-start gap-4">
-            <div className={`p-3 rounded-full shrink-0 ${isDestructive ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+            <div
+              className={`p-3 rounded-full shrink-0 ${isDestructive ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}
+            >
               <AlertCircle size={24} />
             </div>
             <div className="flex-1">
               <div className="flex justify-between items-start">
-                <h3 id={titleId} className="text-xl font-bold tracking-tight mb-2">{title}</h3>
-                <button aria-label="Close confirmation" onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors -mt-1 -mr-1 p-1">
+                <h3
+                  id={titleId}
+                  className="text-xl font-bold tracking-tight mb-2"
+                >
+                  {title}
+                </h3>
+                <button
+                  aria-label="Close confirmation"
+                  onClick={onClose}
+                  className="text-muted-foreground hover:text-foreground transition-colors -mt-1 -mr-1 p-1"
+                >
                   <X size={20} />
                 </button>
               </div>
-              <p id={messageId} className="text-muted-foreground text-sm leading-relaxed">
+              <p
+                id={messageId}
+                className="text-muted-foreground text-sm leading-relaxed"
+              >
                 {message}
               </p>
             </div>
           </div>
         </div>
-        
+
         <div className="bg-muted/50 p-4 border-t border-border flex justify-end gap-3">
-          <button 
+          <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
           >
             {cancelText}
           </button>
-          <button 
+          <button
             onClick={() => {
               onConfirm();
               onClose();
             }}
             className={`px-4 py-2 rounded-xl text-sm font-bold text-white transition-colors shadow-sm ${
-              isDestructive 
-                ? 'bg-destructive hover:bg-destructive/90' 
-                : 'bg-primary hover:bg-primary/90'
+              isDestructive
+                ? "bg-destructive hover:bg-destructive/90"
+                : "bg-primary hover:bg-primary/90"
             }`}
           >
             {confirmText}
           </button>
         </div>
       </div>
-    </div>, document.body
+    </div>,
+    document.body,
   );
 }
-

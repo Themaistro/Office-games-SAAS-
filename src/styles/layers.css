@@ -1,0 +1,34 @@
+:root {
+  --layer-navigation: 40;
+  --layer-contacts: 90;
+  --layer-chat: 100;
+  --layer-bubble: 110;
+  --layer-notification: 120;
+  --layer-dialog: 150;
+  --layer-confirmation: 200;
+  --layer-toast: 220;
+}
+.layer-navigation {
+  z-index: var(--layer-navigation);
+}
+.layer-contacts {
+  z-index: var(--layer-contacts);
+}
+.layer-chat {
+  z-index: var(--layer-chat);
+}
+.layer-bubble {
+  z-index: var(--layer-bubble);
+}
+.layer-notification {
+  z-index: var(--layer-notification);
+}
+.layer-dialog {
+  z-index: var(--layer-dialog);
+}
+.layer-confirmation {
+  z-index: var(--layer-confirmation);
+}
+.layer-toast {
+  z-index: var(--layer-toast);
+}

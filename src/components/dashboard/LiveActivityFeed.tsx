@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Activity, Trophy, Swords, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Activity, Swords, Trophy, Zap } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 type FeedItem = {
   id: string;
@@ -30,24 +30,42 @@ export default function LiveActivityFeed() {
       if (fetching || document.visibilityState !== "visible") return;
       fetching = true;
       try {
-        const response = await fetch("/api/activity", { cache: "no-store", signal: controller.signal });
+        const response = await fetch("/api/activity", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
         if (!response.ok) throw new Error("Activity unavailable");
         const items = await response.json();
-        if (!disposed) { setFeed(items); setFailed(false); }
-      } catch { if (!disposed) setFailed(true); }
-      finally { fetching = false; if (!disposed) setLoading(false); }
+        if (!disposed) {
+          setFeed(items);
+          setFailed(false);
+        }
+      } catch {
+        if (!disposed) setFailed(true);
+      } finally {
+        fetching = false;
+        if (!disposed) setLoading(false);
+      }
     };
     void fetchFeed();
     const timer = window.setInterval(() => void fetchFeed(), 5000);
-    return () => { disposed = true; controller.abort(); window.clearInterval(timer); };
+    return () => {
+      disposed = true;
+      controller.abort();
+      window.clearInterval(timer);
+    };
   }, []);
 
   const getIcon = (type: string) => {
     switch (type) {
-      case "mission": return <Zap className="text-yellow-500" size={16} />;
-      case "chess": return <Swords className="text-orange-500" size={16} />;
-      case "achievement": return <Trophy className="text-blue-500" size={16} />;
-      default: return <Activity className="text-muted-foreground" size={16} />;
+      case "mission":
+        return <Zap className="text-yellow-500" size={16} />;
+      case "chess":
+        return <Swords className="text-orange-500" size={16} />;
+      case "achievement":
+        return <Trophy className="text-blue-500" size={16} />;
+      default:
+        return <Activity className="text-muted-foreground" size={16} />;
     }
   };
 
@@ -55,23 +73,46 @@ export default function LiveActivityFeed() {
     <div className="flex min-h-[220px] flex-col rounded-3xl border border-border/60 bg-card p-5 shadow-sm max-h-[520px]">
       <div className="flex items-center gap-3 mb-6 shrink-0">
         <Activity className="text-primary" size={20} />
-        <h3 className="text-lg font-black tracking-tight">Live Activity & Matches</h3>
+        <h3 className="text-lg font-black tracking-tight">
+          Live Activity & Matches
+        </h3>
         <div className="flex items-center gap-1.5 ml-auto">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Live</span>
+          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+            Live
+          </span>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
         {feed.length === 0 ? (
-          <div role="status" className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/40 px-5 py-8 text-center text-sm text-muted-foreground">{loading ? "Loading activity…" : failed ? "Activity is temporarily unavailable. Reconnecting…" : "No recent activity yet. Be the first to start a mission or game."}</div>
+          <div
+            role="status"
+            className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/40 px-5 py-8 text-center text-sm text-muted-foreground"
+          >
+            {loading
+              ? "Loading activity…"
+              : failed
+                ? "Activity is temporarily unavailable. Reconnecting…"
+                : "No recent activity yet. Be the first to start a mission or game."}
+          </div>
         ) : (
           feed.map((item) => (
-            <div key={item.id} className="flex gap-4 items-start p-3 rounded-2xl bg-muted/30 border border-border/50 animate-in fade-in slide-in-from-right-4">
-              <Link href={`/profile/${item.user_id}`} className="shrink-0 group relative">
+            <div
+              key={item.id}
+              className="flex gap-4 items-start p-3 rounded-2xl bg-muted/30 border border-border/50 animate-in fade-in slide-in-from-right-4"
+            >
+              <Link
+                href={`/profile/${item.user_id}`}
+                className="shrink-0 group relative"
+              >
                 <div className="w-10 h-10 rounded-full border border-border overflow-hidden bg-muted">
                   {item.profiles?.avatar_url ? (
-                    <img src={item.profiles.avatar_url} alt="avatar" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                    <img
+                      src={item.profiles.avatar_url}
+                      alt="avatar"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                    />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-tr from-muted to-muted-foreground/20"></div>
                   )}
@@ -80,15 +121,24 @@ export default function LiveActivityFeed() {
                   {getIcon(item.type)}
                 </div>
               </Link>
-              
+
               <div className="flex flex-col">
                 <p className="text-sm">
-                  <Link href={`/profile/${item.user_id}`} className="font-bold hover:text-primary transition-colors hover:underline">
-                    {/^(completed|reached|just |won |drew |finished |earned |started )/i.test(item.description) ? `${item.profiles?.full_name || "Someone"} ${item.description}` : item.description}
+                  <Link
+                    href={`/profile/${item.user_id}`}
+                    className="font-bold hover:text-primary transition-colors hover:underline"
+                  >
+                    {/^(completed|reached|just |won |drew |finished |earned |started )/i.test(
+                      item.description,
+                    )
+                      ? `${item.profiles?.full_name || "Someone"} ${item.description}`
+                      : item.description}
                   </Link>
                 </p>
                 <span className="text-[10px] text-muted-foreground mt-1">
-                  {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(item.created_at), {
+                    addSuffix: true,
+                  })}
                 </span>
               </div>
             </div>
@@ -98,4 +148,3 @@ export default function LiveActivityFeed() {
     </div>
   );
 }
-

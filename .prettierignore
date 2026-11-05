@@ -1,0 +1,6 @@
+node_modules
+.next
+output
+scratch
+db/content
+package-lock.json

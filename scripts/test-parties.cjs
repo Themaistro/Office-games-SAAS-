@@ -3,7 +3,7 @@ const root=path.resolve(__dirname,'..');Object.assign(process.env,require('doten
 if(!['localhost','127.0.0.1'].includes(new URL(process.env.DATABASE_URL).hostname))throw Error('Local database only');
 const load=Module._load,resolve=Module._resolveFilename;Module._load=function(name,parent,main){if(name==='server-only')return {};return load.call(this,name,parent,main);};Module._resolveFilename=function(name,parent,...args){return resolve.call(this,name.startsWith('@/')?path.join(root,'src',name.slice(2)):name,parent,...args);};
 require.extensions['.ts']=(module,file)=>module._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,file);
-const {query,withTransaction}=require('../src/lib/db.ts'),party=require('../src/lib/party-service.ts'),match=require('../src/lib/match-service.ts');
+const {query,withTransaction}=require('../src/server/database/connection.ts'),party=require('../src/features/lounge/infrastructure/postgres-party-service.ts'),match=require('../src/features/lounge/infrastructure/postgres-match-service.ts');
 const ids=Array.from({length:14},()=>randomUUID()),rooms=[],games=[];let checks=0;
 async function check(name,fn){await fn();checks++;console.log('PASS '+name);}
 async function create(host,format='trivia',mode='duel',visibility='public'){const id=await party.createParty(host,{format,mode,rounds:3,visibility});rooms.push(id);return id;}
@@ -84,7 +84,7 @@ async function main(){try{
     const state=await party.partySnapshot(ids[0],group);assert.equal(state.players.filter(p=>p.state==='joined').length,12);
   });
   await check('coding prompts and interaction windows use a shared contract',async()=>{
-    const contract=require('../src/lib/party-contract.ts');assert.equal(contract.partyChoicePrompt({game_type:{slug:'coding'},content:{text:'What is 1 + 1?'},options:['1','2']}),'What is 1 + 1?');
+    const contract=require('../src/features/lounge/domain/party-contract.ts');assert.equal(contract.partyChoicePrompt({game_type:{slug:'coding'},content:{text:'What is 1 + 1?'},options:['1','2']}),'What is 1 + 1?');
     assert.equal(contract.partyChoicePrompt({game_type:{slug:'coding'},content:{},options:[]}),null);
     assert.equal(contract.partyRoundDuration('logic','easy'),32);assert.equal(contract.partyRoundDuration('typing','easy'),37);assert.equal(contract.partyRoundDuration('card_match','easy'),65);
     assert.match(contract.partyPerformanceFeedback('reaction',true),/catch/);
@@ -97,7 +97,7 @@ async function main(){try{
     await query('UPDATE lounge_room_rounds SET question=$2::jsonb WHERE room_id=$1 AND position=0',[duel,JSON.stringify(q)]);
     assert.equal((await party.partySnapshot(ids[0],duel)).reveal,null);
     await query("UPDATE lounge_rooms SET phase='reveal',advance_at=now()+interval '1 minute' WHERE id=$1",[duel]);
-    const expected=require('../src/lib/challenge-validation.ts').validateChallenge({id:q.id,slug:'mental_math',difficulty:q.difficulty,content:q.content,correctAnswer:q.correct_answer},'',0).correctAnswer;
+    const expected=require('../src/features/challenges/domain/challenge-validation.ts').validateChallenge({id:q.id,slug:'mental_math',difficulty:q.difficulty,content:q.content,correctAnswer:q.correct_answer},'',0).correctAnswer;
     assert.equal((await party.partySnapshot(ids[0],duel)).reveal.correctAnswer,expected);assert.notEqual(expected,'placeholder');
   });
   console.log(`All ${checks} party checks passed.`);

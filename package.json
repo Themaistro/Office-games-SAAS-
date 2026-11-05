@@ -11,7 +11,22 @@
     "test:matches": "node scripts/test-match-integrity.cjs",
     "test:rules": "node scripts/test-challenge-rules.cjs",
     "test:invitations": "node scripts/test-invitations.cjs",
-    "test:parties": "node scripts/test-parties.cjs"
+    "test:parties": "node scripts/test-parties.cjs",
+    "test:architecture": "node scripts/test-architecture.cjs",
+    "test:database": "node scripts/test-database-concurrency.cjs",
+    "test:rotation": "node scripts/test-daily-rotation.cjs",
+    "test:mission-config": "node scripts/test-mission-configuration.cjs",
+    "verify": "node scripts/verify.cjs",
+    "test:structure": "node scripts/test-platform-structure.cjs",
+    "test:company": "node scripts/test-company-isolation.cjs",
+    "test:bootstrap": "node scripts/test-fresh-database.cjs",
+    "test:load": "node scripts/load-test-local.cjs",
+    "db:bootstrap": "node scripts/bootstrap.cjs",
+    "db:seed-content": "node scripts/seed-content.cjs",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
+    "test:http": "node scripts/test-http-production.cjs",
+    "test:container": "node scripts/test-fresh-database.cjs --docker"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -46,7 +61,11 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.9.10",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22 <25"
   }
 }

@@ -3,7 +3,13 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
-export default function SortableHeader({ label, sortKey }: { label: string; sortKey: string }) {
+export default function SortableHeader({
+  label,
+  sortKey,
+}: {
+  label: string;
+  sortKey: string;
+}) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -16,7 +22,7 @@ export default function SortableHeader({ label, sortKey }: { label: string; sort
 
   const toggleSort = () => {
     const params = new URLSearchParams(searchParams.toString());
-    
+
     if (isActive) {
       if (isDesc) {
         // Toggle to asc
@@ -36,7 +42,7 @@ export default function SortableHeader({ label, sortKey }: { label: string; sort
   };
 
   return (
-    <button 
+    <button
       onClick={toggleSort}
       className="flex items-center gap-1 font-semibold hover:text-foreground transition-colors group"
     >
@@ -49,4 +55,3 @@ export default function SortableHeader({ label, sortKey }: { label: string; sort
     </button>
   );
 }
-

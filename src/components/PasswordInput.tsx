@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 export default function PasswordInput() {
   const [showPassword, setShowPassword] = useState(false);
@@ -27,4 +27,3 @@ export default function PasswordInput() {
     </div>
   );
 }
-

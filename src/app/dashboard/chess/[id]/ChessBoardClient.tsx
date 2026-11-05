@@ -6,37 +6,59 @@ import { Chessboard, defaultArrowOptions } from "react-chessboard";
 import type { Arrow } from "react-chessboard";
 import * as Ably from "ably";
 import { getGameChannelName } from "@/lib/realtime";
-import { updateChessGameState, resignChessGame, drawChessGame, declareChessTimeout, cancelChessGame, challengeUserToChess } from "../actions";
-import { Loader2, Flag, Handshake, Send, Eye, User, X as XIcon, Settings2 } from "lucide-react";
+import {
+  updateChessGameState,
+  resignChessGame,
+  drawChessGame,
+  declareChessTimeout,
+  cancelChessGame,
+  challengeUserToChess,
+} from "../actions";
+import {
+  Loader2,
+  Flag,
+  Handshake,
+  Send,
+  Eye,
+  User,
+  X as XIcon,
+  Settings2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useVfx } from "@/hooks/useVfx";
-import { MatchToolbar, MatchPlayer, MatchResult, MatchSpectator } from "@/components/game/MatchPresentation";
+import {
+  MatchToolbar,
+  MatchPlayer,
+  MatchResult,
+  MatchSpectator,
+} from "@/components/game/MatchPresentation";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useToast } from "@/components/ui/ToastProvider";
 
 const darkSquareStyle = { backgroundColor: "#739552" };
 const lightSquareStyle = { backgroundColor: "#ebecd0" };
 
-const playSound = (type?: string) => {
+const playSound = (_type: string) => {
   try {
-    const audio = new Audio('/sounds/wood-click.mp3');
-    audio.play().catch(e => console.warn('Audio play failed:', e));
+    const audio = new Audio("/sounds/wood-click.mp3");
+    audio.play().catch((e) => console.warn("Audio play failed:", e));
   } catch (e) {}
 };
 
-export default function ChessBoardClient({ 
-  game, 
-  currentUserId, 
-  currentUserProfile, 
-  playerColor 
-}: { 
-  game: any, 
-  currentUserId: string, 
-  currentUserProfile: { full_name: string, avatar_url?: string },
-  playerColor: "white" | "black" | "spectator" 
+export default function ChessBoardClient({
+  game,
+  currentUserId,
+  playerColor,
+}: {
+  game: any;
+  currentUserId: string;
+  currentUserProfile: { full_name: string; avatar_url?: string };
+  playerColor: "white" | "black" | "spectator";
 }) {
   const [chess] = useState(new Chess());
-  const [fen, setFen] = useState(game.fen && game.fen !== "start" ? game.fen : chess.fen());
+  const [fen, setFen] = useState(
+    game.fen && game.fen !== "start" ? game.fen : chess.fen(),
+  );
   const [gameStatus, setGameStatus] = useState(game.status);
   const [isMounted, setIsMounted] = useState(false);
   const [isOpponentConnected, setIsOpponentConnected] = useState(false);
@@ -47,25 +69,46 @@ export default function ChessBoardClient({
   useEffect(() => setIsMounted(true), []);
 
   useEffect(() => {
-    if (gameStatus === 'finished' && game.winner_id === currentUserId) {
+    if (gameStatus === "finished" && game.winner_id === currentUserId) {
       triggerConfetti();
     }
   }, [gameStatus, game.winner_id, currentUserId, triggerConfetti]);
-  
-  const getCalculatedTime = (baseTime: number, isMyTurn: boolean, lastMoveStamp: string | null, status: string) => {
-    if (status === 'in_progress' && isMyTurn && lastMoveStamp) {
+
+  const getCalculatedTime = (
+    baseTime: number,
+    isMyTurn: boolean,
+    lastMoveStamp: string | null,
+    status: string,
+  ) => {
+    if (status === "in_progress" && isMyTurn && lastMoveStamp) {
       const elapsed = Date.now() - new Date(lastMoveStamp).getTime();
       return Math.max(0, baseTime - elapsed);
     }
     return baseTime || 600000;
   };
 
-  const [whiteTimeMs, setWhiteTimeMs] = useState(() => getCalculatedTime(game.white_time_ms || 600000, chess.turn() === 'w', game.last_move_timestamp, game.status));
-  const [blackTimeMs, setBlackTimeMs] = useState(() => getCalculatedTime(game.black_time_ms || 600000, chess.turn() === 'b', game.last_move_timestamp, game.status));
+  const [whiteTimeMs, setWhiteTimeMs] = useState(() =>
+    getCalculatedTime(
+      game.white_time_ms || 600000,
+      chess.turn() === "w",
+      game.last_move_timestamp,
+      game.status,
+    ),
+  );
+  const [blackTimeMs, setBlackTimeMs] = useState(() =>
+    getCalculatedTime(
+      game.black_time_ms || 600000,
+      chess.turn() === "b",
+      game.last_move_timestamp,
+      game.status,
+    ),
+  );
   const [drawOfferedBy, setDrawOfferedBy] = useState<string | null>(null);
-  
+
   // Chat State
-  const [chatMessages, setChatMessages] = useState<{sender: string, text: string}[]>([]);
+  const [chatMessages, setChatMessages] = useState<
+    { sender: string; text: string }[]
+  >([]);
   const [chatInput, setChatInput] = useState("");
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -74,9 +117,14 @@ export default function ChessBoardClient({
   const [rematchSent, setRematchSent] = useState(false);
   const [rematchBusy, setRematchBusy] = useState(false);
 
-  const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
+  const [optionSquares, setOptionSquares] = useState<
+    Record<string, React.CSSProperties>
+  >({});
   const [arrows, setArrows] = useState<Arrow[]>([]);
-  const [pendingPromotion, setPendingPromotion] = useState<{ from: string; to: string } | null>(null);
+  const [pendingPromotion, setPendingPromotion] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
   const [showNotation, setShowNotation] = useState(true);
 
   const router = useRouter();
@@ -85,19 +133,39 @@ export default function ChessBoardClient({
   const pollInFlightRef = useRef(false);
   const eventCursorRef = useRef<string | null>(game.updated_at || null);
 
-  const sendChessEvent = useCallback((payload: any) => {
-    const eventType = payload?.event === "chat" ? "chat" : payload?.event === "offer_draw" ? "offer_draw" : payload?.event === "decline_draw" ? "decline_draw" : null;
-    if (!eventType) return;
-    void fetch(`/api/chess/${game.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventType, payload: payload.payload || {} }) });
-  }, [game.id]);
+  const sendChessEvent = useCallback(
+    (payload: any) => {
+      const eventType =
+        payload?.event === "chat"
+          ? "chat"
+          : payload?.event === "offer_draw"
+            ? "offer_draw"
+            : payload?.event === "decline_draw"
+              ? "decline_draw"
+              : null;
+      if (!eventType) return;
+      void fetch(`/api/chess/${game.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventType, payload: payload.payload || {} }),
+      });
+    },
+    [game.id],
+  );
 
-  useEffect(() => { channelRef.current = { send: sendChessEvent }; return () => { channelRef.current = null; }; }, [sendChessEvent]);
+  useEffect(() => {
+    channelRef.current = { send: sendChessEvent };
+    return () => {
+      channelRef.current = null;
+    };
+  }, [sendChessEvent]);
 
   // Material Calculation
   const getMaterialAdvantage = (fenString: string) => {
     const values = { p: 1, n: 3, b: 3, r: 5, q: 9 };
     const pieces = fenString.split(" ")[0];
-    let w = 0; let b = 0;
+    let w = 0;
+    let b = 0;
     for (const char of pieces) {
       if (Object.keys(values).includes(char.toLowerCase())) {
         const val = values[char.toLowerCase() as keyof typeof values];
@@ -119,7 +187,8 @@ export default function ChessBoardClient({
 
   useEffect(() => {
     if (historyScrollRef.current) {
-      historyScrollRef.current.scrollTop = historyScrollRef.current.scrollHeight;
+      historyScrollRef.current.scrollTop =
+        historyScrollRef.current.scrollHeight;
     }
   }, [history.length]);
 
@@ -134,16 +203,30 @@ export default function ChessBoardClient({
       chess.loadPgn(game.pgn);
       setFen(chess.fen());
     }
-    
+
     if (game.status && game.status !== gameStatus) {
       setGameStatus(game.status);
     }
-    
+
     if (game.white_time_ms !== undefined) {
-      setWhiteTimeMs(getCalculatedTime(game.white_time_ms, chess.turn() === 'w', game.last_move_timestamp, game.status));
+      setWhiteTimeMs(
+        getCalculatedTime(
+          game.white_time_ms,
+          chess.turn() === "w",
+          game.last_move_timestamp,
+          game.status,
+        ),
+      );
     }
     if (game.black_time_ms !== undefined) {
-      setBlackTimeMs(getCalculatedTime(game.black_time_ms, chess.turn() === 'b', game.last_move_timestamp, game.status));
+      setBlackTimeMs(
+        getCalculatedTime(
+          game.black_time_ms,
+          chess.turn() === "b",
+          game.last_move_timestamp,
+          game.status,
+        ),
+      );
     }
   }, [game, chess, gameStatus]);
 
@@ -155,13 +238,15 @@ export default function ChessBoardClient({
       if (isWhiteTurn) {
         setWhiteTimeMs((prev: number) => {
           const next = Math.max(0, prev - 100);
-          if (next === 0 && prev > 0) setTimeout(() => declareChessTimeout(game.id), 0);
+          if (next === 0 && prev > 0)
+            setTimeout(() => declareChessTimeout(game.id), 0);
           return next;
         });
       } else {
         setBlackTimeMs((prev: number) => {
           const next = Math.max(0, prev - 100);
-          if (next === 0 && prev > 0) setTimeout(() => declareChessTimeout(game.id), 0);
+          if (next === 0 && prev > 0)
+            setTimeout(() => declareChessTimeout(game.id), 0);
           return next;
         });
       }
@@ -171,29 +256,62 @@ export default function ChessBoardClient({
   }, [gameStatus, fen, chess]);
 
   useEffect(() => {
-    if (!game.id || ["white_won", "black_won", "draw"].includes(gameStatus)) return;
+    if (!game.id || ["white_won", "black_won", "draw"].includes(gameStatus))
+      return;
     const timer = window.setInterval(async () => {
       if (pollInFlightRef.current) return;
       pollInFlightRef.current = true;
       try {
-        const eventQuery = eventCursorRef.current ? `?eventsSince=${encodeURIComponent(eventCursorRef.current)}` : "";
-      const response = await fetch(`/api/chess/${game.id}${eventQuery}`, { cache: "no-store" });
-      if (!response.ok) { setConnectionIssue(true); return; }
-      const next = await response.json();
-      setConnectionIssue(false);
-      for (const event of next.events || []) {
-        eventCursorRef.current = event.created_at;
-        if (event.sender_id === currentUserId) continue;
-        if (event.event_type === "chat" && event.payload?.text) setChatMessages((current) => [...current, { sender: event.full_name, text: event.payload.text }].slice(-100));
-        if (event.event_type === "offer_draw") setDrawOfferedBy(event.sender_id === next.white_player_id ? "white" : "black");
-        if (event.event_type === "decline_draw") setDrawOfferedBy(null);
-      }
-      setSpectators(next.spectators || []);
-      if (next.status !== gameStatus) { setGameStatus(next.status); router.refresh(); }
-      if (typeof next.white_time_ms === "number") setWhiteTimeMs(next.white_time_ms);
-      if (typeof next.black_time_ms === "number") setBlackTimeMs(next.black_time_ms);
-      if (next.pgn && next.pgn !== chess.pgn()) { chess.loadPgn(next.pgn); setFen(chess.fen()); }
-      setIsOpponentConnected(Boolean(next.online_player_ids?.includes(next.white_player_id === currentUserId ? next.black_player_id : next.white_player_id)));
+        const eventQuery = eventCursorRef.current
+          ? `?eventsSince=${encodeURIComponent(eventCursorRef.current)}`
+          : "";
+        const response = await fetch(`/api/chess/${game.id}${eventQuery}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          setConnectionIssue(true);
+          return;
+        }
+        const next = await response.json();
+        setConnectionIssue(false);
+        for (const event of next.events || []) {
+          eventCursorRef.current = event.created_at;
+          if (event.sender_id === currentUserId) continue;
+          if (event.event_type === "chat" && event.payload?.text)
+            setChatMessages((current) =>
+              [
+                ...current,
+                { sender: event.full_name, text: event.payload.text },
+              ].slice(-100),
+            );
+          if (event.event_type === "offer_draw")
+            setDrawOfferedBy(
+              event.sender_id === next.white_player_id ? "white" : "black",
+            );
+          if (event.event_type === "decline_draw") setDrawOfferedBy(null);
+        }
+        setSpectators(next.spectators || []);
+        if (next.status !== gameStatus) {
+          setGameStatus(next.status);
+          router.refresh();
+        }
+        if (typeof next.white_time_ms === "number")
+          setWhiteTimeMs(next.white_time_ms);
+        if (typeof next.black_time_ms === "number")
+          setBlackTimeMs(next.black_time_ms);
+        if (next.pgn && next.pgn !== chess.pgn()) {
+          chess.loadPgn(next.pgn);
+          setFen(chess.fen());
+        }
+        setIsOpponentConnected(
+          Boolean(
+            next.online_player_ids?.includes(
+              next.white_player_id === currentUserId
+                ? next.black_player_id
+                : next.white_player_id,
+            ),
+          ),
+        );
       } catch {
         setConnectionIssue(true);
       } finally {
@@ -205,140 +323,207 @@ export default function ChessBoardClient({
 
   useEffect(() => {
     if (!game.id) return;
-    const realtime = new Ably.Realtime({ authUrl: `/api/realtime?type=chess&id=${game.id}`, echoMessages: false });
+    const realtime = new Ably.Realtime({
+      authUrl: `/api/realtime?type=chess&id=${game.id}`,
+      echoMessages: false,
+    });
     const channel = realtime.channels.get(getGameChannelName("chess", game.id));
     const handleMessage = (message: Ably.Message) => {
-      const event = message.data as { type?: string; senderId?: string; payload?: Record<string, any> };
+      const event = message.data as {
+        type?: string;
+        senderId?: string;
+        payload?: Record<string, any>;
+      };
       if (!event || event.senderId === currentUserId) return;
       if (event.type === "move" && event.payload?.fen) {
-        if (event.payload.pgn && event.payload.pgn !== chess.pgn()) chess.loadPgn(event.payload.pgn as string);
+        if (event.payload.pgn && event.payload.pgn !== chess.pgn())
+          chess.loadPgn(event.payload.pgn as string);
         setFen(event.payload.fen as string);
         if (event.payload.status) setGameStatus(event.payload.status as string);
-        if (typeof event.payload.white_time_ms === "number") setWhiteTimeMs(event.payload.white_time_ms);
-        if (typeof event.payload.black_time_ms === "number") setBlackTimeMs(event.payload.black_time_ms);
+        if (typeof event.payload.white_time_ms === "number")
+          setWhiteTimeMs(event.payload.white_time_ms);
+        if (typeof event.payload.black_time_ms === "number")
+          setBlackTimeMs(event.payload.black_time_ms);
       }
-      if (event.type === "chat" && event.payload?.text) setChatMessages((current) => [...current, { sender: "Opponent", text: String(event.payload?.text) }].slice(-100));
-      if (event.type === "offer_draw") setDrawOfferedBy(playerColor === "white" ? "black" : "white");
+      if (event.type === "chat" && event.payload?.text)
+        setChatMessages((current) =>
+          [
+            ...current,
+            { sender: "Opponent", text: String(event.payload?.text) },
+          ].slice(-100),
+        );
+      if (event.type === "offer_draw")
+        setDrawOfferedBy(playerColor === "white" ? "black" : "white");
       if (event.type === "decline_draw") setDrawOfferedBy(null);
-      if (event.type === "game_finished" && event.payload?.status) setGameStatus(String(event.payload.status));
+      if (event.type === "game_finished" && event.payload?.status)
+        setGameStatus(String(event.payload.status));
     };
     void channel.subscribe(handleMessage).catch(() => setConnectionIssue(true));
     return () => {
-      try { channel.unsubscribe(handleMessage); } catch { /* Ably may already be closed during a fast refresh. */ }
-      try { realtime.close(); } catch { /* Ably may already be closed during a fast refresh. */ }
+      try {
+        channel.unsubscribe(handleMessage);
+      } catch {
+        /* Ably may already be closed during a fast refresh. */
+      }
+      try {
+        realtime.close();
+      } catch {
+        /* Ably may already be closed during a fast refresh. */
+      }
     };
   }, [game.id, currentUserId, playerColor, chess]);
 
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
 
-  const choosePromotion = useCallback((promotion: "q" | "r" | "b" | "n") => {
-    if (!pendingPromotion) return;
-    try {
-      const move = chess.move({ from: pendingPromotion.from, to: pendingPromotion.to, promotion });
-      if (!move) return;
-      setFen(chess.fen());
-      setMoveFrom(null);
-      setOptionSquares({});
-      playSound(move.flags.includes("c") ? "capture" : "move");
-      let nextStatus = "in_progress";
-      if (chess.isGameOver()) nextStatus = chess.isCheckmate() ? (chess.turn() === "w" ? "black_won" : "white_won") : "draw";
-      if (nextStatus !== "in_progress") setGameStatus(nextStatus as any);
-      updateChessGameState(game.id, chess.pgn(), chess.fen(), nextStatus, chess.turn());
-    } finally {
-      setPendingPromotion(null);
-    }
-  }, [pendingPromotion, chess, game.id]);
-
-  const onDrop = useCallback(({ sourceSquare, targetSquare }: { sourceSquare: string, targetSquare: string | null }) => {
-    if (playerColor === "spectator" || gameStatus !== "in_progress") return false;
-    if (!targetSquare) return false;
-
-    // Only allow moving own pieces
-    if (chess.turn() === "w" && playerColor !== "white") return false;
-    if (chess.turn() === "b" && playerColor !== "black") return false;
-    const movingPiece = chess.get(sourceSquare as Square);
-    if (movingPiece?.type === "p" && (targetSquare.endsWith("1") || targetSquare.endsWith("8"))) {
-      setPendingPromotion({ from: sourceSquare, to: targetSquare });
-      return false;
-    }
-
-    try {
-      const move = chess.move({
-        from: sourceSquare,
-        to: targetSquare,
-        promotion: "q",
-      });
-
-      if (move === null) return false;
-
-      // Update state instantly for immediate visual feedback
-      setFen(chess.fen());
-      setMoveFrom(null);
-      setOptionSquares({});
-
-      if (chess.isCheck()) {
-        playSound('check');
-      } else if (move.flags.includes('k') || move.flags.includes('q')) {
-        playSound('castle');
-      } else if (move.flags.includes('c') || move.flags.includes('e')) {
-        playSound('capture');
-      } else {
-        playSound('move');
+  const choosePromotion = useCallback(
+    (promotion: "q" | "r" | "b" | "n") => {
+      if (!pendingPromotion) return;
+      try {
+        const move = chess.move({
+          from: pendingPromotion.from,
+          to: pendingPromotion.to,
+          promotion,
+        });
+        if (!move) return;
+        setFen(chess.fen());
+        setMoveFrom(null);
+        setOptionSquares({});
+        playSound(move.flags.includes("c") ? "capture" : "move");
+        let nextStatus = "in_progress";
+        if (chess.isGameOver())
+          nextStatus = chess.isCheckmate()
+            ? chess.turn() === "w"
+              ? "black_won"
+              : "white_won"
+            : "draw";
+        if (nextStatus !== "in_progress") setGameStatus(nextStatus as any);
+        updateChessGameState(
+          game.id,
+          chess.pgn(),
+          chess.fen(),
+          nextStatus,
+          chess.turn(),
+        );
+      } finally {
+        setPendingPromotion(null);
       }
-      
-      channelRef.current?.send({
-        type: 'broadcast',
-        event: 'move',
-        payload: move
-      });
+    },
+    [pendingPromotion, chess, game.id],
+  );
 
-      let nextStatus = "in_progress";
-      if (chess.isGameOver()) {
-        if (chess.isCheckmate()) nextStatus = chess.turn() === "w" ? "black_won" : "white_won";
-        else nextStatus = "draw";
-        setGameStatus(nextStatus as any);
+  const onDrop = useCallback(
+    ({
+      sourceSquare,
+      targetSquare,
+    }: {
+      sourceSquare: string;
+      targetSquare: string | null;
+    }) => {
+      if (playerColor === "spectator" || gameStatus !== "in_progress")
+        return false;
+      if (!targetSquare) return false;
+
+      // Only allow moving own pieces
+      if (chess.turn() === "w" && playerColor !== "white") return false;
+      if (chess.turn() === "b" && playerColor !== "black") return false;
+      const movingPiece = chess.get(sourceSquare as Square);
+      if (
+        movingPiece?.type === "p" &&
+        (targetSquare.endsWith("1") || targetSquare.endsWith("8"))
+      ) {
+        setPendingPromotion({ from: sourceSquare, to: targetSquare });
+        return false;
       }
 
-      updateChessGameState(game.id, chess.pgn(), chess.fen(), nextStatus, chess.turn());
+      try {
+        const move = chess.move({
+          from: sourceSquare,
+          to: targetSquare,
+          promotion: "q",
+        });
 
-      return true;
-    } catch (e) {
-      setMoveFrom(null);
-      setOptionSquares({});
-      return false;
-    }
-  }, [playerColor, gameStatus, chess, game.id]);
+        if (move === null) return false;
 
-  const getMoveOptions = useCallback((square: Square) => {
-    const moves = chess.moves({
-      square,
-      verbose: true,
-    });
-    if (moves.length === 0) {
-      setOptionSquares({});
-      return;
-    }
+        // Update state instantly for immediate visual feedback
+        setFen(chess.fen());
+        setMoveFrom(null);
+        setOptionSquares({});
 
-    const newSquares: Record<string, React.CSSProperties> = {};
-    moves.map((move) => {
-      const isCapture = chess.get(move.to as Square);
-      newSquares[move.to] = {
-        background: isCapture 
-          ? "radial-gradient(transparent 0%, transparent 65%, rgba(0,0,0,.35) 65%, rgba(0,0,0,.35) 85%, transparent 85%)"
-          : "radial-gradient(circle, rgba(0,0,0,.35) 20%, transparent 20%)",
-        borderRadius: "50%",
+        if (chess.isCheck()) {
+          playSound("check");
+        } else if (move.flags.includes("k") || move.flags.includes("q")) {
+          playSound("castle");
+        } else if (move.flags.includes("c") || move.flags.includes("e")) {
+          playSound("capture");
+        } else {
+          playSound("move");
+        }
+
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "move",
+          payload: move,
+        });
+
+        let nextStatus = "in_progress";
+        if (chess.isGameOver()) {
+          if (chess.isCheckmate())
+            nextStatus = chess.turn() === "w" ? "black_won" : "white_won";
+          else nextStatus = "draw";
+          setGameStatus(nextStatus as any);
+        }
+
+        updateChessGameState(
+          game.id,
+          chess.pgn(),
+          chess.fen(),
+          nextStatus,
+          chess.turn(),
+        );
+
+        return true;
+      } catch (e) {
+        setMoveFrom(null);
+        setOptionSquares({});
+        return false;
+      }
+    },
+    [playerColor, gameStatus, chess, game.id],
+  );
+
+  const getMoveOptions = useCallback(
+    (square: Square) => {
+      const moves = chess.moves({
+        square,
+        verbose: true,
+      });
+      if (moves.length === 0) {
+        setOptionSquares({});
+        return;
+      }
+
+      const newSquares: Record<string, React.CSSProperties> = {};
+      moves.map((move) => {
+        const isCapture = chess.get(move.to as Square);
+        newSquares[move.to] = {
+          background: isCapture
+            ? "radial-gradient(transparent 0%, transparent 65%, rgba(0,0,0,.35) 65%, rgba(0,0,0,.35) 85%, transparent 85%)"
+            : "radial-gradient(circle, rgba(0,0,0,.35) 20%, transparent 20%)",
+          borderRadius: "50%",
+        };
+      });
+      newSquares[square] = {
+        background: "rgba(255, 255, 0, 0.4)",
       };
-    });
-    newSquares[square] = {
-      background: "rgba(255, 255, 0, 0.4)",
-    };
-    setOptionSquares(newSquares);
-  }, [chess]);
+      setOptionSquares(newSquares);
+    },
+    [chess],
+  );
 
   // Compute all square styles dynamically, memoized to prevent re-renders breaking drag
   const computedSquareStyles = React.useMemo(() => {
     const styles = { ...optionSquares };
-    
+
     // 1. Highlight last move
     const chessHistory = chess.history({ verbose: true });
     if (chessHistory.length > 0) {
@@ -357,11 +542,12 @@ export default function ChessBoardClient({
       for (let i = 0; i < 8; i++) {
         for (let j = 0; j < 8; j++) {
           const piece = board[i][j];
-          if (piece && piece.type === 'k' && piece.color === chess.turn()) {
-            styles[piece.square] = { 
+          if (piece && piece.type === "k" && piece.color === chess.turn()) {
+            styles[piece.square] = {
               ...styles[piece.square],
-              background: "radial-gradient(circle, rgba(255,51,51,0.9) 10%, rgba(255,51,51,0.4) 40%, rgba(255,51,51,0) 85%)",
-              borderRadius: "50%"
+              background:
+                "radial-gradient(circle, rgba(255,51,51,0.9) 10%, rgba(255,51,51,0.4) 40%, rgba(255,51,51,0) 85%)",
+              borderRadius: "50%",
             };
           }
         }
@@ -370,87 +556,95 @@ export default function ChessBoardClient({
     return styles;
   }, [optionSquares, fen]);
 
-  const onPieceDrag = useCallback(({ square }: { square: string | null }) => {
-    if (playerColor === "spectator" || gameStatus !== "in_progress") return;
-    if (square) {
-      getMoveOptions(square as Square);
-    }
-  }, [playerColor, gameStatus, getMoveOptions]);
+  const onSquareClick = useCallback(
+    ({ square }: { square: string | null }) => {
+      if (!square) return;
+      if (playerColor === "spectator" || gameStatus !== "in_progress") return;
 
-  const onSquareClick = useCallback(({ square }: { square: string | null }) => {
-    if (!square) return;
-    if (playerColor === "spectator" || gameStatus !== "in_progress") return;
+      const isOurTurn =
+        (chess.turn() === "w" && playerColor === "white") ||
+        (chess.turn() === "b" && playerColor === "black");
+      if (!isOurTurn) return;
 
-    const isOurTurn = (chess.turn() === "w" && playerColor === "white") || (chess.turn() === "b" && playerColor === "black");
-    if (!isOurTurn) return;
+      if (!moveFrom) {
+        const piece = chess.get(square as Square);
+        if (piece && piece.color === chess.turn()) {
+          setMoveFrom(square);
+          getMoveOptions(square as Square);
+        }
+        return;
+      }
 
-    if (!moveFrom) {
       const piece = chess.get(square as Square);
       if (piece && piece.color === chess.turn()) {
         setMoveFrom(square);
         getMoveOptions(square as Square);
-      }
-      return;
-    }
-
-    const piece = chess.get(square as Square);
-    if (piece && piece.color === chess.turn()) {
-      setMoveFrom(square);
-      getMoveOptions(square as Square);
-      return;
-    }
-
-    try {
-      const movingPiece = chess.get(moveFrom as Square);
-      if (movingPiece?.type === "p" && (square.endsWith("1") || square.endsWith("8"))) {
-        setPendingPromotion({ from: moveFrom, to: square });
         return;
       }
-      const move = chess.move({
-        from: moveFrom,
-        to: square,
-        promotion: "q",
-      });
 
-      if (move === null) {
+      try {
+        const movingPiece = chess.get(moveFrom as Square);
+        if (
+          movingPiece?.type === "p" &&
+          (square.endsWith("1") || square.endsWith("8"))
+        ) {
+          setPendingPromotion({ from: moveFrom, to: square });
+          return;
+        }
+        const move = chess.move({
+          from: moveFrom,
+          to: square,
+          promotion: "q",
+        });
+
+        if (move === null) {
+          setMoveFrom(null);
+          setOptionSquares({});
+          return;
+        }
+
+        setFen(chess.fen());
         setMoveFrom(null);
         setOptionSquares({});
-        return;
+
+        if (chess.isCheck()) {
+          playSound("check");
+        } else if (move.flags.includes("k") || move.flags.includes("q")) {
+          playSound("castle");
+        } else if (move.flags.includes("c") || move.flags.includes("e")) {
+          playSound("capture");
+        } else {
+          playSound("move");
+        }
+
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "move",
+          payload: move,
+        });
+
+        let nextStatus = "in_progress";
+        if (chess.isGameOver()) {
+          if (chess.isCheckmate())
+            nextStatus = chess.turn() === "w" ? "black_won" : "white_won";
+          else nextStatus = "draw";
+          setGameStatus(nextStatus as any);
+        }
+
+        updateChessGameState(
+          game.id,
+          chess.pgn(),
+          chess.fen(),
+          nextStatus,
+          chess.turn(),
+        );
+      } catch (e) {
+        setMoveFrom(null);
+        setOptionSquares({});
       }
-
-      setFen(chess.fen());
-      setMoveFrom(null);
-      setOptionSquares({});
-
-      if (chess.isCheck()) {
-        playSound('check');
-      } else if (move.flags.includes('k') || move.flags.includes('q')) {
-        playSound('castle');
-      } else if (move.flags.includes('c') || move.flags.includes('e')) {
-        playSound('capture');
-      } else {
-        playSound('move');
-      }
-      
-      channelRef.current?.send({
-        type: 'broadcast',
-        event: 'move',
-        payload: move
-      });
-
-      let nextStatus = "in_progress";
-      if (chess.isGameOver()) {
-        if (chess.isCheckmate()) nextStatus = chess.turn() === "w" ? "black_won" : "white_won";
-        else nextStatus = "draw";
-        setGameStatus(nextStatus as any);
-      }
-
-      updateChessGameState(game.id, chess.pgn(), chess.fen(), nextStatus, chess.turn());
-    } catch (e) {
-      setMoveFrom(null);
-      setOptionSquares({});
-    }
-  }, [playerColor, gameStatus, chess, moveFrom, getMoveOptions, game.id]);
+    },
+    [playerColor, gameStatus, chess, moveFrom, getMoveOptions, game.id],
+  );
 
   const handleResign = async () => {
     setShowResignConfirm(true);
@@ -464,11 +658,14 @@ export default function ChessBoardClient({
 
   const handleOfferDraw = async () => {
     const result = await drawChessGame(game.id);
-    if (!result.success) { toast(result.error || "Draw offer failed"); return; }
+    if (!result.success) {
+      toast(result.error || "Draw offer failed");
+      return;
+    }
     channelRef.current?.send({
-      type: 'broadcast',
-      event: 'offer_draw',
-      payload: { color: playerColor }
+      type: "broadcast",
+      event: "offer_draw",
+      payload: { color: playerColor },
     });
     setDrawOfferedBy(playerColor);
   };
@@ -481,9 +678,9 @@ export default function ChessBoardClient({
 
   const handleDeclineDraw = () => {
     channelRef.current?.send({
-      type: 'broadcast',
-      event: 'decline_draw',
-      payload: {}
+      type: "broadcast",
+      event: "decline_draw",
+      payload: {},
     });
     setDrawOfferedBy(null);
   };
@@ -491,12 +688,16 @@ export default function ChessBoardClient({
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
-    const msg = { sender: playerColor === 'white' ? game.white?.full_name : game.black?.full_name, text: chatInput.trim() };
-    setChatMessages(prev => [...prev, msg]);
+    const msg = {
+      sender:
+        playerColor === "white" ? game.white?.full_name : game.black?.full_name,
+      text: chatInput.trim(),
+    };
+    setChatMessages((prev) => [...prev, msg]);
     channelRef.current?.send({
-      type: 'broadcast',
-      event: 'chat',
-      payload: msg
+      type: "broadcast",
+      event: "chat",
+      payload: msg,
     });
     setChatInput("");
   };
@@ -508,232 +709,497 @@ export default function ChessBoardClient({
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const renderPlayerHeader = (color: 'white' | 'black') => {
+  const renderPlayerHeader = (color: "white" | "black") => {
     const p = color === "white" ? game.white : game.black;
     const time = color === "white" ? whiteTimeMs : blackTimeMs;
     const advantage = color === "white" ? material.white : material.black;
-    const active = gameStatus === "in_progress" && chess.turn() === color.charAt(0);
-    return <MatchPlayer name={p?.full_name} avatar={p?.avatar_url} lp={p?.lounge_lp} side={color === "white" ? "White" : "Black"} active={active} detail={`${advantage > 0 ? `Material +${advantage}` : "Even material"} · Chess rating ${p?.chess_elo ?? "—"}`}><div aria-label={`${color} clock`} className={`match-clock ${active && time <= 60000 && time > 0 ? "match-clock-low" : ""}`}>{isMounted ? formatTime(time) : "--:--"}</div></MatchPlayer>;
+    const active =
+      gameStatus === "in_progress" && chess.turn() === color.charAt(0);
+    return (
+      <MatchPlayer
+        name={p?.full_name}
+        avatar={p?.avatar_url}
+        lp={p?.lounge_lp}
+        side={color === "white" ? "White" : "Black"}
+        active={active}
+        detail={`${advantage > 0 ? `Material +${advantage}` : "Even material"} · Chess rating ${p?.chess_elo ?? "—"}`}
+      >
+        <div
+          aria-label={`${color} clock`}
+          className={`match-clock ${active && time <= 60000 && time > 0 ? "match-clock-low" : ""}`}
+        >
+          {isMounted ? formatTime(time) : "--:--"}
+        </div>
+      </MatchPlayer>
+    );
   };
 
-  let derivedGameOver: { title: string, reason: string } | null = null;
+  let derivedGameOver: { title: string; reason: string } | null = null;
   if (gameStatus === "white_won") {
-    derivedGameOver = { title: `${game.white?.full_name || "White"} wins`, reason: chess.isCheckmate() ? "by Checkmate" : "by Resignation / Timeout" };
+    derivedGameOver = {
+      title: `${game.white?.full_name || "White"} wins`,
+      reason: chess.isCheckmate() ? "by Checkmate" : "by Resignation / Timeout",
+    };
   } else if (gameStatus === "black_won") {
-    derivedGameOver = { title: `${game.black?.full_name || "Black"} wins`, reason: chess.isCheckmate() ? "by Checkmate" : "by Resignation / Timeout" };
+    derivedGameOver = {
+      title: `${game.black?.full_name || "Black"} wins`,
+      reason: chess.isCheckmate() ? "by Checkmate" : "by Resignation / Timeout",
+    };
   } else if (gameStatus === "draw") {
-    derivedGameOver = { title: "Game Drawn", reason: "by Agreement or Stalemate" };
+    derivedGameOver = {
+      title: "Game Drawn",
+      reason: "by Agreement or Stalemate",
+    };
   }
   if (derivedGameOver && game.result?.reason) {
-    const reasons: Record<string, string> = { checkmate: "Decided by checkmate", timeout: "Decided on time", resignation: "Decided by resignation", resigned_to_accept_invite: "Opponent resigned to accept another invitation", agreement: "Draw agreed by both players", stalemate: "Draw by stalemate", draw: "Match drawn" };
+    const reasons: Record<string, string> = {
+      checkmate: "Decided by checkmate",
+      timeout: "Decided on time",
+      resignation: "Decided by resignation",
+      resigned_to_accept_invite:
+        "Opponent resigned to accept another invitation",
+      agreement: "Draw agreed by both players",
+      stalemate: "Draw by stalemate",
+      draw: "Match drawn",
+    };
     derivedGameOver.reason = reasons[game.result.reason] || "Result recorded";
   }
 
   return (
-    <section className="match-room space-y-6"><MatchToolbar title="Chess" status={derivedGameOver?.title || (gameStatus === "waiting" ? "Waiting for an opponent" : `${chess.turn() === "w" ? game.white?.full_name || "White" : game.black?.full_name || "Black"}’s turn`)} disconnected={connectionIssue} finished={Boolean(derivedGameOver)}/><div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-6">
-      
-      {/* Left: Chess Board */}
-      <div className="min-w-0 flex flex-col gap-4">
-        {/* Top Player (Opponent) */}
-        {renderPlayerHeader(playerColor === 'white' ? 'black' : 'white')}
+    <section className="match-room space-y-6">
+      <MatchToolbar
+        title="Chess"
+        status={
+          derivedGameOver?.title ||
+          (gameStatus === "waiting"
+            ? "Waiting for an opponent"
+            : `${chess.turn() === "w" ? game.white?.full_name || "White" : game.black?.full_name || "Black"}’s turn`)
+        }
+        disconnected={connectionIssue}
+        finished={Boolean(derivedGameOver)}
+      />
+      <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-6">
+        {/* Left: Chess Board */}
+        <div className="min-w-0 flex flex-col gap-4">
+          {/* Top Player (Opponent) */}
+          {renderPlayerHeader(playerColor === "white" ? "black" : "white")}
 
-        {playerColor === "spectator" && <MatchSpectator count={spectators.length}/>}
-        <div className="w-full aspect-square rounded-2xl overflow-hidden border-[6px] border-border bg-secondary relative shadow-sm">
-          <Chessboard 
-            key={playerColor}
-            options={{
-              position: fen,
-              boardOrientation: playerColor === "black" ? "black" : "white",
-              darkSquareStyle,
-              lightSquareStyle,
-              boardStyle: { borderRadius: "0.5rem", overflow: "hidden" },
-              animationDurationInMs: 180,
-              allowDrawingArrows: true,
-              arrows,
-              onArrowsChange: ({ arrows: nextArrows }) => setArrows(nextArrows),
-              clearArrowsOnClick: true,
-              arrowOptions: {
-                ...defaultArrowOptions,
-                colors: { default: "rgba(245, 190, 66, 0.9)", shift: "rgba(96, 165, 250, 0.9)", ctrl: "rgba(248, 113, 113, 0.9)", alt: "rgba(74, 222, 128, 0.9)", meta: "rgba(192, 132, 252, 0.9)" },
-                opacity: 0.9,
-                activeOpacity: 1,
-              },
-              showNotation,
-              onPieceDrop: ({ sourceSquare, targetSquare }) => onDrop({ sourceSquare, targetSquare }),
-              canDragPiece: () => {
-                if (playerColor === "spectator" || gameStatus !== "in_progress") return false;
-                const isOurTurn = (chess.turn() === "w" && playerColor === "white") || (chess.turn() === "b" && playerColor === "black");
-                if (!isOurTurn) return false;
-                return true;
-              },
-              onPieceDrag: ({ square }) => {
-                if (square) {
-                  getMoveOptions(square as Square);
-                }
-              },
-              onSquareMouseDown: ({ square }) => {
-                if (square) {
-                  getMoveOptions(square as Square);
-                }
-              },
-              onSquareClick: ({ square }) => onSquareClick({ square }),
-              squareStyles: computedSquareStyles,
-            }}
-          />
-
-          {pendingPromotion && (
-            <div className="absolute inset-0 z-[170] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm">
-              <div role="dialog" aria-modal="true" aria-label="Choose promotion piece" className="w-full max-w-xs rounded-2xl border border-border bg-card p-5 text-center shadow-2xl">
-                <p className="text-lg font-black">Choose your promotion</p>
-                <p className="mt-1 text-xs font-medium text-muted-foreground">Select the piece your pawn becomes.</p>
-                <div className="mt-4 grid grid-cols-4 gap-2">
-                  {([["q", "♛", "Queen"], ["r", "♜", "Rook"], ["b", "♝", "Bishop"], ["n", "♞", "Knight"]] as const).map(([piece, symbol, label]) => <button key={piece} type="button" onClick={() => choosePromotion(piece)} className="rounded-xl border border-border bg-background p-3 transition hover:border-primary hover:bg-primary/10" aria-label={`Promote to ${label}`}><span className="block text-3xl leading-none">{symbol}</span><span className="mt-1 block text-[10px] font-bold text-muted-foreground">{label}</span></button>)}
-                </div>
-                <button type="button" onClick={() => setPendingPromotion(null)} className="mt-4 text-xs font-bold text-muted-foreground hover:text-foreground">Cancel move</button>
-              </div>
-            </div>
+          {playerColor === "spectator" && (
+            <MatchSpectator count={spectators.length} />
           )}
-
-          <ConfirmModal isOpen={showResignConfirm} onClose={()=>setShowResignConfirm(false)} onConfirm={()=>void confirmResign()} title="Resign this match?" message="Your opponent will win and your Lounge rank will be updated." confirmText="Resign match"/>
-        </div>
-
-        {/* Bottom Player (You) */}
-        {renderPlayerHeader(playerColor === 'white' ? 'white' : 'black')}
-        {derivedGameOver && <MatchResult title={derivedGameOver.title} description={`${derivedGameOver.reason}. The final board stays open for review.`}>{playerColor !== "spectator" && game.result && <span className="rounded-xl bg-card px-3 py-2 text-sm font-bold text-primary">{Number(game.result.player1_id === currentUserId ? game.result.player1_lp_delta : game.result.player2_lp_delta) >= 0 ? "+" : ""}{game.result.player1_id === currentUserId ? game.result.player1_lp_delta : game.result.player2_lp_delta} Lounge LP</span>}{playerColor !== "spectator" && <button className="match-button match-button-primary" disabled={rematchBusy || rematchSent} onClick={async () => { setRematchBusy(true); try { await challengeUserToChess(playerColor === "white" ? game.black_player_id : game.white_player_id, 600000); setRematchSent(true); toast("Rematch invite sent."); } catch (error) { toast(error instanceof Error ? error.message : "Could not send rematch"); } finally { setRematchBusy(false); } }}>{rematchSent ? "Invite sent" : rematchBusy ? "Sending…" : "Rematch · 10 min"}</button>}</MatchResult>}
-      </div>
-
-      {/* Right: Sidebar */}
-      <div className="match-panel flex min-h-[640px] max-h-[850px] flex-col overflow-hidden">
-        
-        {drawOfferedBy && drawOfferedBy !== playerColor && playerColor !== "spectator" && gameStatus === "in_progress" && <section className="border-b border-border bg-primary/5 p-5" aria-label="Draw offer"><p className="text-sm font-bold">Your opponent offered a draw</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Accept to end the match as a draw, or decline to keep playing.</p><div className="mt-4 flex gap-2"><button onClick={handleDeclineDraw} className="match-button match-button-secondary flex-1">Decline</button><button onClick={handleAcceptDraw} className="match-button match-button-primary flex-1">Accept draw</button></div></section>}
-        {/* Match controls */}
-        <div className="p-4 border-b border-border bg-muted/30">
-          <div className="font-bold text-center mb-3 text-lg" aria-live="polite">
-            {gameStatus === "waiting" ? <span className="flex items-center justify-center gap-2 text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Waiting for Opponent</span> : 
-             gameStatus === "white_won" ? derivedGameOver?.title :
-             gameStatus === "black_won" ? derivedGameOver?.title :
-             gameStatus === "draw" ? "Game Drawn" : 
-             (chess.turn() === "w" && playerColor === "white") || (chess.turn() === "b" && playerColor === "black") ? "Your Turn" : playerColor === "spectator" ? `${chess.turn() === "w" ? game.white?.full_name || "White" : game.black?.full_name || "Black"}’s turn` : "Opponent’s turn"}
-          </div>
-          <div className="mb-3 flex justify-end">
-            <button type="button" onClick={() => setShowNotation((visible) => !visible)} className="match-button match-button-secondary" aria-pressed={showNotation}>
-              <Settings2 size={13} /> {showNotation ? "Hide coordinates" : "Show coordinates"}
-            </button>
-          </div>
-          
-          {gameStatus === "waiting" && playerColor !== "spectator" && (
-            <div className="flex gap-2 mt-2">
-              <button 
-                onClick={async () => {
-                  try {
-                    await cancelChessGame(game.id);
-                    router.push('/office-lounge');
-                  } catch (e: any) {
-                    if (e.message === "NEXT_REDIRECT") throw e;
-                    toast("Failed to cancel: " + e.message);
+          <div className="w-full aspect-square rounded-2xl overflow-hidden border-[6px] border-border bg-secondary relative shadow-sm">
+            <Chessboard
+              key={playerColor}
+              options={{
+                position: fen,
+                boardOrientation: playerColor === "black" ? "black" : "white",
+                darkSquareStyle,
+                lightSquareStyle,
+                boardStyle: { borderRadius: "0.5rem", overflow: "hidden" },
+                animationDurationInMs: 180,
+                allowDrawingArrows: true,
+                arrows,
+                onArrowsChange: ({ arrows: nextArrows }) =>
+                  setArrows(nextArrows),
+                clearArrowsOnClick: true,
+                arrowOptions: {
+                  ...defaultArrowOptions,
+                  colors: {
+                    default: "rgba(245, 190, 66, 0.9)",
+                    shift: "rgba(96, 165, 250, 0.9)",
+                    ctrl: "rgba(248, 113, 113, 0.9)",
+                    alt: "rgba(74, 222, 128, 0.9)",
+                    meta: "rgba(192, 132, 252, 0.9)",
+                  },
+                  opacity: 0.9,
+                  activeOpacity: 1,
+                },
+                showNotation,
+                onPieceDrop: ({ sourceSquare, targetSquare }) =>
+                  onDrop({ sourceSquare, targetSquare }),
+                canDragPiece: () => {
+                  if (
+                    playerColor === "spectator" ||
+                    gameStatus !== "in_progress"
+                  )
+                    return false;
+                  const isOurTurn =
+                    (chess.turn() === "w" && playerColor === "white") ||
+                    (chess.turn() === "b" && playerColor === "black");
+                  if (!isOurTurn) return false;
+                  return true;
+                },
+                onPieceDrag: ({ square }) => {
+                  if (square) {
+                    getMoveOptions(square as Square);
                   }
-                }}
-                className="match-button match-button-secondary flex-1"
-              >
-                <XIcon size={14} /> Cancel Game
-              </button>
-            </div>
-          )}
+                },
+                onSquareMouseDown: ({ square }) => {
+                  if (square) {
+                    getMoveOptions(square as Square);
+                  }
+                },
+                onSquareClick: ({ square }) => onSquareClick({ square }),
+                squareStyles: computedSquareStyles,
+              }}
+            />
 
-          {gameStatus === "in_progress" && playerColor !== "spectator" && (
-            <div className="flex gap-2">
-              <button onClick={handleResign} className="match-button match-button-danger flex-1">
-                <Flag size={14} /> Resign match
-              </button>
-              <button onClick={handleOfferDraw} className="match-button match-button-secondary flex-1">
-                <Handshake size={14} /> Offer draw
-              </button>
-            </div>
-          )}
+            {pendingPromotion && (
+              <div className="absolute inset-0 z-[170] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm">
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Choose promotion piece"
+                  className="w-full max-w-xs rounded-2xl border border-border bg-card p-5 text-center shadow-2xl"
+                >
+                  <p className="text-lg font-black">Choose your promotion</p>
+                  <p className="mt-1 text-xs font-medium text-muted-foreground">
+                    Select the piece your pawn becomes.
+                  </p>
+                  <div className="mt-4 grid grid-cols-4 gap-2">
+                    {(
+                      [
+                        ["q", "♛", "Queen"],
+                        ["r", "♜", "Rook"],
+                        ["b", "♝", "Bishop"],
+                        ["n", "♞", "Knight"],
+                      ] as const
+                    ).map(([piece, symbol, label]) => (
+                      <button
+                        key={piece}
+                        type="button"
+                        onClick={() => choosePromotion(piece)}
+                        className="rounded-xl border border-border bg-background p-3 transition hover:border-primary hover:bg-primary/10"
+                        aria-label={`Promote to ${label}`}
+                      >
+                        <span className="block text-3xl leading-none">
+                          {symbol}
+                        </span>
+                        <span className="mt-1 block text-[10px] font-bold text-muted-foreground">
+                          {label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPendingPromotion(null)}
+                    className="mt-4 text-xs font-bold text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel move
+                  </button>
+                </div>
+              </div>
+            )}
 
-          {gameStatus === "in_progress" && playerColor !== "spectator" && (
-            <div className="mt-3 flex items-center justify-center gap-2 text-[11px] font-bold text-muted-foreground">
-              <span className={`h-2 w-2 rounded-full ${isOpponentConnected ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`} />
-              {isOpponentConnected ? "Opponent online" : "Opponent offline or reconnecting"}
-            </div>
-          )}
+            <ConfirmModal
+              isOpen={showResignConfirm}
+              onClose={() => setShowResignConfirm(false)}
+              onConfirm={() => void confirmResign()}
+              title="Resign this match?"
+              message="Your opponent will win and your Lounge rank will be updated."
+              confirmText="Resign match"
+            />
+          </div>
 
-          {drawOfferedBy && drawOfferedBy === playerColor && gameStatus === "in_progress" && (
-            <div className="mt-2 text-center text-xs text-muted-foreground italic animate-pulse">
-              Draw offer sent to opponent...
-            </div>
+          {/* Bottom Player (You) */}
+          {renderPlayerHeader(playerColor === "white" ? "white" : "black")}
+          {derivedGameOver && (
+            <MatchResult
+              title={derivedGameOver.title}
+              description={`${derivedGameOver.reason}. The final board stays open for review.`}
+            >
+              {playerColor !== "spectator" && game.result && (
+                <span className="rounded-xl bg-card px-3 py-2 text-sm font-bold text-primary">
+                  {Number(
+                    game.result.player1_id === currentUserId
+                      ? game.result.player1_lp_delta
+                      : game.result.player2_lp_delta,
+                  ) >= 0
+                    ? "+"
+                    : ""}
+                  {game.result.player1_id === currentUserId
+                    ? game.result.player1_lp_delta
+                    : game.result.player2_lp_delta}{" "}
+                  Lounge LP
+                </span>
+              )}
+              {playerColor !== "spectator" && (
+                <button
+                  className="match-button match-button-primary"
+                  disabled={rematchBusy || rematchSent}
+                  onClick={async () => {
+                    setRematchBusy(true);
+                    try {
+                      await challengeUserToChess(
+                        playerColor === "white"
+                          ? game.black_player_id
+                          : game.white_player_id,
+                        600000,
+                      );
+                      setRematchSent(true);
+                      toast("Rematch invite sent.");
+                    } catch (error) {
+                      toast(
+                        error instanceof Error
+                          ? error.message
+                          : "Could not send rematch",
+                      );
+                    } finally {
+                      setRematchBusy(false);
+                    }
+                  }}
+                >
+                  {rematchSent
+                    ? "Invite sent"
+                    : rematchBusy
+                      ? "Sending…"
+                      : "Rematch · 10 min"}
+                </button>
+              )}
+            </MatchResult>
           )}
         </div>
 
-        {/* Spectators */}
-        {spectators.length > 0 && (
-          <div className="bg-muted/50 p-2 text-xs flex flex-col gap-1 border-b border-border">
-            <div className="flex items-center gap-2 font-bold text-muted-foreground">
-              <Eye size={14} /> {spectators.length} Spectator{spectators.length !== 1 ? 's' : ''}
+        {/* Right: Sidebar */}
+        <div className="match-panel flex min-h-[640px] max-h-[850px] flex-col overflow-hidden">
+          {drawOfferedBy &&
+            drawOfferedBy !== playerColor &&
+            playerColor !== "spectator" &&
+            gameStatus === "in_progress" && (
+              <section
+                className="border-b border-border bg-primary/5 p-5"
+                aria-label="Draw offer"
+              >
+                <p className="text-sm font-bold">
+                  Your opponent offered a draw
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Accept to end the match as a draw, or decline to keep playing.
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <button
+                    onClick={handleDeclineDraw}
+                    className="match-button match-button-secondary flex-1"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    onClick={handleAcceptDraw}
+                    className="match-button match-button-primary flex-1"
+                  >
+                    Accept draw
+                  </button>
+                </div>
+              </section>
+            )}
+          {/* Match controls */}
+          <div className="p-4 border-b border-border bg-muted/30">
+            <div
+              className="font-bold text-center mb-3 text-lg"
+              aria-live="polite"
+            >
+              {gameStatus === "waiting" ? (
+                <span className="flex items-center justify-center gap-2 text-muted-foreground">
+                  <Loader2 size={16} className="animate-spin" /> Waiting for
+                  Opponent
+                </span>
+              ) : gameStatus === "white_won" ? (
+                derivedGameOver?.title
+              ) : gameStatus === "black_won" ? (
+                derivedGameOver?.title
+              ) : gameStatus === "draw" ? (
+                "Game Drawn"
+              ) : (chess.turn() === "w" && playerColor === "white") ||
+                (chess.turn() === "b" && playerColor === "black") ? (
+                "Your Turn"
+              ) : playerColor === "spectator" ? (
+                `${chess.turn() === "w" ? game.white?.full_name || "White" : game.black?.full_name || "Black"}’s turn`
+              ) : (
+                "Opponent’s turn"
+              )}
             </div>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {spectators.map((s, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-background border border-border px-2 py-1 rounded-full shadow-sm">
-                  {s.avatar_url ? (
-                    <img src={s.avatar_url} alt={`${s.full_name || "Spectator"} avatar`} className="w-4 h-4 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-4 h-4 rounded-full bg-secondary flex items-center justify-center text-[8px]">
-                      <User size={8} />
-                    </div>
-                  )}
-                  <span className="font-medium truncate max-w-[80px]">{s.full_name}</span>
+            <div className="mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowNotation((visible) => !visible)}
+                className="match-button match-button-secondary"
+                aria-pressed={showNotation}
+              >
+                <Settings2 size={13} />{" "}
+                {showNotation ? "Hide coordinates" : "Show coordinates"}
+              </button>
+            </div>
+
+            {gameStatus === "waiting" && playerColor !== "spectator" && (
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      await cancelChessGame(game.id);
+                      router.push("/office-lounge");
+                    } catch (e: any) {
+                      if (e.message === "NEXT_REDIRECT") throw e;
+                      toast("Failed to cancel: " + e.message);
+                    }
+                  }}
+                  className="match-button match-button-secondary flex-1"
+                >
+                  <XIcon size={14} /> Cancel Game
+                </button>
+              </div>
+            )}
+
+            {gameStatus === "in_progress" && playerColor !== "spectator" && (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleResign}
+                  className="match-button match-button-danger flex-1"
+                >
+                  <Flag size={14} /> Resign match
+                </button>
+                <button
+                  onClick={handleOfferDraw}
+                  className="match-button match-button-secondary flex-1"
+                >
+                  <Handshake size={14} /> Offer draw
+                </button>
+              </div>
+            )}
+
+            {gameStatus === "in_progress" && playerColor !== "spectator" && (
+              <div className="mt-3 flex items-center justify-center gap-2 text-[11px] font-bold text-muted-foreground">
+                <span
+                  className={`h-2 w-2 rounded-full ${isOpponentConnected ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}
+                />
+                {isOpponentConnected
+                  ? "Opponent online"
+                  : "Opponent offline or reconnecting"}
+              </div>
+            )}
+
+            {drawOfferedBy &&
+              drawOfferedBy === playerColor &&
+              gameStatus === "in_progress" && (
+                <div className="mt-2 text-center text-xs text-muted-foreground italic animate-pulse">
+                  Draw offer sent to opponent...
+                </div>
+              )}
+          </div>
+
+          {/* Spectators */}
+          {spectators.length > 0 && (
+            <div className="bg-muted/50 p-2 text-xs flex flex-col gap-1 border-b border-border">
+              <div className="flex items-center gap-2 font-bold text-muted-foreground">
+                <Eye size={14} /> {spectators.length} Spectator
+                {spectators.length !== 1 ? "s" : ""}
+              </div>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {spectators.map((s, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-1.5 bg-background border border-border px-2 py-1 rounded-full shadow-sm"
+                  >
+                    {s.avatar_url ? (
+                      <img
+                        src={s.avatar_url}
+                        alt={`${s.full_name || "Spectator"} avatar`}
+                        className="w-4 h-4 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full bg-secondary flex items-center justify-center text-[8px]">
+                        <User size={8} />
+                      </div>
+                    )}
+                    <span className="font-medium truncate max-w-[80px]">
+                      {s.full_name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between border-b border-border px-5 py-3">
+            <h2 className="text-sm font-bold">Move history</h2>
+            <span className="text-xs text-muted-foreground">
+              {movePairs.length} turn{movePairs.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          {/* Move History */}
+          <div
+            className="flex-1 overflow-y-auto bg-background p-0"
+            ref={historyScrollRef}
+          >
+            {movePairs.length === 0 && (
+              <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+                Opening moves will appear here.
+              </p>
+            )}
+            <table
+              aria-label="Move history"
+              className="w-full text-sm text-left border-collapse"
+            >
+              <tbody className="divide-y divide-border/50">
+                {movePairs.map((pair, i) => (
+                  <tr key={i} className="even:bg-muted/20">
+                    <td className="py-2 px-4 text-muted-foreground font-mono w-12 border-r border-border/50 text-center bg-muted/10">
+                      {i + 1}.
+                    </td>
+                    <td className="py-2 px-4 font-semibold">{pair[0]}</td>
+                    <td className="py-2 px-4 font-semibold">{pair[1] || ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Chat Box */}
+          <div className="h-[220px] shrink-0 flex flex-col border-t border-border">
+            <h2 className="px-4 pt-4 text-sm font-bold">Match chat</h2>
+            <div
+              className="flex-1 p-3 overflow-y-auto bg-muted/10 flex flex-col gap-2"
+              ref={chatScrollRef}
+            >
+              {chatMessages.length === 0 && (
+                <div className="text-xs text-muted-foreground text-center mt-4">
+                  Say hello to your opponent.
+                </div>
+              )}
+              {chatMessages.map((msg, i) => (
+                <div key={i} className="text-sm">
+                  <span className="font-bold opacity-75">{msg.sender}: </span>
+                  <span>{msg.text}</span>
                 </div>
               ))}
             </div>
+            {playerColor !== "spectator" && (
+              <form
+                onSubmit={handleSendChat}
+                className="p-2 bg-card border-t border-border flex gap-2"
+              >
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  aria-label="Match chat message"
+                  maxLength={500}
+                  placeholder="Send a message..."
+                  className="min-w-0 flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  type="submit"
+                  aria-label="Send match message"
+                  disabled={!chatInput.trim()}
+                  className="match-button match-button-primary px-3"
+                >
+                  <Send size={14} />
+                </button>
+              </form>
+            )}
           </div>
-        )}
-
-        <div className="flex items-center justify-between border-b border-border px-5 py-3"><h2 className="text-sm font-bold">Move history</h2><span className="text-xs text-muted-foreground">{movePairs.length} turn{movePairs.length === 1 ? "" : "s"}</span></div>
-        {/* Move History */}
-        <div className="flex-1 overflow-y-auto bg-background p-0" ref={historyScrollRef}>
-          {movePairs.length === 0 && <p className="px-5 py-8 text-center text-sm text-muted-foreground">Opening moves will appear here.</p>}<table aria-label="Move history" className="w-full text-sm text-left border-collapse">
-            <tbody className="divide-y divide-border/50">
-              {movePairs.map((pair, i) => (
-                <tr key={i} className="even:bg-muted/20">
-                  <td className="py-2 px-4 text-muted-foreground font-mono w-12 border-r border-border/50 text-center bg-muted/10">{i + 1}.</td>
-                  <td className="py-2 px-4 font-semibold">{pair[0]}</td>
-                  <td className="py-2 px-4 font-semibold">{pair[1] || ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Chat Box */}
-        <div className="h-[220px] shrink-0 flex flex-col border-t border-border"><h2 className="px-4 pt-4 text-sm font-bold">Match chat</h2>
-          <div className="flex-1 p-3 overflow-y-auto bg-muted/10 flex flex-col gap-2" ref={chatScrollRef}>
-            {chatMessages.length === 0 && <div className="text-xs text-muted-foreground text-center mt-4">Say hello to your opponent.</div>}
-            {chatMessages.map((msg, i) => (
-              <div key={i} className="text-sm">
-                <span className="font-bold opacity-75">{msg.sender}: </span>
-                <span>{msg.text}</span>
-              </div>
-            ))}
-          </div>
-          {playerColor !== "spectator" && (
-            <form onSubmit={handleSendChat} className="p-2 bg-card border-t border-border flex gap-2">
-              <input 
-                type="text" 
-                value={chatInput} 
-                onChange={e => setChatInput(e.target.value)} 
-                aria-label="Match chat message"
-                maxLength={500}
-                placeholder="Send a message..." 
-                className="min-w-0 flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <button type="submit" aria-label="Send match message" disabled={!chatInput.trim()} className="match-button match-button-primary px-3">
-                <Send size={14} />
-              </button>
-            </form>
-          )}
         </div>
       </div>
-    </div></section>
+    </section>
   );
 }
-

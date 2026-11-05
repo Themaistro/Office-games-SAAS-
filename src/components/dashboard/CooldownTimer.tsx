@@ -10,11 +10,14 @@ interface CooldownTimerProps {
   cooldownHours: number;
 }
 
-export default function CooldownTimer({ createdAt, cooldownHours }: CooldownTimerProps) {
+export default function CooldownTimer({
+  createdAt,
+  cooldownHours,
+}: CooldownTimerProps) {
   const router = useRouter();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const refreshedDeadline = useRef<number | null>(null);
-  
+
   useEffect(() => {
     const createdAtTime = new Date(createdAt).getTime();
     const unlockTime = createdAtTime + cooldownHours * 60 * 60 * 1000;
@@ -23,7 +26,7 @@ export default function CooldownTimer({ createdAt, cooldownHours }: CooldownTime
       const now = Date.now();
       const remaining = Math.max(0, Math.floor((unlockTime - now) / 1000));
       setTimeLeft(remaining);
-      
+
       // Auto-refresh when cooldown expires
       if (remaining === 0 && refreshedDeadline.current !== unlockTime) {
         refreshedDeadline.current = unlockTime;
@@ -62,16 +65,20 @@ export default function CooldownTimer({ createdAt, cooldownHours }: CooldownTime
       <div className="inline-flex w-fit items-center gap-3 rounded-2xl border border-primary/15 bg-primary/5 px-5 py-3">
         <Clock className="text-primary" size={21} />
         <div className="flex flex-col">
-          <span className="text-xs font-medium text-muted-foreground uppercase">Next Challenge Unlocks In</span>
+          <span className="text-xs font-medium text-muted-foreground uppercase">
+            Next Challenge Unlocks In
+          </span>
           <span className="text-2xl font-mono font-bold">
-            {hours.toString().padStart(2, '0')}:
-            {minutes.toString().padStart(2, '0')}:
-            {seconds.toString().padStart(2, '0')}
+            {hours.toString().padStart(2, "0")}:
+            {minutes.toString().padStart(2, "0")}:
+            {seconds.toString().padStart(2, "0")}
           </span>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground">Your next Daily Mission unlocks when this timer ends. The Office Lounge is open anytime.</p>
+      <p className="text-sm text-muted-foreground">
+        Your next Daily Mission unlocks when this timer ends. The Office Lounge
+        is open anytime.
+      </p>
     </div>
   );
 }
-

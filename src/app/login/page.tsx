@@ -10,11 +10,9 @@ export default async function LoginPage({
   searchParams: Promise<{ message?: string; error?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  
-  
+
   return (
     <div className="flex min-h-screen bg-background relative overflow-hidden">
-      
       {/* Global Background Layer */}
       <div className="absolute inset-0 z-0 flex">
         {/* Left Side Background */}
@@ -33,9 +31,11 @@ export default async function LoginPage({
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm shadow-sm">
               <Brain size={24} />
             </div>
-            <span className="text-xl font-bold tracking-tight">Office Games</span>
+            <span className="text-xl font-bold tracking-tight">
+              Office Games
+            </span>
           </div>
-          
+
           {/* Live Players Indicator */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10 animate-in fade-in duration-1000 delay-500 fill-mode-both">
             <span className="relative flex h-2 w-2">
@@ -53,7 +53,8 @@ export default async function LoginPage({
             Sharpen your mind. <br /> Compete with your team.
           </h1>
           <p className="text-lg text-white/90 max-w-md drop-shadow-md">
-            Join the daily challenge, earn XP for accuracy and speed, and climb the monthly leaderboard.
+            Join the daily challenge, earn XP for accuracy and speed, and climb
+            the monthly leaderboard.
           </p>
         </div>
       </div>
@@ -66,12 +67,16 @@ export default async function LoginPage({
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                 <Brain size={24} />
               </div>
-              <span className="text-2xl font-bold tracking-tight text-foreground">Office Games</span>
+              <span className="text-2xl font-bold tracking-tight text-foreground">
+                Office Games
+              </span>
             </div>
           </div>
 
           <div className="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 fill-mode-both">
-            <h2 className="text-3xl font-bold tracking-tight text-foreground">Welcome back</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">
+              Welcome back
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Sign in to your account to start today's mission.
             </p>
@@ -90,10 +95,13 @@ export default async function LoginPage({
                 <span>{resolvedParams.message}</span>
               </div>
             )}
-            
+
             <div className="space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200 fill-mode-both">
               <div className="space-y-2 group">
-                <label className="text-sm font-semibold text-foreground transition-colors group-focus-within:text-primary" htmlFor="email">
+                <label
+                  className="text-sm font-semibold text-foreground transition-colors group-focus-within:text-primary"
+                  htmlFor="email"
+                >
                   Email address
                 </label>
                 <input
@@ -105,10 +113,13 @@ export default async function LoginPage({
                   placeholder="employee@company.com"
                 />
               </div>
-              
+
               <div className="space-y-2 group">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-foreground transition-colors group-focus-within:text-primary" htmlFor="password">
+                  <label
+                    className="text-sm font-semibold text-foreground transition-colors group-focus-within:text-primary"
+                    htmlFor="password"
+                  >
                     Password
                   </label>
                 </div>
@@ -123,16 +134,21 @@ export default async function LoginPage({
               >
                 <span className="relative z-10 flex items-center gap-2">
                   Sign In
-                  <Brain size={16} className="transition-transform group-hover:scale-110 group-hover:rotate-12" />
+                  <Brain
+                    size={16}
+                    className="transition-transform group-hover:scale-110 group-hover:rotate-12"
+                  />
                 </span>
                 <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out" />
               </button>
             </div>
-            
 
             <p className="mt-8 text-center text-sm text-muted-foreground animate-in fade-in duration-1000 delay-500 fill-mode-both">
               Don't have an account?{" "}
-              <Link href="/register" className="font-semibold text-foreground hover:text-primary transition-colors pointer-events-auto">
+              <Link
+                href="/register"
+                className="font-semibold text-foreground hover:text-primary transition-colors pointer-events-auto"
+              >
                 Register here
               </Link>
             </p>
@@ -142,4 +158,3 @@ export default async function LoginPage({
     </div>
   );
 }
-

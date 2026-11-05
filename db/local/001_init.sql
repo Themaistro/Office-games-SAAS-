@@ -29,5 +29,5 @@ LANGUAGE sql
 STABLE
 AS $$ SELECT COALESCE(NULLIF(current_setting('app.current_role', true), ''), 'anon') $$;
 
-\i /docker-entrypoint-initdb.d/010_schema.sql
+-- The ordered bootstrap manifest/Docker entrypoint loads schema.sql next.
 

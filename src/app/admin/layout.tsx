@@ -1,7 +1,7 @@
+import { requireAdminPage } from "@/features/identity/composition";
+import { destroySession } from "@/features/identity/public-server";
 import { Activity } from "lucide-react";
-import { destroySession, getCurrentAdmin, getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
-
 import AdminMobileMenu from "./AdminMobileMenu";
 import AdminSidebar from "./AdminSidebar";
 
@@ -15,15 +15,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  if (!(await getCurrentAdmin())) {
-    redirect("/dashboard");
-  }
+  await requireAdminPage();
 
   const handleSignOut = async () => {
     "use server";
@@ -49,4 +41,3 @@ export default async function AdminLayout({
     </div>
   );
 }
-

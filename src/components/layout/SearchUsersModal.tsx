@@ -1,11 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { Search, X, User, ArrowRight } from "lucide-react";
+import { ArrowRight, Search, User, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
-export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+export default function SearchUsersModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -22,7 +28,9 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
@@ -34,7 +42,10 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
         return;
       }
       setIsSearching(true);
-      const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, { cache: "no-store" });
+      const response = await fetch(
+        `/api/users/search?q=${encodeURIComponent(query)}`,
+        { cache: "no-store" },
+      );
       setResults(response.ok ? await response.json() : []);
       setIsSearching(false);
     };
@@ -45,17 +56,21 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
 
   if (!isOpen || typeof document === "undefined") return null;
 
-  return createPortal((
-    <div className="fixed inset-0 z-[150] flex items-start justify-center overflow-y-auto px-4 pb-8 pt-20 sm:pt-32" role="dialog" aria-modal="true" aria-label="Search coworkers">
+  return createPortal(
+    <div
+      className="fixed inset-0 layer-dialog flex items-start justify-center overflow-y-auto px-4 pb-8 pt-20 sm:pt-32"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Search coworkers"
+    >
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity" 
+      <div
+        className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
       <div className="relative w-full max-w-lg bg-card rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        
         {/* Search Input */}
         <div className="flex items-center px-4 py-3 border-b border-border gap-3">
           <Search className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -67,7 +82,7 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <button 
+          <button
             onClick={onClose}
             className="p-1 hover:bg-secondary rounded-full text-muted-foreground transition-colors"
           >
@@ -82,7 +97,7 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
               Keep typing...
             </div>
           )}
-          
+
           {isSearching && query.trim().length >= 2 && results.length === 0 && (
             <div className="p-4 text-center text-sm text-muted-foreground">
               Searching...
@@ -95,7 +110,9 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
                 <Search className="w-6 h-6 text-muted-foreground" />
               </div>
               <p className="text-foreground font-semibold">No users found</p>
-              <p className="text-sm text-muted-foreground">Try a different name</p>
+              <p className="text-sm text-muted-foreground">
+                Try a different name
+              </p>
             </div>
           )}
 
@@ -109,22 +126,30 @@ export default function SearchUsersModal({ isOpen, onClose }: { isOpen: boolean,
               className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary transition-colors text-left group"
             >
               {user.avatar_url ? (
-                <img src={user.avatar_url} alt={user.full_name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                <img
+                  src={user.avatar_url}
+                  alt={user.full_name}
+                  className="w-10 h-10 rounded-full object-cover shrink-0"
+                />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <User className="w-5 h-5 text-primary" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-foreground truncate">{user.full_name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.department || "No Department"}</p>
+                <p className="font-bold text-foreground truncate">
+                  {user.full_name}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user.department || "No Department"}
+                </p>
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0 transform" />
             </button>
           ))}
         </div>
       </div>
-    </div>
-  ), document.body);
+    </div>,
+    document.body,
+  );
 }
-

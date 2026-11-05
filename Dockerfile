@@ -1,4 +1,4 @@
-FROM node:18-alpine AS base
+FROM node:24-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -13,22 +13,24 @@ RUN npm ci
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
+ARG NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID
+ENV NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID=$NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV BUILD_STANDALONE=true
 
-RUN npm run build
+RUN test -n "$NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID" && npm run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -43,14 +45,21 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/db/migrations ./db/migrations
+COPY --from=builder --chown=nextjs:nodejs /app/db/runtime-migrations.json ./db/runtime-migrations.json
+COPY --from=builder --chown=nextjs:nodejs /app/db/content ./db/content
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.cjs ./scripts/migrate.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-content.cjs ./scripts/seed-content.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/provision-company.cjs ./scripts/provision-company.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/provision-runtime-role.cjs ./scripts/provision-runtime-role.cjs
 
 USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
+ENV PORT=3000
 # set hostname to localhost
-ENV HOSTNAME "0.0.0.0"
+ENV HOSTNAME="0.0.0.0"
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output

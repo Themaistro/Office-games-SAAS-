@@ -1,23 +1,140 @@
-.root { position: relative; z-index: 60; }
-.trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--foreground); font-size: 12px; font-weight: 650; cursor: pointer; }
-.trigger > svg:first-child { color: var(--primary); }
-.trigger:hover,.trigger[aria-expanded="true"] { border-color: color-mix(in srgb,var(--primary) 35%,var(--border)); background: color-mix(in srgb,var(--primary) 3%,var(--card)); }
-.trigger > svg:last-child { transition: transform 150ms ease; }
-.chevronOpen { transform: rotate(180deg); }
-.menu { position: absolute; top: calc(100% + 12px); right: 0; width: 300px; max-width: calc(100vw - 32px); padding: 8px; border: 1px solid var(--border); border-radius: 20px; background: var(--card); color: var(--foreground); box-shadow: 0 16px 48px rgb(15 23 42 / 12%),0 2px 8px rgb(15 23 42 / 4%); }
-.heading { padding: 10px 10px 14px; font-size: 14px; font-weight: 750; }
-.heading > span { display: block; margin-top: 4px; font-size: 11px; font-weight: 400; color: var(--muted-foreground); }
-.choice { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 1px solid transparent; padding: 12px 10px; border-radius: 13px; background: transparent; cursor: pointer; }
-.choice + .choice { margin-top: 4px; }
-.choice:hover { background: var(--muted); }
-.choice[aria-checked="true"] { background: color-mix(in srgb,var(--primary) 6%,var(--card)); border-color: color-mix(in srgb,var(--primary) 16%,var(--border)); }
-.preview { display: grid; grid-template-columns: 1fr 1fr; width: 38px; height: 38px; padding: 3px; gap: 3px; flex-shrink: 0; background: var(--background); border: 1px solid var(--border); border-radius: 11px; }
-.preview > span { border-radius: 3px; }
-.copy { flex: 1; min-width: 0; }
-.copy > strong { display: block; font-size: 13px; font-weight: 750; }
-.copy > span { display: block; margin-top: 4px; font-size: 11px; color: var(--muted-foreground); }
-.check { display: grid; place-items: center; width: 20px; color: var(--primary); }
-.footer { margin: 10px 2px 0; border-top: 1px solid var(--border); padding: 12px 8px 5px; font-size: 10px; color: var(--muted-foreground); }
-.trigger:focus-visible,.choice:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
-@media (max-width: 420px) { .menu { left: 0; right: auto; } }
-@media (prefers-reduced-motion: reduce) { .trigger > svg:last-child { transition: none; } }
+.root {
+  position: relative;
+  z-index: 60;
+}
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.trigger > svg:first-child {
+  color: var(--primary);
+}
+.trigger:hover,
+.trigger[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--primary) 3%, var(--card));
+}
+.trigger > svg:last-child {
+  transition: transform 150ms ease;
+}
+.chevronOpen {
+  transform: rotate(180deg);
+}
+.menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow:
+    0 16px 48px rgb(15 23 42 / 12%),
+    0 2px 8px rgb(15 23 42 / 4%);
+}
+.heading {
+  padding: 10px 10px 14px;
+  font-size: 14px;
+  font-weight: 750;
+}
+.heading > span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  padding: 12px 10px;
+  border-radius: 13px;
+  background: transparent;
+  cursor: pointer;
+}
+.choice + .choice {
+  margin-top: 4px;
+}
+.choice:hover {
+  background: var(--muted);
+}
+.choice[aria-checked="true"] {
+  background: color-mix(in srgb, var(--primary) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--primary) 16%, var(--border));
+}
+.preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 38px;
+  height: 38px;
+  padding: 3px;
+  gap: 3px;
+  flex-shrink: 0;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+}
+.preview > span {
+  border-radius: 3px;
+}
+.copy {
+  flex: 1;
+  min-width: 0;
+}
+.copy > strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 750;
+}
+.copy > span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  color: var(--primary);
+}
+.footer {
+  margin: 10px 2px 0;
+  border-top: 1px solid var(--border);
+  padding: 12px 8px 5px;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+.trigger:focus-visible,
+.choice:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+@media (max-width: 420px) {
+  .menu {
+    left: 0;
+    right: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trigger > svg:last-child {
+    transition: none;
+  }
+}

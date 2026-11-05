@@ -1,15 +1,17 @@
-import type { Metadata } from "next";
-import { ReactNode } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
 import GlobalRealtimeSync from "@/components/GlobalRealtimeSync";
-import { PresenceProvider } from "@/components/providers/PresenceProvider";
-import { getCurrentUser } from "@/lib/auth";
 import ContactsPanel from "@/components/messaging/ContactsPanel";
-import ToastProvider from "@/components/ui/ToastProvider";
 import AppearanceProvider from "@/components/providers/AppearanceProvider";
-import { cookies } from "next/headers";
+import { PresenceProvider } from "@/components/providers/PresenceProvider";
+import ToastProvider from "@/components/ui/ToastProvider";
 import { APPEARANCE_COOKIE, resolveAppearance } from "@/lib/appearance";
+import {
+  getCurrentAdmin,
+  getCurrentUser,
+} from "@/features/identity/public-server";
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { cookies } from "next/headers";
+import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,9 +28,16 @@ export const metadata: Metadata = {
   description: "A healthy daily break for teams to play, connect, and compete.",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const user = await getCurrentUser();
-  const theme = resolveAppearance((await cookies()).get(APPEARANCE_COOKIE)?.value);
+  const admin = user ? await getCurrentAdmin() : null;
+  const theme = resolveAppearance(
+    (await cookies()).get(APPEARANCE_COOKIE)?.value,
+  );
   return (
     <html
       lang="en"
@@ -36,12 +45,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col pb-16 md:pb-0">
-        <AppearanceProvider initialTheme={theme}><PresenceProvider>
-          <GlobalRealtimeSync />
-          <ToastProvider>{user && <ContactsPanel userId={user.id} />}{children}</ToastProvider>
-        </PresenceProvider></AppearanceProvider>
+        <AppearanceProvider initialTheme={theme}>
+          <PresenceProvider enabled={Boolean(user && !admin)}>
+            <GlobalRealtimeSync />
+            <ToastProvider>
+              {user && !admin && <ContactsPanel userId={user.id} />}
+              {children}
+            </ToastProvider>
+          </PresenceProvider>
+        </AppearanceProvider>
       </body>
     </html>
   );
 }
-

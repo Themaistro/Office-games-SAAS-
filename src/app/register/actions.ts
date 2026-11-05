@@ -1,11 +1,13 @@
 "use server";
 
+import { registerActionsQueries } from "@/features/identity/composition";
+import { createSession, createUser } from "@/features/identity/public-server";
+import { findInvitation } from "@/features/identity/public-server";
+import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import bcrypt from "bcryptjs";
-import { createSession, createUser } from "@/lib/auth";
-import { query } from "@/lib/db";
-import { findInvitation } from "@/lib/invitations";
+
+const { selectDepartmentsForSignup } = registerActionsQueries;
 
 export async function signup(formData: FormData) {
   const rawEmail = formData.get("email") as string;
@@ -14,7 +16,13 @@ export async function signup(formData: FormData) {
   const rawDepartment = formData.get("department") as string;
   const rawPosition = formData.get("position") as string;
 
-  if (!rawEmail || !rawPassword || !rawFullName || !rawDepartment || !rawPosition) {
+  if (
+    !rawEmail ||
+    !rawPassword ||
+    !rawFullName ||
+    !rawDepartment ||
+    !rawPosition
+  ) {
     redirect("/register?error=Please fill out all required fields.");
   }
 
@@ -26,13 +34,15 @@ export async function signup(formData: FormData) {
   const invitationToken = String(formData.get("invitation_token") || "");
   if (invitationToken) {
     const invitation = await findInvitation(invitationToken);
-    if (!invitation || invitation.email.toLowerCase() !== email) redirect("/register?error=This invitation is invalid, expired, or belongs to another email address.");
+    if (!invitation || invitation.email.toLowerCase() !== email)
+      redirect(
+        "/register?error=This invitation is invalid, expired, or belongs to another email address.",
+      );
   }
 
-  const { rows: matchingDepartments } = await query<{ name: string }>(
-    "SELECT name FROM departments WHERE name = $1 AND is_active = true LIMIT 1",
-    [department],
-  );
+  const { rows: matchingDepartments } = await selectDepartmentsForSignup<{
+    name: string;
+  }>([department]);
   if (!matchingDepartments[0]) {
     redirect("/register?error=Please select an active department.");
   }
@@ -56,19 +66,25 @@ export async function signup(formData: FormData) {
     redirect("/register?error=Position must be between 2 and 50 characters.");
   }
 
-
   try {
     const passwordHash = await bcrypt.hash(password, 12);
-    const userId = await createUser({ email, passwordHash, fullName, department, position, invitationToken });
+    const userId = await createUser({
+      email,
+      passwordHash,
+      fullName,
+      department,
+      position,
+      invitationToken,
+    });
     await createSession(userId);
   } catch (error) {
-    const message = error instanceof Error && error.message.includes("duplicate")
-      ? "An account with this email already exists."
-      : "Unable to create your account. Please try again.";
+    const message =
+      error instanceof Error && error.message.includes("duplicate")
+        ? "An account with this email already exists."
+        : "Unable to create your account. Please try again.";
     redirect("/register?error=" + encodeURIComponent(message));
   }
 
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }
-

@@ -1,33 +1,61 @@
 "use server";
+import { requireAdmin } from "@/features/identity/public-server";
 
-import { getCurrentUser } from "@/lib/auth";
-import { query } from "@/lib/db";
+import { adminDepartmentsActionsQueries } from "@/features/administration/composition";
+import { getCurrentUser } from "@/features/identity/public-server";
 import { revalidatePath } from "next/cache";
 
+const {
+  selectProfilesForAddDepartment,
+  selectDepartmentsForAddDepartment,
+  insertDepartmentsForAddDepartment,
+  selectProfilesForToggleDepartmentStatus,
+  updateDepartmentsForToggleDepartmentStatus,
+  selectProfilesForDeleteDepartment,
+  selectDepartmentsForDeleteDepartment,
+  selectProfilesForDeleteDepartment2,
+  selectCompanyTriviaForDeleteDepartment,
+  deleteDepartmentsForDeleteDepartment,
+  selectProfilesForRenameDepartment,
+  selectDepartmentsForRenameDepartment,
+  selectDepartmentsForRenameDepartment2,
+  updateDepartmentsForRenameDepartment,
+  updateProfilesForRenameDepartment,
+  updateCompanyTriviaForRenameDepartment,
+  selectProfilesForUpdateDepartmentSortOrder,
+  updateDepartmentsForUpdateDepartmentSortOrder,
+} = adminDepartmentsActionsQueries;
+
 export async function addDepartment(formData: FormData) {
+  await requireAdmin();
+
   const user = await getCurrentUser();
 
   if (!user) throw new Error("Unauthorized");
-  
+
   // Verify admin status
-  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+  const { rows: profiles } = await selectProfilesForAddDepartment<{
+    role: string;
+  }>([user.id]);
   const profile = profiles[0];
 
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  const name = String(formData.get("name") || "").trim().replace(/\s+/g, " ");
+  const name = String(formData.get("name") || "")
+    .trim()
+    .replace(/\s+/g, " ");
   if (!name) {
     throw new Error("Department name is required.");
   }
-  if (name.length > 80) throw new Error("Department name must be 80 characters or fewer.");
+  if (name.length > 80)
+    throw new Error("Department name must be 80 characters or fewer.");
 
-  const { rows: duplicateRows } = await query<{ id: string }>(
-    "SELECT id FROM departments WHERE lower(name) = lower($1) LIMIT 1",
-    [name],
-  );
+  const { rows: duplicateRows } = await selectDepartmentsForAddDepartment<{
+    id: string;
+  }>([name]);
   if (duplicateRows[0]) throw new Error("That department already exists.");
 
-  await query("INSERT INTO departments (name, is_active) VALUES ($1, true)", [name]);
+  await insertDepartmentsForAddDepartment([name]);
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
@@ -37,14 +65,18 @@ export async function addDepartment(formData: FormData) {
 }
 
 export async function toggleDepartmentStatus(id: string, isActive: boolean) {
+  await requireAdmin();
+
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
-  
-  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+
+  const { rows: profiles } = await selectProfilesForToggleDepartmentStatus<{
+    role: string;
+  }>([user.id]);
   const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
-  await query("UPDATE departments SET is_active = $1 WHERE id = $2", [!isActive, id]);
+  await updateDepartmentsForToggleDepartmentStatus([!isActive, id]);
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
@@ -54,31 +86,45 @@ export async function toggleDepartmentStatus(id: string, isActive: boolean) {
 }
 
 export async function deleteDepartment(id: string) {
+  await requireAdmin();
+
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
-  
-  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+
+  const { rows: profiles } = await selectProfilesForDeleteDepartment<{
+    role: string;
+  }>([user.id]);
   const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   // Safety check: Don't delete if users are in it
-  const { rows: deptRows } = await query<{ name: string }>("SELECT name FROM departments WHERE id = $1", [id]);
+  const { rows: deptRows } = await selectDepartmentsForDeleteDepartment<{
+    name: string;
+  }>([id]);
   const dept = deptRows[0];
   if (!dept) throw new Error("Department not found");
 
-  const { rows: countRows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM profiles WHERE department = $1", [dept.name]);
+  const { rows: countRows } = await selectProfilesForDeleteDepartment2<{
+    count: number;
+  }>([dept.name]);
   const count = countRows[0]?.count ?? 0;
   if (count && count > 0) {
-    throw new Error(`Cannot delete: ${count} players are still assigned to this department.`);
+    throw new Error(
+      `Cannot delete: ${count} players are still assigned to this department.`,
+    );
   }
 
-  const { rows: triviaRows } = await query<{ count: number }>("SELECT count(*)::int AS count FROM company_trivia WHERE department = $1", [dept.name]);
+  const { rows: triviaRows } = await selectCompanyTriviaForDeleteDepartment<{
+    count: number;
+  }>([dept.name]);
   const triviaCount = triviaRows[0]?.count ?? 0;
   if (triviaCount > 0) {
-    throw new Error(`Cannot delete: ${triviaCount} questions are targeted to this department. Reassign them first.`);
+    throw new Error(
+      `Cannot delete: ${triviaCount} questions are targeted to this department. Reassign them first.`,
+    );
   }
 
-  await query("DELETE FROM departments WHERE id = $1", [id]);
+  await deleteDepartmentsForDeleteDepartment([id]);
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
@@ -87,33 +133,39 @@ export async function deleteDepartment(id: string) {
 }
 
 export async function renameDepartment(id: string, newName: string) {
+  await requireAdmin();
+
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
-  
-  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+
+  const { rows: profiles } = await selectProfilesForRenameDepartment<{
+    role: string;
+  }>([user.id]);
   const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   const name = newName.trim().replace(/\s+/g, " ");
   if (!name) throw new Error("Department name is required.");
-  if (name.length > 80) throw new Error("Department name must be 80 characters or fewer.");
+  if (name.length > 80)
+    throw new Error("Department name must be 80 characters or fewer.");
 
-  const { rows: oldDeptRows } = await query<{ name: string }>("SELECT name FROM departments WHERE id = $1", [id]);
+  const { rows: oldDeptRows } = await selectDepartmentsForRenameDepartment<{
+    name: string;
+  }>([id]);
   const oldDept = oldDeptRows[0];
   if (!oldDept) throw new Error("Department not found");
 
-  const { rows: duplicateRows } = await query<{ id: string }>(
-    "SELECT id FROM departments WHERE lower(name) = lower($1) AND id <> $2 LIMIT 1",
-    [name, id],
-  );
+  const { rows: duplicateRows } = await selectDepartmentsForRenameDepartment2<{
+    id: string;
+  }>([name, id]);
   if (duplicateRows[0]) throw new Error("That department already exists.");
 
-  await query("UPDATE departments SET name = $1 WHERE id = $2", [name, id]);
+  await updateDepartmentsForRenameDepartment([name, id]);
 
   // Cascade the rename to all users who had the old department name
   if (oldDept.name !== name) {
-    await query("UPDATE profiles SET department = $1 WHERE department = $2", [name, oldDept.name]);
-    await query("UPDATE company_trivia SET department = $1 WHERE department = $2", [name, oldDept.name]);
+    await updateProfilesForRenameDepartment([name, oldDept.name]);
+    await updateCompanyTriviaForRenameDepartment([name, oldDept.name]);
   }
 
   revalidatePath("/admin/departments");
@@ -123,19 +175,27 @@ export async function renameDepartment(id: string, newName: string) {
   revalidatePath("/admin/questions");
 }
 
-export async function updateDepartmentSortOrder(updates: { id: string, sort_order: number }[]) {
+export async function updateDepartmentSortOrder(
+  updates: { id: string; sort_order: number }[],
+) {
+  await requireAdmin();
+
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
-  
-  const { rows: profiles } = await query<{ role: string }>("SELECT role FROM profiles WHERE id = $1", [user.id]);
+
+  const { rows: profiles } = await selectProfilesForUpdateDepartmentSortOrder<{
+    role: string;
+  }>([user.id]);
   const profile = profiles[0];
   if (profile?.role !== "admin") throw new Error("Unauthorized");
 
   for (const update of updates) {
-    await query("UPDATE departments SET sort_order = $1 WHERE id = $2", [update.sort_order, update.id]);
+    await updateDepartmentsForUpdateDepartmentSortOrder([
+      update.sort_order,
+      update.id,
+    ]);
   }
 
   revalidatePath("/admin/departments");
   revalidatePath("/register");
 }
-

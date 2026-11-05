@@ -1,17 +1,36 @@
 "use client";
 
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 // Custom tooltip for a premium look
-const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value?: number }>; label?: string }) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ value?: number }>;
+  label?: string;
+}) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-card border border-border shadow-md rounded-xl p-3 flex flex-col gap-1">
-        <span className="text-muted-foreground text-xs font-medium">{label}</span>
+        <span className="text-muted-foreground text-xs font-medium">
+          {label}
+        </span>
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-primary" />
           <span className="font-bold text-foreground">
-            {payload[0].value} <span className="text-muted-foreground font-normal">players</span>
+            {payload[0].value}{" "}
+            <span className="text-muted-foreground font-normal">players</span>
           </span>
         </div>
       </div>
@@ -20,7 +39,11 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   return null;
 };
 
-export default function ParticipationChart({ data }: { data: { date: string; sessions: number }[] }) {
+export default function ParticipationChart({
+  data,
+}: {
+  data: { date: string; sessions: number }[];
+}) {
   if (!data || data.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center bg-muted/50 rounded-lg border border-dashed border-border text-muted-foreground">
@@ -32,9 +55,15 @@ export default function ParticipationChart({ data }: { data: { date: string; ses
   if (data.every((point) => point.sessions === 0)) {
     return (
       <div className="mt-4 flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 text-center">
-        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary"><ActivityIcon /></div>
-        <p className="text-sm font-bold text-foreground">No participation recorded yet</p>
-        <p className="mt-1 max-w-xs text-xs text-muted-foreground">Your chart will come alive as players start their daily missions.</p>
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <ActivityIcon />
+        </div>
+        <p className="text-sm font-bold text-foreground">
+          No participation recorded yet
+        </p>
+        <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+          Your chart will come alive as players start their daily missions.
+        </p>
       </div>
     );
   }
@@ -42,34 +71,58 @@ export default function ParticipationChart({ data }: { data: { date: string; ses
   return (
     <div className="h-64 w-full mt-4">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+        <AreaChart
+          data={data}
+          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+        >
           <defs>
             <linearGradient id="colorSessions" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+              <stop
+                offset="5%"
+                stopColor="hsl(var(--primary))"
+                stopOpacity={0.3}
+              />
+              <stop
+                offset="95%"
+                stopColor="hsl(var(--primary))"
+                stopOpacity={0}
+              />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-          <XAxis 
-            dataKey="date" 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} 
-            dy={10} 
+          <CartesianGrid
+            strokeDasharray="3 3"
+            vertical={false}
+            stroke="hsl(var(--border))"
+            opacity={0.5}
           />
-          <YAxis 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} 
+          <XAxis
+            dataKey="date"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+            dy={10}
           />
-          <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '4 4', fill: 'transparent' }} />
-          <Area 
-            type="monotone" 
-            dataKey="sessions" 
-            stroke="hsl(var(--primary))" 
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+          />
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{
+              stroke: "hsl(var(--primary))",
+              strokeWidth: 1,
+              strokeDasharray: "4 4",
+              fill: "transparent",
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="sessions"
+            stroke="hsl(var(--primary))"
             strokeWidth={3}
-            fillOpacity={1} 
-            fill="url(#colorSessions)" 
+            fillOpacity={1}
+            fill="url(#colorSessions)"
             animationDuration={1500}
             animationEasing="ease-out"
           />
@@ -80,6 +133,20 @@ export default function ParticipationChart({ data }: { data: { date: string; ses
 }
 
 function ActivityIcon() {
-  return <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 12h4l2-7 4 14 2-7h6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <path
+        d="M3 12h4l2-7 4 14 2-7h6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
-

@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Clock, Trophy, AlertTriangle, Home } from "lucide-react";
 import GameEngine from "@/components/game/GameEngine";
-import { startDailySession, fetchSessionQuestions, endSession } from "./actions";
-import { SessionQuestion } from "@/types/game";
 import { useToast } from "@/components/ui/ToastProvider";
+import { SessionQuestion } from "@/types/game";
+import { Clock, Home, Trophy } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import {
+  endSession,
+  fetchSessionQuestions,
+  startDailySession,
+} from "./actions";
 
 export default function PlayPage() {
   const router = useRouter();
@@ -18,12 +22,15 @@ export default function PlayPage() {
   const [finishError, setFinishError] = useState<string | null>(null);
   const [globalTimeLeft, setGlobalTimeLeft] = useState<number | null>(null);
   const { toast } = useToast();
+  const allAnswered =
+    questions.length > 0 &&
+    questions.every((question) => question.is_completed);
 
   useEffect(() => {
     async function initSession() {
       try {
         const result = await startDailySession();
-        if (result.error) {
+        if (!result.success) {
           if (result.message) {
             toast(result.message);
           }
@@ -39,10 +46,16 @@ export default function PlayPage() {
         setQuestions(sqs);
 
         // Initialize global timer
-        if (activeSession.created_at && activeSession.allowed_duration_seconds) {
+        if (
+          activeSession.created_at &&
+          activeSession.allowed_duration_seconds
+        ) {
           const createdAt = new Date(activeSession.created_at).getTime();
           const elapsed = Math.floor((Date.now() - createdAt) / 1000);
-          const remaining = Math.max(0, activeSession.allowed_duration_seconds - elapsed);
+          const remaining = Math.max(
+            0,
+            activeSession.allowed_duration_seconds - elapsed,
+          );
           setGlobalTimeLeft(remaining);
         }
       } catch (err) {
@@ -58,12 +71,18 @@ export default function PlayPage() {
 
   useEffect(() => {
     if (!session?.created_at || finishing) return;
-    const deadline = new Date(session.created_at).getTime() + Number(session.allowed_duration_seconds) * 1000;
-    const update = () => setGlobalTimeLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    const deadline =
+      new Date(session.created_at).getTime() +
+      Number(session.allowed_duration_seconds) * 1000;
+    const update = () =>
+      setGlobalTimeLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
     update();
     const interval = setInterval(update, 1000);
     document.addEventListener("visibilitychange", update);
-    return () => { clearInterval(interval); document.removeEventListener("visibilitychange", update); };
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", update);
+    };
   }, [session, finishing]);
 
   // Watch for timer reaching 0 to trigger endSession safely outside render
@@ -73,7 +92,10 @@ export default function PlayPage() {
     }
   }, [globalTimeLeft, finishing, finishError, session?.id]);
 
-  const handleEndSession = async (sessionId: string, outcome: "completed" | "expired" = "completed") => {
+  const handleEndSession = async (
+    sessionId: string,
+    outcome: "completed" | "expired" = "completed",
+  ) => {
     if (finishLock.current) return false;
     finishLock.current = true;
     setFinishing(true);
@@ -84,7 +106,10 @@ export default function PlayPage() {
       router.replace("/daily-mission");
       return true;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Your mission could not be saved. Please retry.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Your mission could not be saved. Please retry.";
       setFinishError(message);
       setFinishing(false);
       toast(message);
@@ -94,12 +119,24 @@ export default function PlayPage() {
     }
   };
 
+  useEffect(() => {
+    if (allAnswered && session?.id && !loading && !finishing && !finishError) {
+      void handleEndSession(session.id, "completed");
+    }
+  }, [allAnswered, session?.id, loading, finishing, finishError]);
 
-  if (loading || !session || questions.length === 0) {
+  if (
+    loading ||
+    !session ||
+    questions.length === 0 ||
+    (allAnswered && !finishError)
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background flex-col gap-4">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-muted-foreground animate-pulse text-sm">Preparing your mission...</p>
+        <p className="text-muted-foreground animate-pulse text-sm">
+          {allAnswered ? "Saving your mission…" : "Preparing your mission..."}
+        </p>
       </div>
     );
   }
@@ -114,20 +151,24 @@ export default function PlayPage() {
         </div>
 
         {globalTimeLeft !== null && (
-          <div className={`flex items-center gap-2 font-mono font-bold px-4 py-1.5 rounded-full shadow-sm ${
-            globalTimeLeft < 60 
-              ? 'bg-destructive/10 text-destructive animate-pulse border border-destructive/20' 
-              : 'bg-primary/10 text-primary border border-primary/20'
-          }`}>
+          <div
+            className={`flex items-center gap-2 font-mono font-bold px-4 py-1.5 rounded-full shadow-sm ${
+              globalTimeLeft < 60
+                ? "bg-destructive/10 text-destructive animate-pulse border border-destructive/20"
+                : "bg-primary/10 text-primary border border-primary/20"
+            }`}
+          >
             <Clock size={16} />
             <span>
-              {Math.floor(globalTimeLeft / 60).toString().padStart(2, '0')}:
-              {(globalTimeLeft % 60).toString().padStart(2, '0')}
+              {Math.floor(globalTimeLeft / 60)
+                .toString()
+                .padStart(2, "0")}
+              :{(globalTimeLeft % 60).toString().padStart(2, "0")}
             </span>
           </div>
         )}
 
-        <button 
+        <button
           onClick={() => router.push("/dashboard")}
           className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-secondary/50"
         >
@@ -138,17 +179,41 @@ export default function PlayPage() {
 
       {/* Game Area */}
       <main className="flex-1 flex flex-col items-center justify-center p-4 max-w-4xl mx-auto w-full">
-        {finishError && <div role="alert" className="mb-4 w-full rounded-2xl border border-destructive/20 bg-destructive/5 p-4"><p>{finishError}</p><button disabled={finishing} onClick={() => handleEndSession(session.id, globalTimeLeft === 0 ? "expired" : "completed")} className="mt-3 rounded-xl bg-primary px-4 py-2 font-bold text-primary-foreground">Retry saving mission</button></div>}
-        {questions.length > 0 ? (
-          <GameEngine 
-            sessionQuestions={questions} 
+        {finishError && (
+          <div
+            role="alert"
+            className="mb-4 w-full rounded-2xl border border-destructive/20 bg-destructive/5 p-4"
+          >
+            <p>{finishError}</p>
+            <button
+              disabled={finishing}
+              onClick={() =>
+                handleEndSession(
+                  session.id,
+                  globalTimeLeft === 0 ? "expired" : "completed",
+                )
+              }
+              className="mt-3 rounded-xl bg-primary px-4 py-2 font-bold text-primary-foreground"
+            >
+              Retry saving mission
+            </button>
+          </div>
+        )}
+        {allAnswered ? (
+          <p className="text-muted-foreground">
+            All challenges are finished. Retry saving your mission above.
+          </p>
+        ) : questions.length > 0 ? (
+          <GameEngine
+            sessionQuestions={questions}
             onComplete={() => handleEndSession(session.id, "completed")}
           />
         ) : (
-          <div className="text-muted-foreground">No questions assigned to this session.</div>
+          <div className="text-muted-foreground">
+            No questions assigned to this session.
+          </div>
         )}
       </main>
     </div>
   );
 }
-

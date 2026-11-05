@@ -1,23 +1,52 @@
 "use client";
 
 import Link from "next/link";
-import { X, Trophy, Brain, Flame, Target, Calendar, Loader2, Clock, Check, AlertCircle } from "lucide-react";
+import {
+  X,
+  Trophy,
+  Brain,
+  Flame,
+  Target,
+  Calendar,
+  Loader2,
+  Clock,
+  Check,
+  AlertCircle,
+} from "lucide-react";
 import { useEffect, useState } from "react";
-import { getPlayerDetails, wipePlayerSession, grantExtraTime, setPlayerTimeLimits } from "./actions";
+import {
+  getPlayerDetails,
+  wipePlayerSession,
+  grantExtraTime,
+  setPlayerTimeLimits,
+} from "./actions";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
 function formatSessionDate(value: unknown) {
   if (!value) return "Unknown date";
   const date = value instanceof Date ? value : new Date(String(value));
   if (Number.isNaN(date.getTime())) return "Unknown date";
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-export default function PlayerDrawer({ userId, onClose }: { userId: string; onClose: () => void }) {
+export default function PlayerDrawer({
+  userId,
+  onClose,
+}: {
+  userId: string;
+  onClose: () => void;
+}) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
-  const [actionMsg, setActionMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [actionMsg, setActionMsg] = useState<{
+    text: string;
+    ok: boolean;
+  } | null>(null);
   const [wipeModal, setWipeModal] = useState(false);
 
   // Time limit form state
@@ -36,8 +65,16 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
       setProfile(profile);
       setSessions(sessions || []);
       // Seed form with existing values
-      setDailyLimit(profile?.daily_time_limit_minutes != null ? String(profile.daily_time_limit_minutes) : "");
-      setSessionLimit(profile?.session_time_limit_minutes != null ? String(profile.session_time_limit_minutes) : "");
+      setDailyLimit(
+        profile?.daily_time_limit_minutes != null
+          ? String(profile.daily_time_limit_minutes)
+          : "",
+      );
+      setSessionLimit(
+        profile?.session_time_limit_minutes != null
+          ? String(profile.session_time_limit_minutes)
+          : "",
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -45,7 +82,9 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
     }
   };
 
-  useEffect(() => { loadData(); }, [userId]);
+  useEffect(() => {
+    loadData();
+  }, [userId]);
 
   const handleWipe = async () => {
     try {
@@ -98,7 +137,10 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
   if (loading) {
     return (
       <>
-        <div className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+        <div
+          className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm"
+          onClick={onClose}
+        />
         <div className="fixed right-0 top-0 z-[160] flex h-full w-full items-center justify-center overflow-y-auto border-l border-border bg-background shadow-2xl animate-in slide-in-from-right duration-300 sm:max-w-md">
           <Loader2 className="animate-spin text-primary w-8 h-8" />
         </div>
@@ -106,16 +148,24 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
     );
   }
 
-  if (!profile) return (
-    <>
-      <div className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed right-0 top-0 z-[160] flex h-full w-full items-center justify-center overflow-y-auto border-l border-border bg-background shadow-2xl animate-in slide-in-from-right duration-300 sm:max-w-md">
-        <div className="p-4 text-center text-muted-foreground">Player not found.</div>
-      </div>
-    </>
-  );
+  if (!profile)
+    return (
+      <>
+        <div
+          className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <div className="fixed right-0 top-0 z-[160] flex h-full w-full items-center justify-center overflow-y-auto border-l border-border bg-background shadow-2xl animate-in slide-in-from-right duration-300 sm:max-w-md">
+          <div className="p-4 text-center text-muted-foreground">
+            Player not found.
+          </div>
+        </div>
+      </>
+    );
 
-  const hasPersonalLimits = profile?.daily_time_limit_minutes != null || profile?.session_time_limit_minutes != null;
+  const hasPersonalLimits =
+    profile?.daily_time_limit_minutes != null ||
+    profile?.session_time_limit_minutes != null;
 
   return (
     <>
@@ -131,9 +181,17 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
         offsetClassName="sm:pr-[28rem]"
       />
 
-      <div className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm transition-opacity" onClick={() => { if (!wipeModal) onClose(); }} />
+      <div
+        className="fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm transition-opacity"
+        onClick={() => {
+          if (!wipeModal) onClose();
+        }}
+      />
       <div className="fixed right-0 top-0 z-[160] flex h-full w-full flex-col overflow-y-auto border-l border-border bg-background pb-24 shadow-2xl animate-in slide-in-from-right duration-300 sm:max-w-md">
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground z-10 transition-colors">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground z-10 transition-colors"
+        >
           <X size={20} />
         </button>
 
@@ -142,27 +200,67 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center shrink-0 overflow-hidden">
               {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover rounded-full" />
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.full_name}
+                  className="w-full h-full object-cover rounded-full"
+                />
               ) : (
-                <span className="text-2xl font-bold text-secondary-foreground">{profile.full_name?.charAt(0)}</span>
+                <span className="text-2xl font-bold text-secondary-foreground">
+                  {profile.full_name?.charAt(0)}
+                </span>
               )}
             </div>
             <div>
-              <h2 className="text-2xl font-bold">{profile.full_name || "Anonymous Player"}</h2>
-              <p className="text-muted-foreground">{profile.department || "No Department"} · {profile.role}</p>
-              <Link href={`/profile/${userId}`} className="text-xs text-primary underline mt-0.5 inline-block">View public profile →</Link>
+              <h2 className="text-2xl font-bold">
+                {profile.full_name || "Anonymous Player"}
+              </h2>
+              <p className="text-muted-foreground">
+                {profile.department || "No Department"} · {profile.role}
+              </p>
+              <Link
+                href={`/profile/${userId}`}
+                className="text-xs text-primary underline mt-0.5 inline-block"
+              >
+                View public profile →
+              </Link>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-4">
             {[
-              { label: "Level", value: profile.current_level, icon: <Trophy size={14} />, color: "text-primary" },
-              { label: "Streak", value: `${profile.current_streak} days`, icon: <Flame size={14} className="text-orange-500" />, color: "text-orange-500" },
-              { label: "Total XP", value: profile.total_xp?.toLocaleString(), icon: <Brain size={14} />, color: "" },
-              { label: "Correct", value: profile.total_correct_answers?.toLocaleString(), icon: <Target size={14} />, color: "text-green-500" },
+              {
+                label: "Level",
+                value: profile.current_level,
+                icon: <Trophy size={14} />,
+                color: "text-primary",
+              },
+              {
+                label: "Streak",
+                value: `${profile.current_streak} days`,
+                icon: <Flame size={14} className="text-orange-500" />,
+                color: "text-orange-500",
+              },
+              {
+                label: "Total XP",
+                value: profile.total_xp?.toLocaleString(),
+                icon: <Brain size={14} />,
+                color: "",
+              },
+              {
+                label: "Correct",
+                value: profile.total_correct_answers?.toLocaleString(),
+                icon: <Target size={14} />,
+                color: "text-green-500",
+              },
             ].map(({ label, value, icon, color }) => (
-              <div key={label} className="bg-background p-3 rounded-xl border border-border flex flex-col justify-center">
-                <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">{icon} {label}</span>
+              <div
+                key={label}
+                className="bg-background p-3 rounded-xl border border-border flex flex-col justify-center"
+              >
+                <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                  {icon} {label}
+                </span>
                 <span className={`text-xl font-bold ${color}`}>{value}</span>
               </div>
             ))}
@@ -171,7 +269,9 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
 
         {/* Feedback banner */}
         {actionMsg && (
-          <div className={`mx-4 mt-4 p-3 rounded-xl border text-sm font-medium flex items-center gap-2 ${actionMsg.ok ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-destructive/10 border-destructive/30 text-destructive"}`}>
+          <div
+            className={`mx-4 mt-4 p-3 rounded-xl border text-sm font-medium flex items-center gap-2 ${actionMsg.ok ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-destructive/10 border-destructive/30 text-destructive"}`}
+          >
             {actionMsg.ok ? <Check size={16} /> : <AlertCircle size={16} />}
             {actionMsg.text}
           </div>
@@ -184,15 +284,20 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
               <Clock size={16} className="text-primary" /> Personal Time Limits
             </h3>
             {hasPersonalLimits && (
-              <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 px-2 py-0.5 rounded-full uppercase tracking-wider">Override Active</span>
+              <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Override Active
+              </span>
             )}
           </div>
           <p className="text-xs text-muted-foreground mb-4">
-            Leave blank to use the global defaults from Settings. Setting a value here overrides only this player.
+            Leave blank to use the global defaults from Settings. Setting a
+            value here overrides only this player.
           </p>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Daily Limit (min)</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Daily Limit (min)
+              </label>
               <input
                 type="number"
                 min="1"
@@ -203,7 +308,9 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sprint Limit (min)</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Sprint Limit (min)
+              </label>
               <input
                 type="number"
                 min="1"
@@ -263,24 +370,41 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
           {sessions && sessions.length > 0 ? (
             <div className="space-y-3">
               {sessions.map((session: any) => (
-                <div key={session.id} className="p-4 bg-card border border-border rounded-xl shadow-sm">
+                <div
+                  key={session.id}
+                  className="p-4 bg-card border border-border rounded-xl shadow-sm"
+                >
                   <div className="flex justify-between items-center mb-2">
-                    <span className="font-semibold text-sm">{formatSessionDate(session.session_date || session.date)}</span>
+                    <span className="font-semibold text-sm">
+                      {formatSessionDate(session.session_date || session.date)}
+                    </span>
                     {session.is_completed ? (
-                      <span className="text-xs px-2 py-1 bg-green-500/10 text-green-500 rounded-full font-medium">Completed</span>
+                      <span className="text-xs px-2 py-1 bg-green-500/10 text-green-500 rounded-full font-medium">
+                        Completed
+                      </span>
                     ) : (
-                      <span className="text-xs px-2 py-1 bg-destructive/10 text-destructive rounded-full font-medium">Forfeited</span>
+                      <span className="text-xs px-2 py-1 bg-destructive/10 text-destructive rounded-full font-medium">
+                        Forfeited
+                      </span>
                     )}
                   </div>
                   {session.is_completed && (
                     <div className="grid grid-cols-2 gap-4 mt-3">
                       <div>
-                        <span className="block text-xs text-muted-foreground">Score</span>
-                        <span className="font-bold text-primary">{session.total_score}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          Score
+                        </span>
+                        <span className="font-bold text-primary">
+                          {session.total_score}
+                        </span>
                       </div>
                       <div>
-                        <span className="block text-xs text-muted-foreground">XP Earned</span>
-                        <span className="font-bold text-green-500">+{session.total_xp_earned}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          XP Earned
+                        </span>
+                        <span className="font-bold text-green-500">
+                          +{session.total_xp_earned}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -297,4 +421,3 @@ export default function PlayerDrawer({ userId, onClose }: { userId: string; onCl
     </>
   );
 }
-

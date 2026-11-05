@@ -1,11 +1,18 @@
-import { getCurrentUser } from "@/lib/auth";
-import { query } from "@/lib/db";
+import { dashboardTttIdPageQueries } from "@/features/lounge/composition";
+import { getCurrentUser } from "@/features/identity/public-server";
 import { redirect } from "next/navigation";
 import TttBoardClient from "./TttBoardClient";
 
+const { selectTttGamesForTttGamePage, selectTttGamesForTttGamePage2 } =
+  dashboardTttIdPageQueries;
+
 export const dynamic = "force-dynamic";
 
-export default async function TttGamePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TttGamePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const user = await getCurrentUser();
 
@@ -14,17 +21,15 @@ export default async function TttGamePage({ params }: { params: Promise<{ id: st
   }
 
   // Fetch the game and verify the user is a participant
-  const { rows: games } = await query<any>(`SELECT g.*,
-    jsonb_build_object('id', x.id, 'full_name', x.full_name, 'avatar_url', x.avatar_url, 'lounge_lp', x.lounge_lp, 'ttt_elo', x.ttt_elo) AS x_player,
-    jsonb_build_object('id', o.id, 'full_name', o.full_name, 'avatar_url', o.avatar_url, 'lounge_lp', o.lounge_lp, 'ttt_elo', o.ttt_elo) AS o_player
-    FROM ttt_games g LEFT JOIN profiles x ON x.id = g.x_player_id LEFT JOIN profiles o ON o.id = g.o_player_id WHERE g.id = $1`, [id]);
+  const { rows: games } = await selectTttGamesForTttGamePage<any>([id]);
   const game = games[0];
 
   if (!game) {
     redirect("/dashboard");
   }
 
-  const isParticipant = game.x_player_id === user.id || game.o_player_id === user.id;
+  const isParticipant =
+    game.x_player_id === user.id || game.o_player_id === user.id;
 
   if (!isParticipant && game.status === "waiting") {
     redirect("/dashboard");
@@ -32,12 +37,16 @@ export default async function TttGamePage({ params }: { params: Promise<{ id: st
 
   // Calculate Head-to-Head Rivalry Score
   const matchupScore = { xWins: 0, oWins: 0, draws: 0 };
-  
+
   if (game.x_player_id && game.o_player_id) {
     const xId = game.x_player_id;
     const oId = game.o_player_id;
 
-    const { rows: history } = await query<{ status: string; x_player_id: string; o_player_id: string }>(`SELECT status, x_player_id, o_player_id FROM ttt_games WHERE status IN ('x_won', 'o_won', 'draw') AND ((x_player_id = $1 AND o_player_id = $2) OR (x_player_id = $2 AND o_player_id = $1))`, [xId, oId]);
+    const { rows: history } = await selectTttGamesForTttGamePage2<{
+      status: string;
+      x_player_id: string;
+      o_player_id: string;
+    }>([xId, oId]);
 
     if (history) {
       for (const h of history) {
@@ -56,12 +65,11 @@ export default async function TttGamePage({ params }: { params: Promise<{ id: st
 
   return (
     <div>
-      <TttBoardClient 
-        initialGame={game} 
-        currentUserId={user.id} 
+      <TttBoardClient
+        initialGame={game}
+        currentUserId={user.id}
         matchupScore={matchupScore}
       />
     </div>
   );
 }
-

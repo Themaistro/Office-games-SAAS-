@@ -6,10 +6,15 @@ import { clsx } from "clsx";
 import { Clock, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function TriviaGame({ question, onAnswer, isSubmitting, showHint }: GameProps & { showHint?: boolean }) {
+export default function TriviaGame({
+  question,
+  onAnswer,
+  isSubmitting,
+  showHint,
+}: GameProps & { showHint?: boolean }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
-  
+
   const [timeLeft, setTimeLeft] = useState(15);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [lifelineUsed, setLifelineUsed] = useState(false);
@@ -20,12 +25,12 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
     setTimeLeft(15);
     setEliminatedOptions([]);
     setLifelineUsed(false);
-  }, [question]);
+  }, [question.id]);
 
   // Timer
   useEffect(() => {
     if (timeLeft > 0 && !selectedOption && !isSubmitting) {
-      const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+      const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
       return () => clearInterval(timer);
     } else if (timeLeft === 0 && !selectedOption && !isSubmitting) {
       handleSelect(null, true);
@@ -35,12 +40,11 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
   const useLifeline = useCallback(() => {
     if (lifelineUsed || selectedOption || isSubmitting) return;
     setLifelineUsed(true);
-    
+
     // Find incorrect options
-    const uniqueOptions = Array.from(new Set(question.options));
     const incorrect = question.hint_options || [];
     const shuffled = [...incorrect].sort(() => 0.5 - Math.random());
-    
+
     // A true 50/50 leaves exactly 1 incorrect option and the 1 correct option (2 options total)
     // So we eliminate all incorrect options EXCEPT one.
     const numToEliminate = Math.max(1, incorrect.length - 1);
@@ -54,26 +58,25 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
     }
   }, [showHint, lifelineUsed, useLifeline]);
 
-  const handleSelect = (option: string | null, isTimeout = false) => {
+  const handleSelect = (option: string | null, _isTimeout = false) => {
     if (isSubmitting || selectedOption !== null) return;
     setSelectedOption(option || "[Timeout]");
     onAnswer(option || "[Timeout]", { customTimeSpent: 15 - timeLeft });
   };
 
-
   const getOptionState = (option: string) => {
     if (eliminatedOptions.includes(option)) return "eliminated";
     if (!selectedOption) return "idle";
-    
+
     if (selectedOption === option) {
       if (!revealed) return "selected"; // dramatic pause (yellow pulse)
       return option === question.correct_answer ? "correct" : "incorrect";
     }
-    
+
     if (revealed && option === question.correct_answer) {
       return "correct_revealed"; // show the correct answer if they got it wrong
     }
-    
+
     return "idle_dimmed";
   };
 
@@ -96,10 +99,11 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
     }
   };
 
-  const questionText = question.content.text || question.content.question || "Unknown Question";
+  const questionText =
+    question.content.text || question.content.question || "Unknown Question";
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
@@ -108,47 +112,66 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
     >
       {/* Header / HUD */}
       <div className="w-full flex justify-between items-end mb-6 px-2">
-        <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+        <motion.div
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
           <h3 className="text-2xl font-bold flex items-center gap-2">
             <Activity className="text-primary" /> Trivia
           </h3>
         </motion.div>
-        
-        <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="flex flex-col items-end">
+
+        <motion.div
+          initial={{ x: 20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="flex flex-col items-end"
+        >
           <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1">
             <Clock size={12} /> Time
           </span>
-          <span className={clsx(
-            "text-2xl font-mono font-bold transition-colors",
-            timeLeft <= 5 ? "text-destructive animate-pulse" : "text-foreground"
-          )}>
+          <span
+            className={clsx(
+              "text-2xl font-mono font-bold transition-colors",
+              timeLeft <= 5
+                ? "text-destructive animate-pulse"
+                : "text-foreground",
+            )}
+          >
             {timeLeft}s
           </span>
         </motion.div>
       </div>
-      
+
       {/* Question Card */}
-      <motion.div 
+      <motion.div
         layout
         className={clsx(
           "w-full p-8 sm:p-12 rounded-3xl mb-8 text-2xl sm:text-3xl lg:text-4xl font-bold text-center border-2 bg-card shadow-xl transition-colors duration-500",
-          selectedOption && !revealed && "border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.1)]",
-          revealed && selectedOption === question.correct_answer && "border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.2)]",
-          revealed && selectedOption !== question.correct_answer && "border-destructive/50 shadow-[0_0_40px_rgba(255,0,0,0.1)]"
+          selectedOption &&
+            !revealed &&
+            "border-yellow-500/50 shadow-[0_0_40px_rgba(234,179,8,0.1)]",
+          revealed &&
+            selectedOption === question.correct_answer &&
+            "border-green-500 shadow-[0_0_40px_rgba(34,197,94,0.2)]",
+          revealed &&
+            selectedOption !== question.correct_answer &&
+            "border-destructive/50 shadow-[0_0_40px_rgba(255,0,0,0.1)]",
         )}
       >
         <span className="bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/70">
           {questionText}
         </span>
       </motion.div>
-      
+
       {/* Options Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
         <AnimatePresence>
           {question.options.map((option, idx) => {
             const state = getOptionState(option);
             const classes = getOptionClasses(state);
-            
+
             return (
               <motion.button
                 key={option}
@@ -158,20 +181,28 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
                 whileHover={state === "idle" ? { scale: 1.02 } : {}}
                 whileTap={state === "idle" ? { scale: 0.98 } : {}}
                 onClick={() => handleSelect(option)}
-                disabled={isSubmitting || selectedOption !== null || state === "eliminated"}
+                disabled={
+                  isSubmitting ||
+                  selectedOption !== null ||
+                  state === "eliminated"
+                }
                 className={clsx(
                   "relative font-semibold py-6 px-6 rounded-2xl text-lg sm:text-xl text-left transition-colors duration-300 border-2 flex items-center shadow-sm overflow-hidden",
-                  classes
+                  classes,
                 )}
               >
                 {/* Option Letter Badge */}
-                <span className={clsx(
-                  "mr-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold transition-colors",
-                  state === "idle" ? "bg-muted text-muted-foreground" : "bg-black/10 dark:bg-white/10"
-                )}>
+                <span
+                  className={clsx(
+                    "mr-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold transition-colors",
+                    state === "idle"
+                      ? "bg-muted text-muted-foreground"
+                      : "bg-black/10 dark:bg-white/10",
+                  )}
+                >
                   {String.fromCharCode(65 + idx)}
                 </span>
-                
+
                 <span className="flex-1 drop-shadow-sm">{option}</span>
               </motion.button>
             );
@@ -181,4 +212,3 @@ export default function TriviaGame({ question, onAnswer, isSubmitting, showHint 
     </motion.div>
   );
 }
-

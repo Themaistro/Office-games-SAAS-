@@ -42,6 +42,7 @@ next-env.d.ts
 
 # Local scratch pad
 scratch/
+output/
 .local-audit-fixtures.json
 
 .vercel
