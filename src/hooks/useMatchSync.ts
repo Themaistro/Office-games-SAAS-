@@ -1,57 +1,74 @@
 "use client";
-
 import type { GameType } from "@/features/lounge/domain/game-registry";
+import {
+  assertMatchSnapshot,
+  isOlderSnapshot,
+  type MatchIdentity,
+} from "@/features/lounge/domain/match-snapshot";
+import { createSnapshotSync } from "@/features/lounge/application/snapshot-sync";
 import { getGameChannelName } from "@/lib/realtime";
 import * as Ably from "ably";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useMatchSync(initialGame: any, type: GameType) {
-  const [game, setGame] = useState(initialGame);
-  const [connectionIssue, setConnectionIssue] = useState(false);
-  const alive = useRef(true);
+export function useMatchSync<T extends MatchIdentity>(
+  initialGame: T,
+  type: GameType,
+) {
+  const [game, setGame] = useState(initialGame),
+    [connectionIssue, setConnectionIssue] = useState(false);
+  const sync = useRef<ReturnType<typeof createSnapshotSync<T>> | null>(null);
   const paused = useRef(false);
-  const revision = useRef(0);
   const pauseSync = useCallback(() => {
     paused.current = true;
-    revision.current += 1;
+    sync.current?.pause();
   }, []);
   const resumeSync = useCallback(() => {
     paused.current = false;
+    sync.current?.resume();
   }, []);
-  const refresh = useCallback(async () => {
-    if (paused.current) return;
-    const requestRevision = ++revision.current;
-    try {
-      const response = await fetch(`/api/${type}/${initialGame.id}`, {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error("Match unavailable");
-      const next = await response.json();
-      if (
-        alive.current &&
-        !paused.current &&
-        requestRevision === revision.current
-      ) {
-        setGame(next);
-        setConnectionIssue(false);
-      }
-    } catch {
-      if (alive.current && requestRevision === revision.current)
-        setConnectionIssue(true);
-    }
-  }, [initialGame.id, type]);
+  const refresh = useCallback(
+    () => sync.current?.refresh() ?? Promise.resolve(),
+    [],
+  );
   useEffect(() => {
-    setGame(initialGame);
+    if (!paused.current)
+      setGame((current) =>
+        current.id !== initialGame.id || !isOlderSnapshot(initialGame, current)
+          ? initialGame
+          : current,
+      );
   }, [initialGame]);
   useEffect(() => {
-    alive.current = true;
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
-    }, 2500);
+    let active = true;
+    const coordinator = createSnapshotSync<T>({
+      read: async (signal) => {
+        const response = await fetch(`/api/${type}/${initialGame.id}`, {
+          cache: "no-store",
+          signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
+        });
+        if (!response.ok) throw new Error("Match unavailable");
+        const value: unknown = await response.json();
+        assertMatchSnapshot(value, type, initialGame.id);
+        return value as T;
+      },
+      apply: (next) => {
+        setGame((current) =>
+          current.id === next.id && isOlderSnapshot(next, current)
+            ? current
+            : next,
+        );
+        setConnectionIssue(false);
+      },
+      failed: () => setConnectionIssue(true),
+    });
+    sync.current = coordinator;
+    if (paused.current) coordinator.pause();
     const focused = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") void coordinator.refresh();
     };
+    const timer = window.setInterval(focused, 2500);
     window.addEventListener("focus", focused);
+    window.addEventListener("online", focused);
     document.addEventListener("visibilitychange", focused);
     const realtime = new Ably.Realtime({
       authUrl: `/api/realtime?type=${type}&id=${initialGame.id}`,
@@ -59,21 +76,33 @@ export function useMatchSync(initialGame: any, type: GameType) {
     const channel = realtime.channels.get(
       getGameChannelName(type, initialGame.id),
     );
-    // Only authenticated server snapshots become authoritative state.
     const handler = () => {
-      void refresh();
+      void coordinator.refresh();
     };
-    void channel.subscribe(handler).catch(() => undefined);
-    void refresh();
+    const connected = () => {
+      void coordinator.refresh();
+    };
+    const disconnected = () => {
+      if (active) setConnectionIssue(true);
+    };
+    realtime.connection.on("connected", connected);
+    realtime.connection.on("disconnected", disconnected);
+    realtime.connection.on("suspended", disconnected);
+    realtime.connection.on("failed", disconnected);
+    void channel.subscribe(handler).catch(disconnected);
+    void coordinator.refresh();
     return () => {
-      alive.current = false;
-      revision.current += 1;
+      active = false;
+      coordinator.dispose();
+      if (sync.current === coordinator) sync.current = null;
       clearInterval(timer);
       window.removeEventListener("focus", focused);
+      window.removeEventListener("online", focused);
       document.removeEventListener("visibilitychange", focused);
+      realtime.connection.off();
       channel.unsubscribe(handler);
       realtime.close();
     };
-  }, [type, initialGame.id, refresh]);
+  }, [type, initialGame.id]);
   return { game, setGame, refresh, connectionIssue, pauseSync, resumeSync };
 }

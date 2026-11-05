@@ -19,6 +19,7 @@ export type GameDefinition = {
   supportsPublicLobby: true;
   supportsSpectators: true;
   supportsResign: true;
+  board?: { cells: number; symbols: string; turns: readonly string[] };
 };
 
 export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
@@ -36,6 +37,7 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
     supportsResign: true,
   },
   ttt: {
+    board: { cells: 9, symbols: "XO-", turns: ["X", "O"] },
     type: "ttt",
     label: "Tic-Tac-Toe",
     shortLabel: "Tic Tac Toe",
@@ -49,6 +51,7 @@ export const GAME_REGISTRY: Record<GameType, GameDefinition> = {
     supportsResign: true,
   },
   "connect-four": {
+    board: { cells: 42, symbols: "RY-", turns: ["R", "Y"] },
     type: "connect-four",
     label: "Connect Four",
     shortLabel: "Connect Four",

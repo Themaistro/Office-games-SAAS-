@@ -75,9 +75,9 @@ export function evaluateChessTurn(
       turn: timedOut ? current.turn() : move.turn,
       status,
       white_time_ms:
-        column === "white_time_ms" ? remaining : game.white_time_ms,
+        column === "white_time_ms" ? remaining : Number(game.white_time_ms),
       black_time_ms:
-        column === "black_time_ms" ? remaining : game.black_time_ms,
+        column === "black_time_ms" ? remaining : Number(game.black_time_ms),
       last_move_timestamp: new Date(now).toISOString(),
     },
   };

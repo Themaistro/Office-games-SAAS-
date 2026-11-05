@@ -1,4 +1,8 @@
 "use client";
+import { parseMatchEvent } from "@/features/lounge/domain/realtime-event";
+import { parseChessSnapshot } from "@/features/lounge/domain/match-snapshot";
+import { remainingClock as getCalculatedTime } from "@/features/lounge/domain/match-clock";
+import { elapsedMilliseconds } from "@/features/lounge/domain/match-clock";
 import { getMaterialAdvantage } from "@/features/lounge/domain/chess-presentation";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -75,22 +79,9 @@ export default function ChessBoardClient({
     }
   }, [gameStatus, game.winner_id, currentUserId, triggerConfetti]);
 
-  const getCalculatedTime = (
-    baseTime: number,
-    isMyTurn: boolean,
-    lastMoveStamp: string | null,
-    status: string,
-  ) => {
-    if (status === "in_progress" && isMyTurn && lastMoveStamp) {
-      const elapsed = Date.now() - new Date(lastMoveStamp).getTime();
-      return Math.max(0, baseTime - elapsed);
-    }
-    return baseTime || 600000;
-  };
-
   const [whiteTimeMs, setWhiteTimeMs] = useState(() =>
     getCalculatedTime(
-      game.white_time_ms || 600000,
+      game.white_time_ms ?? 600000,
       chess.turn() === "w",
       game.last_move_timestamp,
       game.status,
@@ -98,7 +89,7 @@ export default function ChessBoardClient({
   );
   const [blackTimeMs, setBlackTimeMs] = useState(() =>
     getCalculatedTime(
-      game.black_time_ms || 600000,
+      game.black_time_ms ?? 600000,
       chess.turn() === "b",
       game.last_move_timestamp,
       game.status,
@@ -131,7 +122,6 @@ export default function ChessBoardClient({
   const router = useRouter();
   const { toast } = useToast();
   const channelRef = useRef<{ send: (payload: unknown) => void } | null>(null);
-  const pollInFlightRef = useRef(false);
   const eventCursorRef = useRef<string | null>(game.updated_at || null);
 
   const sendChessEvent = useCallback(
@@ -220,20 +210,20 @@ export default function ChessBoardClient({
   useEffect(() => {
     if (gameStatus !== "in_progress") return;
 
+    let previousTick = performance.now();
     const interval = setInterval(() => {
+      const now = performance.now(),
+        elapsed = elapsedMilliseconds(previousTick, now);
+      previousTick = now;
       const isWhiteTurn = chess.turn() === "w";
       if (isWhiteTurn) {
         setWhiteTimeMs((prev: number) => {
-          const next = Math.max(0, prev - 100);
-          if (next === 0 && prev > 0)
-            setTimeout(() => declareChessTimeout(game.id), 0);
+          const next = Math.max(0, prev - elapsed);
           return next;
         });
       } else {
         setBlackTimeMs((prev: number) => {
-          const next = Math.max(0, prev - 100);
-          if (next === 0 && prev > 0)
-            setTimeout(() => declareChessTimeout(game.id), 0);
+          const next = Math.max(0, prev - elapsed);
           return next;
         });
       }
@@ -243,23 +233,56 @@ export default function ChessBoardClient({
   }, [gameStatus, fen, chess]);
 
   useEffect(() => {
+    if (
+      gameStatus !== "in_progress" ||
+      (chess.turn() === "w" ? whiteTimeMs : blackTimeMs) > 0
+    )
+      return;
+    let active = true,
+      inFlight = false;
+    const settleTimeout = async () => {
+      if (inFlight || !active) return;
+      inFlight = true;
+      try {
+        await declareChessTimeout(game.id);
+      } catch {
+        if (active) setConnectionIssue(true);
+      } finally {
+        inFlight = false;
+      }
+    };
+    void settleTimeout();
+    const retry = window.setInterval(() => void settleTimeout(), 1000);
+    return () => {
+      active = false;
+      window.clearInterval(retry);
+    };
+  }, [game.id, gameStatus, fen, whiteTimeMs, blackTimeMs, chess]);
+
+  useEffect(() => {
     if (!game.id || ["white_won", "black_won", "draw"].includes(gameStatus))
       return;
-    const timer = window.setInterval(async () => {
-      if (pollInFlightRef.current) return;
-      pollInFlightRef.current = true;
+    let disposed = false;
+    let pollInFlight = false;
+    const controller = new AbortController();
+    const refreshSnapshot = async () => {
+      if (pollInFlight) return;
+      pollInFlight = true;
+      const requestedPosition = chess.pgn();
       try {
         const eventQuery = eventCursorRef.current
           ? `?eventsSince=${encodeURIComponent(eventCursorRef.current)}`
           : "";
         const response = await fetch(`/api/chess/${game.id}${eventQuery}`, {
           cache: "no-store",
+          signal: controller.signal,
         });
         if (!response.ok) {
-          setConnectionIssue(true);
+          if (!disposed) setConnectionIssue(true);
           return;
         }
-        const next = await response.json();
+        const next = parseChessSnapshot(await response.json(), game.id);
+        if (disposed) return;
         setConnectionIssue(false);
         for (const event of next.events || []) {
           eventCursorRef.current = event.created_at;
@@ -268,7 +291,7 @@ export default function ChessBoardClient({
             setChatMessages((current) =>
               [
                 ...current,
-                { sender: event.full_name, text: event.payload.text },
+                { sender: event.full_name, text: event.payload.text || "" },
               ].slice(-100),
             );
           if (event.event_type === "offer_draw")
@@ -278,14 +301,29 @@ export default function ChessBoardClient({
           if (event.event_type === "decline_draw") setDrawOfferedBy(null);
         }
         setSpectators(next.spectators || []);
+        if (chess.pgn() !== requestedPosition) return;
         if (next.status !== gameStatus) {
           setGameStatus(next.status);
           router.refresh();
         }
         if (typeof next.white_time_ms === "number")
-          setWhiteTimeMs(next.white_time_ms);
+          setWhiteTimeMs(
+            getCalculatedTime(
+              next.white_time_ms,
+              next.fen?.split(" ")[1] === "w",
+              next.last_move_timestamp,
+              next.status,
+            ),
+          );
         if (typeof next.black_time_ms === "number")
-          setBlackTimeMs(next.black_time_ms);
+          setBlackTimeMs(
+            getCalculatedTime(
+              next.black_time_ms,
+              next.fen?.split(" ")[1] === "b",
+              next.last_move_timestamp,
+              next.status,
+            ),
+          );
         if (next.pgn && next.pgn !== chess.pgn()) {
           chess.loadPgn(next.pgn);
           setFen(chess.fen());
@@ -293,19 +331,34 @@ export default function ChessBoardClient({
         setIsOpponentConnected(
           Boolean(
             next.online_player_ids?.includes(
-              next.white_player_id === currentUserId
+              (next.white_player_id === currentUserId
                 ? next.black_player_id
-                : next.white_player_id,
+                : next.white_player_id) || "",
             ),
           ),
         );
       } catch {
-        setConnectionIssue(true);
+        if (!disposed) setConnectionIssue(true);
       } finally {
-        pollInFlightRef.current = false;
+        pollInFlight = false;
       }
-    }, 200);
-    return () => window.clearInterval(timer);
+    };
+    const focused = () => {
+      if (document.visibilityState === "visible") void refreshSnapshot();
+    };
+    const timer = window.setInterval(focused, 200);
+    window.addEventListener("focus", focused);
+    window.addEventListener("online", focused);
+    document.addEventListener("visibilitychange", focused);
+    void refreshSnapshot();
+    return () => {
+      disposed = true;
+      controller.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", focused);
+      window.removeEventListener("online", focused);
+      document.removeEventListener("visibilitychange", focused);
+    };
   }, [game.id, gameStatus, router, chess, currentUserId]);
 
   useEffect(() => {
@@ -316,11 +369,7 @@ export default function ChessBoardClient({
     });
     const channel = realtime.channels.get(getGameChannelName("chess", game.id));
     const handleMessage = (message: Ably.Message) => {
-      const event = message.data as {
-        type?: string;
-        senderId?: string;
-        payload?: Record<string, any>;
-      };
+      const event = parseMatchEvent(message.data);
       if (!event || event.senderId === currentUserId) return;
       if (event.type === "move" && event.payload?.fen) {
         if (event.payload.pgn && event.payload.pgn !== chess.pgn())
@@ -328,9 +377,23 @@ export default function ChessBoardClient({
         setFen(event.payload.fen as string);
         if (event.payload.status) setGameStatus(event.payload.status as string);
         if (typeof event.payload.white_time_ms === "number")
-          setWhiteTimeMs(event.payload.white_time_ms);
+          setWhiteTimeMs(
+            getCalculatedTime(
+              event.payload.white_time_ms,
+              chess.turn() === "w",
+              event.payload.last_move_timestamp ?? null,
+              event.payload.status ?? "in_progress",
+            ),
+          );
         if (typeof event.payload.black_time_ms === "number")
-          setBlackTimeMs(event.payload.black_time_ms);
+          setBlackTimeMs(
+            getCalculatedTime(
+              event.payload.black_time_ms,
+              chess.turn() === "b",
+              event.payload.last_move_timestamp ?? null,
+              event.payload.status ?? "in_progress",
+            ),
+          );
       }
       if (event.type === "chat" && event.payload?.text)
         setChatMessages((current) =>

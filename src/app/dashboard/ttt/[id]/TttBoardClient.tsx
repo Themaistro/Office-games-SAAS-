@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Circle, X } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import {
   cancelTttGame,
   createTttRematch,
 } from "../actions";
+import { useMatchAction } from "@/hooks/useMatchAction";
 import { useMatchSync } from "@/hooks/useMatchSync";
 import {
   MatchPlayer,
@@ -32,11 +33,9 @@ export default function TttBoardClient({
 }) {
   const { game, setGame, refresh, connectionIssue, pauseSync, resumeSync } =
     useMatchSync(initialGame, "ttt");
-  const [busy, setBusy] = useState(false),
-    [confirm, setConfirm] = useState(false),
+  const [confirm, setConfirm] = useState(false),
     [rematchSent, setRematchSent] = useState(false);
-  const lock = useRef(false),
-    reduced = useReducedMotion(),
+  const reduced = useReducedMotion(),
     router = useRouter(),
     { toast } = useToast();
   const me =
@@ -67,25 +66,12 @@ export default function TttBoardClient({
           ? "Your turn"
           : `${turn?.full_name || game.current_turn}’s turn`;
   const winning = winningCells(game.board_state, 3, 3);
-  async function action(run: () => Promise<unknown>) {
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    pauseSync();
-    try {
-      await run();
-      resumeSync();
-      await refresh();
-    } catch (error) {
-      resumeSync();
-      toast(error instanceof Error ? error.message : "Action failed");
-      await refresh();
-    } finally {
-      resumeSync();
-      lock.current = false;
-      setBusy(false);
-    }
-  }
+  const { action, busy } = useMatchAction({
+    pauseSync,
+    resumeSync,
+    refresh,
+    onError: toast,
+  });
   function move(index: number) {
     if (!myTurn || busy || game.board_state[index] !== "-") return;
     const board = game.board_state.split("");

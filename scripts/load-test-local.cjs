@@ -1,6 +1,8 @@
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const { randomUUID, randomBytes, createHash } = require('node:crypto');
 const { Client } = require('pg');
+require('./register-typescript.cjs');
+const {parseChessSnapshot,assertMatchSnapshot}=require('../src/features/lounge/domain/match-snapshot.ts');
 const root = path.join(__dirname, '..');
 Object.assign(process.env, require('dotenv').parse(fs.readFileSync(path.join(root, '.env.local'))));
 if (process.env.LOAD_TEST_DATABASE_URL) process.env.DATABASE_URL=process.env.LOAD_TEST_DATABASE_URL;
@@ -9,7 +11,7 @@ if (!['localhost','127.0.0.1'].includes(base.hostname) || !['localhost','127.0.0
 const percentile = (values, p) => values[Math.max(0, Math.ceil(values.length * p) - 1)];
 
 async function main() {
-  const client = new Client({ connectionString: process.env.DATABASE_URL }), people = [], games = [];
+  const client = new Client({ connectionString: process.env.DATABASE_URL }), people = [], games = [], chessGames=[];
   await client.connect();
   try {
     assert.equal((await fetch(new URL('/api/health',base))).status, 200, 'Production server must be ready');
@@ -31,6 +33,10 @@ async function main() {
     assert.equal((await fetch(new URL('/api/messages',base))).status,401);
     assert.equal((await fetch(new URL('/api/realtime?type=ttt&id='+games[2],base),{headers:{Cookie:`office_games_session=${people[2].token}`}})).status,403);
     const headersFor = person => ({Cookie:`office_games_session=${person.token}`,'Content-Type':'application/json'});
+    const fixture=(await client.query("INSERT INTO chess_games(white_player_id,black_player_id,status,white_time_ms) VALUES($1,$2,'waiting',0) RETURNING id",[people[0].id,people[1].id])).rows[0];chessGames.push(fixture.id);
+    const chessResponse=await fetch(new URL('/api/chess/'+fixture.id,base),{headers:headersFor(people[0])});assert.equal(chessResponse.status,200);const snapshot=parseChessSnapshot(await chessResponse.json(),fixture.id);assert.equal(snapshot.white_time_ms,0);
+    const boardResponse=await fetch(new URL('/api/ttt/'+games[0],base),{headers:headersFor(people[0])});assert.equal(boardResponse.status,200);assertMatchSnapshot(await boardResponse.json(),'ttt',games[0]);
+    await client.query('DELETE FROM chess_games WHERE id=$1',[fixture.id]);
     assert.equal((await fetch(new URL('/api/presence',base),{method:'POST',headers:headersFor(people[0])})).status,200);
     const sent=await fetch(new URL('/api/messages',base),{method:'POST',headers:headersFor(people[0]),body:JSON.stringify({recipientId:people[1].id,body:'Architecture QA message'})});
     assert.equal(sent.status,201);const message=await sent.json();
@@ -83,6 +89,7 @@ async function main() {
     fs.mkdirSync(path.join(root,'output'),{recursive:true});fs.writeFileSync(path.join(root,'output',process.env.LOAD_TEST_REPORT==='container-capacity.json'?'container-capacity.json':'local-capacity.json'),JSON.stringify(output,null,2));
     console.table(report); console.log('PASS lobby/privacy HTTP regressions; temporary identities and games removed on exit.');
   } finally {
+    if(chessGames.length)await client.query('DELETE FROM chess_games WHERE id=ANY($1::uuid[])',[chessGames]);
     if(games.length) await client.query('DELETE FROM ttt_games WHERE id=ANY($1::uuid[])',[games]);
     for(const person of people) await client.query('DELETE FROM users WHERE id=$1',[person.id]);
     await client.end();

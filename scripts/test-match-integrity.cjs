@@ -14,7 +14,7 @@ const originalLoad = Module._load;
 const originalResolve = Module._resolveFilename;
 Module._load = function (name, parent, main) {
   if (name === 'server-only') return {};
-  if (name === '@/features/identity/infrastructure/authentication') return { getCurrentUser: async () => currentUser };
+  if ((name === '@/features/identity/infrastructure/authentication' || name === './infrastructure/authentication')) return { getCurrentUser: async () => currentUser };
   if (name === 'next/cache') return { revalidatePath() {} };
   if (name === 'next/navigation') return { redirect(location) { throw Object.assign(new Error('REDIRECT'), { location }); } };
   return originalLoad.call(this, name, parent, main);

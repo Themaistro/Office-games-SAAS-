@@ -17,6 +17,8 @@ Put framework-free rules and payload contracts in the owning feature's `domain` 
 
 Register board games in `features/lounge/domain/game-registry.ts`, including routes, seat columns, statuses and lifecycle capabilities. Build on the shared match service for creation, availability locking, acceptance, cancellation, resignation and idempotent settlement. Reuse company-scoped realtime channel naming and shared synchronization. Do not duplicate lifecycle SQL in game actions.
 
+For flat board snapshots, register `board.cells`, `board.symbols`, and `board.turns`; consume `useMatchSync` and `useMatchAction`. Keep clocks server-authoritative and calculate displays from elapsed time. Pause synchronization before a mutation, invalidate prior reads, and refresh after it. Extend validated event/snapshot contracts for new data rather than accepting untyped realtime messages. Specialized games may supply a dedicated coordinator while retaining these invariants.
+
 Verify private invites cannot appear as public open games; accepting an invite moves both players into the match; a player cannot occupy concurrent games; spectators cannot mutate state; completed/reviewed boards stay out of open games; repeated cancellation or settlement stays safe. Parties use the shared party service and its participant/spectator contracts rather than pretending to be two-seat matches.
 
 ## Review before integrating

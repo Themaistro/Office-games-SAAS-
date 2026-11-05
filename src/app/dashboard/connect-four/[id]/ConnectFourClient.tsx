@@ -10,6 +10,7 @@ import {
   resignConnectFourGame,
   challengeUserToConnectFour,
 } from "../actions";
+import { useMatchAction } from "@/hooks/useMatchAction";
 import { useMatchSync } from "@/hooks/useMatchSync";
 import {
   MatchPlayer,
@@ -31,13 +32,11 @@ export default function ConnectFourClient({
 }) {
   const { game, setGame, refresh, connectionIssue, pauseSync, resumeSync } =
     useMatchSync(initialGame, "connect-four");
-  const [busy, setBusy] = useState(false),
-    [confirm, setConfirm] = useState(false),
+  const [confirm, setConfirm] = useState(false),
     [hover, setHover] = useState<number | null>(null),
     [last, setLast] = useState<number | null>(null),
     [rematchSent, setRematchSent] = useState(false);
   const previous = useRef(initialGame.board_state),
-    lock = useRef(false),
     reduced = useReducedMotion(),
     router = useRouter(),
     { toast } = useToast();
@@ -76,25 +75,12 @@ export default function ConnectFourClient({
     if (index >= 0) setLast(index);
     previous.current = game.board_state;
   }, [game.board_state]);
-  async function action(run: () => Promise<unknown>) {
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    pauseSync();
-    try {
-      await run();
-      resumeSync();
-      await refresh();
-    } catch (error) {
-      resumeSync();
-      toast(error instanceof Error ? error.message : "Action failed");
-      await refresh();
-    } finally {
-      resumeSync();
-      lock.current = false;
-      setBusy(false);
-    }
-  }
+  const { action, busy } = useMatchAction({
+    pauseSync,
+    resumeSync,
+    refresh,
+    onError: toast,
+  });
   function move(column: number) {
     if (!myTurn || busy) return;
     const board = game.board_state.split("");
