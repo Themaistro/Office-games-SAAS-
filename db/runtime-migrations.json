@@ -13,5 +13,6 @@
   "db/migrations/migration28_user_mission_rotation.sql",
   "db/migrations/migration29_player_lookup_indexes.sql",
   "db/migrations/migration30_company_database_identity.sql",
-  "db/migrations/migration31_default_game_catalog.sql"
+  "db/migrations/migration31_default_game_catalog.sql",
+  "db/migrations/migration32_trivia_review_sources.sql"
 ]

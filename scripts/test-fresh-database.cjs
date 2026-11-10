@@ -25,6 +25,9 @@ async function main() {
       assert.equal((await test.query('SELECT company_id FROM deployment_identity WHERE id=1')).rows[0].company_id, '00000000-0000-4000-8000-000000000001');
       assert((await test.query('SELECT 1 FROM game_types WHERE is_active=true')).rowCount > 0);
       assert.equal((await test.query('SELECT 1 FROM users')).rowCount, 0);
+      const owners=Object.values(JSON.parse(fs.readFileSync(path.join(root,'db/table-ownership.json'))).owners).flat().sort();
+      const actual=(await test.query("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename")).rows.map(row=>row.tablename);
+      assert.deepEqual(actual,owners,'Fresh installation must contain the same owned tables as an upgraded database');
     } finally { await test.end(); }
     const runtimeUrl = new URL(url); runtimeUrl.username=role;runtimeUrl.password=password;
     const runtime = new Client({connectionString:runtimeUrl.toString()});await runtime.connect();
