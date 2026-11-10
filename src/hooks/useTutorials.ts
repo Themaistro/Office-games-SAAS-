@@ -1,6 +1,6 @@
 "use client";
 
-import { driver } from "driver.js";
+import type { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import { useEffect } from "react";
 
@@ -20,6 +20,8 @@ export function useDashboardTutorial() {
       });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
+      const { driver } = await import("driver.js");
+      if (disposed) return;
 
       // Small delay to let DOM render (especially Navbar)
       timer = setTimeout(() => {
@@ -123,6 +125,8 @@ export function useGameTutorial() {
       });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
+      const { driver } = await import("driver.js");
+      if (disposed) return;
 
       timer = setTimeout(() => {
         if (disposed || document.querySelector(".driver-overlay")) return;
@@ -223,6 +227,8 @@ export function useProfileTutorial() {
       });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
+      const { driver } = await import("driver.js");
+      if (disposed) return;
 
       timer = setTimeout(() => {
         if (disposed || document.querySelector(".driver-overlay")) return;
@@ -306,6 +312,8 @@ export function useLeaderboardTutorial() {
       });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
+      const { driver } = await import("driver.js");
+      if (disposed) return;
 
       timer = setTimeout(() => {
         if (disposed || document.querySelector(".driver-overlay")) return;
@@ -379,6 +387,8 @@ export function useChallengeTutorial() {
       });
       const data = response.ok ? await response.json() : null;
       if (disposed || !data || data.games_played > 0) return;
+      const { driver } = await import("driver.js");
+      if (disposed) return;
 
       timer = setTimeout(() => {
         if (disposed || document.querySelector(".driver-overlay")) return;

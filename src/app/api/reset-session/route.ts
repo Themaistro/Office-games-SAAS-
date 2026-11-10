@@ -2,6 +2,7 @@ import { apiResetSessionRouteQueries } from "@/features/missions/composition";
 import { getCurrentUser } from "@/features/identity/public-server";
 import { handleApiRequest } from "@/server/http/api";
 import { NextResponse } from "next/server";
+import { withTransaction } from "@/server/database/connection";
 
 const {
   selectProfilesForPOST,
@@ -31,8 +32,10 @@ export async function POST(request: Request) {
 
     // Delete only this administrator's incomplete session and break their streak.
     try {
-      await deleteDailySessionsForPOST([user.id]);
-      await updateProfilesForPOST([user.id]);
+      await withTransaction(async (client) => {
+        await deleteDailySessionsForPOST([user.id], client);
+        await updateProfilesForPOST([user.id], client);
+      });
     } catch {
       return NextResponse.json(
         { error: "Unable to reset session" },
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
 
     // Also redirect them back to the dashboard so they can start a fresh session
     return NextResponse.redirect(new URL("/dashboard", request.url), 303);
-  });
+  }, request);
 }
 
 export async function GET() {

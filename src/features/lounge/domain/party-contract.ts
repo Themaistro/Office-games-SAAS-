@@ -1,4 +1,5 @@
 export type PartyFormat = "trivia" | "mixed";
+export class PartyAccessError extends Error {}
 export type PartyMode = "duel" | "group";
 export const partyLabel = (format: PartyFormat, mode: PartyMode) =>
   `${format === "trivia" ? "Trivia" : "Mixed Challenges"} ${mode === "duel" ? "Duel" : "Group"}`;

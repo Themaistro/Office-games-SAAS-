@@ -6,6 +6,7 @@ import { getGameChannelName } from "@/lib/realtime";
 import { handleApiRequest } from "@/server/http/api";
 import { getRealtimePublisher } from "@/server/realtime/publisher";
 import { NextResponse } from "next/server";
+import { PartyAccessError } from "@/features/lounge/domain/party-contract";
 
 const { readMatchSnapshot } = invitationQueries;
 
@@ -28,7 +29,8 @@ export async function GET(request: Request) {
     if (type === "party") {
       try {
         await partySnapshot(user.id, id);
-      } catch {
+      } catch (error) {
+        if (!(error instanceof PartyAccessError)) throw error;
         return NextResponse.json(
           { error: "Private or unavailable room" },
           { status: 403 },

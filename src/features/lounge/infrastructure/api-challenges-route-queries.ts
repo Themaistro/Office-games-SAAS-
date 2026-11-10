@@ -2,6 +2,7 @@ import { query } from "@/server/database/connection";
 import type { SqlExecutor } from "@/server/database/executor";
 import type { QueryResultRow } from "pg";
 import "server-only";
+import { GAME_REGISTRY } from "../domain/game-registry";
 
 const database: SqlExecutor = { query };
 
@@ -23,95 +24,16 @@ export function selectChallengeEventsForGET<
   );
 }
 
-export function selectChessGamesForGET2<
-  T extends QueryResultRow = QueryResultRow,
->(values: unknown[] = [], executor: SqlExecutor = database) {
-  return executor.query<T>(
-    "SELECT id, white_player_id, black_player_id FROM chess_games WHERE status='waiting' AND created_at < now() - interval '30 minutes'",
-    values,
-  );
-}
-
-export function selectTttGamesForGET<T extends QueryResultRow = QueryResultRow>(
-  values: unknown[] = [],
-  executor: SqlExecutor = database,
-) {
-  return executor.query<T>(
-    "SELECT id, x_player_id, o_player_id FROM ttt_games WHERE status='waiting' AND created_at < now() - interval '30 minutes'",
-    values,
-  );
-}
-
-export function selectConnectFourGamesForGET<
-  T extends QueryResultRow = QueryResultRow,
->(values: unknown[] = [], executor: SqlExecutor = database) {
-  return executor.query<T>(
-    "SELECT id, red_player_id, yellow_player_id FROM connect_four_games WHERE status='waiting' AND created_at < now() - interval '30 minutes'",
-    values,
-  );
-}
-
-export function insertChallengeEventsForGET<
-  T extends QueryResultRow = QueryResultRow,
->(values: unknown[] = [], executor: SqlExecutor = database) {
-  return executor.query<T>(
-    "INSERT INTO challenge_events (game_id,game_type,challenger_id,challenged_id,event_type) VALUES ($1,'chess',$2,$3,'expired')",
-    values,
-  );
-}
-
-export function insertChallengeEventsForGET2<
-  T extends QueryResultRow = QueryResultRow,
->(values: unknown[] = [], executor: SqlExecutor = database) {
-  return executor.query<T>(
-    "INSERT INTO challenge_events (game_id,game_type,challenger_id,challenged_id,event_type) VALUES ($1,'ttt',$2,$3,'expired')",
-    values,
-  );
-}
-
-export function insertChallengeEventsForGET3<
-  T extends QueryResultRow = QueryResultRow,
->(values: unknown[] = [], executor: SqlExecutor = database) {
-  return executor.query<T>(
-    "INSERT INTO challenge_events (game_id,game_type,challenger_id,challenged_id,event_type) VALUES ($1,'connect-four',$2,$3,'expired')",
-    values,
-  );
-}
-
-export function deleteChessGamesForGET<
-  T extends QueryResultRow = QueryResultRow,
->(values: unknown[] = [], executor: SqlExecutor = database) {
-  return executor.query<T>(
-    "DELETE FROM chess_games WHERE status='waiting' AND created_at < now() - interval '30 minutes'",
-    values,
-  );
-}
-
-export function deleteTttGamesForGET<T extends QueryResultRow = QueryResultRow>(
-  values: unknown[] = [],
-  executor: SqlExecutor = database,
-) {
-  return executor.query<T>(
-    "DELETE FROM ttt_games WHERE status='waiting' AND created_at < now() - interval '30 minutes'",
-    values,
-  );
-}
-
-export function deleteConnectFourGamesForGET<
-  T extends QueryResultRow = QueryResultRow,
->(values: unknown[] = [], executor: SqlExecutor = database) {
-  return executor.query<T>(
-    "DELETE FROM connect_four_games WHERE status='waiting' AND created_at < now() - interval '30 minutes'",
-    values,
-  );
-}
-
 export function selectProfilesForGET<T extends QueryResultRow = QueryResultRow>(
   values: unknown[] = [],
   executor: SqlExecutor = database,
 ) {
+  const sources = Object.values(GAME_REGISTRY).map(
+    ({ table, type, playerColumns: [first, second] }) =>
+      `SELECT g.id,'${type}' AS type,g.created_at,p.full_name AS challenger FROM ${table} g JOIN profiles p ON p.id=g.${first} AND p.is_active=true WHERE g.${second}=$1 AND g.status='waiting' AND g.created_at>now()-interval '30 minutes'`,
+  );
   return executor.query<T>(
-    `SELECT id, 'chess' AS type, created_at, (SELECT full_name FROM profiles WHERE id=white_player_id) AS challenger FROM chess_games WHERE black_player_id=$1 AND white_player_id IS NOT NULL AND status='waiting' UNION ALL SELECT id, 'ttt' AS type, created_at, (SELECT full_name FROM profiles WHERE id=x_player_id) AS challenger FROM ttt_games WHERE o_player_id=$1 AND x_player_id IS NOT NULL AND status='waiting' UNION ALL SELECT id, 'connect-four' AS type, created_at, (SELECT full_name FROM profiles WHERE id=red_player_id) AS challenger FROM connect_four_games WHERE yellow_player_id=$1 AND red_player_id IS NOT NULL AND status='waiting' ORDER BY created_at DESC`,
+    sources.join(" UNION ALL ") + " ORDER BY created_at DESC",
     values,
   );
 }

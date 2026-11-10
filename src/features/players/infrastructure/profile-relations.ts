@@ -31,39 +31,3 @@ export async function attachGameProfiles(
     return result;
   });
 }
-
-export async function attachQuestionDetails(rows: any[] | null) {
-  const questions = rows || [];
-  const ids = [
-    ...new Set(questions.map((row) => row.question_id).filter(Boolean)),
-  ];
-  if (!ids.length) return questions;
-  const { rows: data } = await query<{ id: string; game_type_id: string }>(
-    "SELECT id,game_type_id FROM questions WHERE id=ANY($1::uuid[])",
-    [ids],
-  );
-  const gameTypeIds = [
-    ...new Set(
-      (data || [])
-        .map((question: any) => question.game_type_id)
-        .filter(Boolean),
-    ),
-  ];
-  const { rows: gameTypes } = await query(
-    "SELECT id,name FROM game_types WHERE id=ANY($1::uuid[])",
-    [gameTypeIds],
-  );
-  const questionMap = new Map<string, { game_type_id: string }>(
-    (data || []).map((question: any) => [question.id, question]),
-  );
-  const gameTypeMap = new Map(
-    (gameTypes || []).map((gameType: any) => [gameType.id, gameType]),
-  );
-  return questions.map((row) => ({
-    ...row,
-    questions: {
-      game_types:
-        gameTypeMap.get(questionMap.get(row.question_id)?.game_type_id) || null,
-    },
-  }));
-}

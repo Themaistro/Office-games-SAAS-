@@ -1,4 +1,5 @@
 import GlobalRealtimeSync from "@/components/GlobalRealtimeSync";
+import { SentInvitationsProvider } from "@/components/providers/SentInvitationsProvider";
 import ContactsPanel from "@/components/messaging/ContactsPanel";
 import AppearanceProvider from "@/components/providers/AppearanceProvider";
 import { PresenceProvider } from "@/components/providers/PresenceProvider";
@@ -47,11 +48,18 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col pb-16 md:pb-0">
         <AppearanceProvider initialTheme={theme}>
           <PresenceProvider enabled={Boolean(user && !admin)}>
-            <GlobalRealtimeSync userId={user && !admin ? user.id : undefined} />
-            <ToastProvider>
-              {user && !admin && <ContactsPanel userId={user.id} />}
-              {children}
-            </ToastProvider>
+            <SentInvitationsProvider
+              key={user && !admin ? user.id : "guest"}
+              userId={user && !admin ? user.id : undefined}
+            >
+              <GlobalRealtimeSync
+                userId={user && !admin ? user.id : undefined}
+              />
+              <ToastProvider>
+                {user && !admin && <ContactsPanel userId={user.id} />}
+                {children}
+              </ToastProvider>
+            </SentInvitationsProvider>
           </PresenceProvider>
         </AppearanceProvider>
       </body>

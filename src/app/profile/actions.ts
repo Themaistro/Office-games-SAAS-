@@ -3,6 +3,7 @@
 import { profileActionsQueries } from "@/features/players/composition";
 import { getCurrentUser } from "@/features/identity/public-server";
 import { revalidatePath } from "next/cache";
+import { parseProfileInput } from "@/features/players/domain/profile-input";
 
 const {
   selectDepartmentsForUpdateProfile,
@@ -20,6 +21,13 @@ export async function updateProfile(
   if (!user) {
     return { error: "Unauthorized" };
   }
+
+  const parsed = parseProfileInput(fullName, avatarUrl, department);
+  if (!parsed)
+    return { error: "Use a name of 2–50 characters and a valid image URL." };
+  fullName = parsed.fullName;
+  avatarUrl = parsed.avatarUrl;
+  department = parsed.department;
 
   if (department !== undefined) {
     const { rows: matchingDepartments } =

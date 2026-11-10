@@ -3,7 +3,12 @@
 import ChallengeMenu from "@/components/profile/ChallengeMenu";
 import { Circle, MessageCircle, User, Users } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSharedPolling } from "@/hooks/useSharedPolling";
+import {
+  latestActivityByUser,
+  type ActivityItem,
+} from "@/features/reporting/domain/activity";
 
 import { usePresence } from "@/components/providers/PresenceProvider";
 
@@ -18,22 +23,12 @@ export default function OnlineUsersWidget({
   const visibleUsers = onlineUsers.filter(
     (user) => user.user_id !== currentUserId,
   );
-  const [activity, setActivity] = useState<
-    { user_id: string; description: string; created_at: string }[]
-  >([]);
-
-  useEffect(() => {
-    const loadActivity = async () => {
-      const response = await fetch("/api/activity", { cache: "no-store" });
-      if (response.ok) setActivity(await response.json());
-    };
-    loadActivity();
-    const timer = window.setInterval(loadActivity, 5000);
-    return () => window.clearInterval(timer);
-  }, []);
-
+  const { data: activity } = useSharedPolling<ActivityItem[]>(
+    "/api/activity",
+    5000,
+  );
   const latestByUser = useMemo(
-    () => new Map(activity.map((item) => [item.user_id, item.description])),
+    () => latestActivityByUser(activity ?? []),
     [activity],
   );
 

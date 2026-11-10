@@ -107,5 +107,5 @@ export async function POST(
       payload: safePayload,
     }).catch(() => undefined);
     return NextResponse.json(rows[0], { status: 201 });
-  });
+  }, request);
 }

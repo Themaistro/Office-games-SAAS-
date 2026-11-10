@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useSharedPolling } from "@/hooks/useSharedPolling";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Brain, Users, ArrowRight } from "lucide-react";
@@ -26,38 +27,16 @@ export default function PartyLounge() {
     [mode, setMode] = useState<PartyMode>("duel"),
     [rounds, setRounds] = useState(5),
     [visibility, setVisibility] = useState<"public" | "private">("public");
-  const [rooms, setRooms] = useState<Room[]>([]),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false),
+    [actionError, setError] = useState("");
+  const snapshot = useSharedPolling<Room[]>("/api/party", 3000);
+  const rooms = snapshot.data ?? [],
+    loading = snapshot.loading;
+  const error =
+    actionError ||
+    (snapshot.failed ? "Rooms are temporarily unavailable. Reconnecting…" : "");
   const lock = useRef(false),
     router = useRouter();
-  useEffect(() => {
-    let alive = true;
-    const refresh = async () => {
-      try {
-        const response = await fetch("/api/party", { cache: "no-store" });
-        if (!response.ok) throw new Error("Could not load rooms");
-        const rows = await response.json();
-        if (alive) {
-          setRooms(rows);
-          setError("");
-        }
-      } catch {
-        if (alive) setError("Rooms are temporarily unavailable. Reconnecting…");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    };
-    void refresh();
-    const timer = setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
-    }, 3000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
   async function create() {
     if (lock.current) return;
     lock.current = true;

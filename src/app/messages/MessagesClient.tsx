@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useSharedPolling } from "@/hooks/useSharedPolling";
+import { FormEvent, useState } from "react";
 import { MessageCircle, Send, User } from "lucide-react";
 
 type Props = {
@@ -15,40 +16,41 @@ type Message = {
 };
 
 export default function MessagesClient({ userId, person }: Props) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const snapshot = useSharedPolling<Message[]>(
+    `/api/messages?with=${person.id}`,
+    5000,
+    userId,
+  );
+  const messages = snapshot.data ?? [];
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const load = async () => {
-    const response = await fetch(`/api/messages?with=${person.id}`, {
-      cache: "no-store",
-    });
-    if (response.ok) setMessages(await response.json());
-  };
-  useEffect(() => {
-    load();
-    const timer = window.setInterval(load, 5000);
-    return () => window.clearInterval(timer);
-  }, [person.id]);
   const send = async (event: FormEvent) => {
     event.preventDefault();
     const text = body.trim();
     if (!text || sending) return;
     setSending(true);
     setError("");
-    const response = await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipientId: person.id, body: text }),
-    });
-    if (response.ok) {
+    try {
+      const response = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId: person.id, body: text }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok)
+        throw new Error("Message could not be sent. Your draft is saved here.");
       setBody("");
-      await load();
-    } else {
-      const result = await response.json().catch(() => null);
-      setError(result?.error || "Message could not be sent.");
+      await snapshot.invalidate();
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Connection lost. Try again.",
+      );
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
   return (
     <div className="overflow-hidden rounded-3xl border border-border/60 bg-card shadow-sm">

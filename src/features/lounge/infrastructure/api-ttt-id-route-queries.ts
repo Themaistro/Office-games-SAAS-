@@ -22,7 +22,7 @@ export function insertGameSpectatorsForGET<
   T extends QueryResultRow = QueryResultRow,
 >(values: unknown[] = [], executor: SqlExecutor = database) {
   return executor.query<T>(
-    "INSERT INTO game_spectators (game_type, game_id, user_id) VALUES ('ttt', $1, $2) ON CONFLICT (game_type, game_id, user_id) DO UPDATE SET last_seen=now()",
+    "INSERT INTO game_spectators (game_type, game_id, user_id) VALUES ('ttt', $1, $2) ON CONFLICT (game_type, game_id, user_id) DO UPDATE SET last_seen=now() WHERE game_spectators.last_seen<now()-interval '5 seconds'",
     values,
   );
 }

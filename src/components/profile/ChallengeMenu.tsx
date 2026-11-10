@@ -1,4 +1,5 @@
 "use client";
+import { useSentInvitations } from "@/components/providers/SentInvitationsProvider";
 import { trackSentInvitation } from "@/lib/sent-invitation";
 
 import {
@@ -34,39 +35,32 @@ export default function ChallengeMenu({
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const { invitations, refresh: refreshInvitations } = useSentInvitations();
   useEffect(() => {
-    let active = true;
-    const loadPending = async () => {
-      const response = await fetch(
-        `/api/challenges?sent=1&to=${targetUserId}`,
-        { cache: "no-store" },
-      );
-      if (!active || !response.ok) return;
-      const pending = await response.json();
-      if (pending[0]?.status === "in_progress") {
-        setAcceptedId(pending[0].id);
-        setAcceptedType(pending[0].type);
-        setPendingId(null);
-        setSent(null);
-      } else if (pending[0]) {
-        setPendingId(pending[0].id);
-        setSent(pending[0].type);
-        setAcceptedId(null);
-        setAcceptedType(null);
-      } else {
-        setPendingId(null);
-        setSent(null);
-        setAcceptedId(null);
-        setAcceptedType(null);
-      }
-    };
-    loadPending();
-    const timer = window.setInterval(loadPending, 3000);
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-    };
-  }, [router, targetUserId]);
+    if (!invitations) return;
+    const pending = invitations.filter(
+      (row) => row.challenged_id === targetUserId,
+    );
+    if (pending[0]?.status === "in_progress") {
+      setAcceptedId(pending[0].id);
+      setAcceptedType(pending[0].type);
+      setPendingId(null);
+      setSent(null);
+    } else if (pending[0]) {
+      setPendingId(pending[0].id);
+      setSent(pending[0].type);
+      setAcceptedId(null);
+      setAcceptedType(null);
+    } else {
+      setPendingId(null);
+      setSent(null);
+      setAcceptedId(null);
+      setAcceptedType(null);
+    }
+  }, [invitations, targetUserId]);
+  useEffect(() => {
+    if (isOpen) void refreshInvitations();
+  }, [isOpen, refreshInvitations]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -114,6 +108,7 @@ export default function ChallengeMenu({
     if (sent === "chess") await cancelChessGame(pendingId);
     else if (sent === "ttt") await cancelTttGame(pendingId);
     else await cancelConnectFourGame(pendingId);
+    await refreshInvitations();
     setPendingId(null);
     setSent(null);
     setError(null);

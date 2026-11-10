@@ -5,7 +5,11 @@ import {
   getActiveDepartments,
   type DepartmentOption,
 } from "@/features/administration/public-server";
-import { findInvitation } from "@/features/identity/public-server";
+import {
+  findInvitation,
+  registrationMode,
+  registrationPasswordMinimum,
+} from "@/features/identity/public-server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +22,21 @@ export default async function RegisterPage({
   const invitation = resolvedParams.invite
     ? await findInvitation(resolvedParams.invite)
     : null;
+  if (!resolvedParams.invite && registrationMode() === "invite")
+    return (
+      <main className="mx-auto max-w-md px-5 py-20">
+        <h1 className="text-2xl font-bold">Join your office</h1>
+        <p className="mt-3 text-muted-foreground">
+          Ask your administrator for an invitation link to create your account.
+        </p>
+        <Link
+          href="/login"
+          className="mt-6 inline-block font-bold text-primary"
+        >
+          Already have an account? Sign in
+        </Link>
+      </main>
+    );
   if (resolvedParams.invite && !invitation)
     return (
       <main className="mx-auto max-w-md px-5 py-20">
@@ -192,9 +211,10 @@ export default async function RegisterPage({
                 name="password"
                 type="password"
                 required
-                minLength={6}
+                minLength={registrationPasswordMinimum()}
+                maxLength={72}
                 className="relative block w-full rounded-xl border border-border/60 bg-background px-4 py-3 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 sm:text-sm"
-                placeholder="At least 6 characters"
+                placeholder={`At least ${registrationPasswordMinimum()} characters`}
               />
             </div>
           </div>

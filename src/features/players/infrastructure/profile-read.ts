@@ -1,5 +1,20 @@
 import "server-only";
 import { query } from "@/server/database/connection";
+import type { ProfileGameStats } from "../domain/profile-summary";
+
+export async function findMissionGameStats(userId: string) {
+  const { rows } = await query<ProfileGameStats>(
+    `SELECT gt.name,gt.slug,count(*)::int AS plays,
+      round(avg(qa.xp_earned))::int AS "avgScore",
+      round(100.0*count(*) FILTER(WHERE qa.is_correct)/count(*))::int AS accuracy
+     FROM daily_sessions ds JOIN question_attempts qa ON qa.session_id=ds.id
+     JOIN questions q ON q.id=qa.question_id JOIN game_types gt ON gt.id=q.game_type_id
+     WHERE ds.user_id=$1 AND ds.is_completed=true GROUP BY gt.id,gt.name,gt.slug
+     ORDER BY plays DESC,gt.name`,
+    [userId],
+  );
+  return rows;
+}
 type MissionHistory = {
   date: string;
   total_score: number;
@@ -72,17 +87,3 @@ export const findRecentMissions = (userId: string) =>
   completedHistory(userId, 10);
 export const findMissionHeatmap = (userId: string) =>
   completedHistory(userId, 35);
-export async function findCompletedMissionIds(userId: string) {
-  const { rows } = await query<{ id: string }>(
-    "SELECT id FROM daily_sessions WHERE user_id=$1 AND is_completed=true",
-    [userId],
-  );
-  return { data: rows };
-}
-export async function findMissionAnswers(sessionIds: string[]) {
-  const { rows } = await query(
-    "SELECT earned_xp,is_completed,question_id FROM session_questions WHERE session_id=ANY($1::uuid[])",
-    [sessionIds],
-  );
-  return { data: rows };
-}

@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { useSharedPolling } from "@/hooks/useSharedPolling";
 import { createPortal } from "react-dom";
 import { MessageCircle, Minus, Send, User, X } from "lucide-react";
 
@@ -10,6 +11,7 @@ type Message = {
   sender_id: string;
   body: string;
   created_at: string;
+  read_at: string | null;
 };
 
 export default function DirectMessagePopup({
@@ -31,64 +33,56 @@ export default function DirectMessagePopup({
   const [error, setError] = useState("");
   const transcript = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
-  const requestRevision = useRef(0);
-  const load = useCallback(async () => {
-    const revision = ++requestRevision.current;
-    try {
-      const response = await fetch(`/api/messages?with=${person.id}`, {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error("Could not load this conversation.");
-      const next = (await response.json()) as Message[];
-      if (revision !== requestRevision.current) return;
-      setMessages(next);
-      setError("");
-      if (
-        !minimized &&
-        atBottom.current &&
-        document.visibilityState === "visible" &&
-        document.hasFocus()
-      ) {
-        const receipt = await fetch("/api/messages", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messageIds: next
-              .filter((message) => message.sender_id !== userId)
-              .map((message) => message.id),
-          }),
-        });
-        if (receipt.ok)
-          window.dispatchEvent(
-            new CustomEvent("office-games:conversation-opened", {
-              detail: { userId: person.id },
-            }),
-          );
-      }
-    } catch (failure) {
-      if (revision === requestRevision.current)
-        setError(
-          failure instanceof Error
-            ? failure.message
-            : "Connection lost. Retrying…",
-        );
-    } finally {
-      if (revision === requestRevision.current) setLoading(false);
-    }
-  }, [person.id, minimized, userId]);
+  const conversation = useSharedPolling<Message[]>(
+    `/api/messages?with=${person.id}`,
+    5000,
+    userId,
+    !minimized,
+  );
+  const load = conversation.invalidate;
   useEffect(() => {
     setMessages([]);
     setLoading(true);
     atBottom.current = true;
   }, [person.id]);
   useEffect(() => {
-    void load();
-    const timer = window.setInterval(() => void load(), 5000);
-    return () => {
-      window.clearInterval(timer);
-      requestRevision.current += 1;
-    };
-  }, [load]);
+    if (conversation.data) setMessages(conversation.data);
+    setLoading(conversation.loading);
+    if (conversation.failed) setError("Connection lost. Retrying…");
+    else if (conversation.data) setError("");
+  }, [conversation.data, conversation.loading, conversation.failed]);
+  useEffect(() => {
+    if (
+      minimized ||
+      !atBottom.current ||
+      document.visibilityState !== "visible" ||
+      !document.hasFocus()
+    )
+      return;
+    const ids = (conversation.data ?? [])
+      .filter(
+        (message) => message.sender_id !== userId && message.read_at === null,
+      )
+      .map((message) => message.id);
+    if (!ids.length) return;
+    const controller = new AbortController();
+    void fetch("/api/messages", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageIds: ids }),
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]),
+    })
+      .then((receipt) => {
+        if (receipt.ok && !controller.signal.aborted)
+          window.dispatchEvent(
+            new CustomEvent("office-games:conversation-opened", {
+              detail: { userId: person.id },
+            }),
+          );
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [conversation.data, minimized, userId, person.id]);
   useEffect(() => {
     const node = transcript.current;
     if (node && atBottom.current) node.scrollTop = node.scrollHeight;

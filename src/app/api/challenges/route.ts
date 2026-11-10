@@ -1,6 +1,7 @@
 import {
   apiChallengesRouteQueries,
   invitationQueries,
+  expireBoardInvitations,
 } from "@/features/lounge/composition";
 import { getCurrentUser } from "@/features/identity/public-server";
 import { isUuid } from "@/features/lounge/domain/party-contract";
@@ -10,15 +11,6 @@ import { NextResponse } from "next/server";
 const {
   selectChessGamesForGET,
   selectChallengeEventsForGET,
-  selectChessGamesForGET2,
-  selectTttGamesForGET,
-  selectConnectFourGamesForGET,
-  insertChallengeEventsForGET,
-  insertChallengeEventsForGET2,
-  insertChallengeEventsForGET3,
-  deleteChessGamesForGET,
-  deleteTttGamesForGET,
-  deleteConnectFourGamesForGET,
   selectProfilesForGET,
   selectLoungeRoomInvitesForGET,
   updateLoungeRoomInvitesForDELETE,
@@ -53,42 +45,7 @@ export async function GET(request: Request) {
         headers: { "Cache-Control": "no-store" },
       });
     }
-    const { rows: expiredChess } = await selectChessGamesForGET2<{
-      id: string;
-      white_player_id: string;
-      black_player_id: string;
-    }>([]);
-    const { rows: expiredTtt } = await selectTttGamesForGET<{
-      id: string;
-      x_player_id: string;
-      o_player_id: string;
-    }>([]);
-    const { rows: expiredConnectFour } = await selectConnectFourGamesForGET<{
-      id: string;
-      red_player_id: string;
-      yellow_player_id: string;
-    }>([]);
-    for (const game of expiredChess)
-      await insertChallengeEventsForGET([
-        game.id,
-        game.white_player_id,
-        game.black_player_id,
-      ]);
-    for (const game of expiredTtt)
-      await insertChallengeEventsForGET2([
-        game.id,
-        game.x_player_id,
-        game.o_player_id,
-      ]);
-    for (const game of expiredConnectFour)
-      await insertChallengeEventsForGET3([
-        game.id,
-        game.red_player_id,
-        game.yellow_player_id,
-      ]);
-    await deleteChessGamesForGET([]);
-    await deleteTttGamesForGET([]);
-    await deleteConnectFourGamesForGET([]);
+    await expireBoardInvitations();
     const { rows } = await selectProfilesForGET([user.id]);
     const parties = await selectLoungeRoomInvitesForGET([user.id]);
     return NextResponse.json([...rows, ...parties.rows], {
@@ -113,5 +70,5 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Invalid challenge" }, { status: 400 });
     await declineBoardInvitation(type, id, user.id);
     return NextResponse.json({ ok: true });
-  });
+  }, request);
 }

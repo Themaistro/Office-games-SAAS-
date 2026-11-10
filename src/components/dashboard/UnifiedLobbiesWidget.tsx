@@ -1,5 +1,6 @@
 "use client";
 
+import { useSharedPolling } from "@/hooks/useSharedPolling";
 import React, { useEffect, useState } from "react";
 import { Swords, X as XIcon, User, CircleDot } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -44,7 +45,12 @@ export default function UnifiedLobbiesWidget({
 }) {
   const [games, setGames] = useState<OpenGame[]>([]);
   const [joiningId, setJoiningId] = useState<string | null>(null);
-  const [connectionIssue, setConnectionIssue] = useState(false);
+  const snapshot = useSharedPolling<OpenGame[]>(
+    "/api/lobbies",
+    3000,
+    currentUserId,
+  );
+  const connectionIssue = snapshot.failed;
   const router = useRouter();
   const { toast } = useToast();
   const liveGames = games.filter((game) => game.status === "in_progress");
@@ -54,33 +60,19 @@ export default function UnifiedLobbiesWidget({
   const orderedGames = [...openGames, ...liveGames];
 
   useEffect(() => {
-    fetchGames();
-
-    const timer = window.setInterval(fetchGames, 3000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const fetchGames = async () => {
-    try {
-      const response = await fetch("/api/lobbies", { cache: "no-store" });
-      if (!response.ok) throw new Error("Lobbies unavailable");
-      const data = await response.json();
-      if (!Array.isArray(data)) throw new Error("Invalid lobby response");
+    if (snapshot.failed) {
+      setGames([]);
+      return;
+    }
+    if (Array.isArray(snapshot.data))
       setGames(
-        data.filter(
-          (game: OpenGame) =>
+        snapshot.data.filter(
+          (game) =>
             GAME_TYPES.includes(game.game_type) &&
             Boolean(game.player1_id || game.player2_id || game.creator_id),
         ),
       );
-      setConnectionIssue(false);
-    } catch {
-      // Never leave an old lobby snapshot on screen after the source is unavailable.
-      setGames([]);
-      setConnectionIssue(true);
-    }
-    return;
-  };
+  }, [snapshot.data, snapshot.failed]);
   const handleJoin = async (gameId: string, gameType: GameType) => {
     setJoiningId(gameId);
     try {

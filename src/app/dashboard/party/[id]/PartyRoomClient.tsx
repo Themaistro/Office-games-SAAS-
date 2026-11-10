@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import * as Ably from "ably";
+import { useGameRealtime } from "@/hooks/useGameRealtime";
 import { useRouter } from "next/navigation";
 import { Clock, Users, CheckCircle2, Eye, Brain } from "lucide-react";
 import type { PartySnapshot } from "@/features/lounge/public-server";
@@ -45,6 +45,7 @@ export default function PartyRoomClient({
     fetching = useRef(false),
     revision = useRef(0),
     mounted = useRef(true);
+  const refreshController = useRef<AbortController | null>(null);
   const [offset, setOffset] = useState(
     () => new Date(initial.serverNow).getTime() - Date.now(),
   );
@@ -69,9 +70,12 @@ export default function PartyRoomClient({
     if (lock.current || fetching.current) return;
     fetching.current = true;
     const version = ++revision.current;
+    const request = new AbortController();
+    refreshController.current = request;
     try {
       const response = await fetch(`/api/party/${initial.room.id}`, {
         cache: "no-store",
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(10000)]),
       });
       if (!response.ok) throw new Error("Room unavailable. Reconnecting…");
       const next = await response.json();
@@ -84,33 +88,61 @@ export default function PartyRoomClient({
       fetching.current = false;
     }
   }, [initial.room.id, adopt]);
+  const terminal = ["finished", "cancelled"].includes(r.status);
+  const realtimeHealthy = useGameRealtime(
+    "party",
+    initial.room.id,
+    () => void refresh(),
+    () => void refresh(),
+    !terminal,
+  );
   useEffect(() => {
     mounted.current = true;
-    void refresh();
-    const timer = setInterval(() => {
+    const focus = () => {
       if (document.visibilityState === "visible") void refresh();
-    }, 1000);
-    const focus = () => void refresh();
+    };
+    focus();
+    let nextPoll = 0;
+    const timer = terminal
+      ? undefined
+      : window.setInterval(() => {
+          if (Date.now() < nextPoll) return;
+          // Active rooms reconcile round deadlines server-side, so their heartbeat
+          // remains one second even when push works. Waiting rooms can recover slower.
+          nextPoll =
+            Date.now() +
+            (r.status === "in_progress"
+              ? 1000
+              : realtimeHealthy.current
+                ? 5000
+                : 2000);
+          focus();
+        }, 500);
     window.addEventListener("focus", focus);
-    const realtime = new Ably.Realtime({
-      authUrl: `/api/realtime?type=party&id=${initial.room.id}`,
-    });
-    const channel = realtime.channels.get(`game:party:${initial.room.id}`);
-    const received = () => void refresh();
-    void channel.subscribe(received).catch(() => undefined);
+    window.addEventListener("online", focus);
+    document.addEventListener("visibilitychange", focus);
     return () => {
       mounted.current = false;
       revision.current++;
+      refreshController.current?.abort();
       clearInterval(timer);
       window.removeEventListener("focus", focus);
-      channel.unsubscribe(received);
-      realtime.close();
+      window.removeEventListener("online", focus);
+      document.removeEventListener("visibilitychange", focus);
     };
-  }, [initial.room.id, refresh]);
+  }, [initial.room.id, refresh, terminal, r.status]);
   useEffect(() => {
-    const timer = setInterval(() => setClock(Date.now()), 200);
-    return () => clearInterval(timer);
-  }, []);
+    if (r.status !== "in_progress") return;
+    const update = () => {
+      if (document.visibilityState === "visible") setClock(Date.now());
+    };
+    const timer = setInterval(update, 1000);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, [r.status]);
   useEffect(() => {
     if (!data.isHost || r.status !== "waiting") return;
     let alive = true;
@@ -142,6 +174,7 @@ export default function PartyRoomClient({
       if (lock.current) return;
       lock.current = true;
       revision.current++;
+      refreshController.current?.abort();
       setBusy(true);
       setError("");
       try {

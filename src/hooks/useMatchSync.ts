@@ -6,8 +6,7 @@ import {
   type MatchIdentity,
 } from "@/features/lounge/domain/match-snapshot";
 import { createSnapshotSync } from "@/features/lounge/application/snapshot-sync";
-import { getGameChannelName } from "@/lib/realtime";
-import * as Ably from "ably";
+import { useGameRealtime } from "./useGameRealtime";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useMatchSync<T extends MatchIdentity>(
@@ -18,6 +17,16 @@ export function useMatchSync<T extends MatchIdentity>(
     [connectionIssue, setConnectionIssue] = useState(false);
   const sync = useRef<ReturnType<typeof createSnapshotSync<T>> | null>(null);
   const paused = useRef(false);
+  const realtimeHealthy = useGameRealtime(
+    type,
+    initialGame.id,
+    () => {
+      void sync.current?.refresh();
+    },
+    () => {
+      void sync.current?.refresh();
+    },
+  );
   const pauseSync = useCallback(() => {
     paused.current = true;
     sync.current?.pause();
@@ -39,7 +48,6 @@ export function useMatchSync<T extends MatchIdentity>(
       );
   }, [initialGame]);
   useEffect(() => {
-    let active = true;
     const coordinator = createSnapshotSync<T>({
       read: async (signal) => {
         const response = await fetch(`/api/${type}/${initialGame.id}`, {
@@ -66,42 +74,23 @@ export function useMatchSync<T extends MatchIdentity>(
     const focused = () => {
       if (document.visibilityState === "visible") void coordinator.refresh();
     };
-    const timer = window.setInterval(focused, 2500);
+    let nextPollAt = 0;
+    const timer = window.setInterval(() => {
+      if (Date.now() < nextPollAt) return;
+      nextPollAt = Date.now() + (realtimeHealthy.current ? 5000 : 2500);
+      focused();
+    }, 500);
     window.addEventListener("focus", focused);
     window.addEventListener("online", focused);
     document.addEventListener("visibilitychange", focused);
-    const realtime = new Ably.Realtime({
-      authUrl: `/api/realtime?type=${type}&id=${initialGame.id}`,
-    });
-    const channel = realtime.channels.get(
-      getGameChannelName(type, initialGame.id),
-    );
-    const handler = () => {
-      void coordinator.refresh();
-    };
-    const connected = () => {
-      void coordinator.refresh();
-    };
-    const disconnected = () => {
-      if (active) setConnectionIssue(true);
-    };
-    realtime.connection.on("connected", connected);
-    realtime.connection.on("disconnected", disconnected);
-    realtime.connection.on("suspended", disconnected);
-    realtime.connection.on("failed", disconnected);
-    void channel.subscribe(handler).catch(disconnected);
     void coordinator.refresh();
     return () => {
-      active = false;
       coordinator.dispose();
       if (sync.current === coordinator) sync.current = null;
       clearInterval(timer);
       window.removeEventListener("focus", focused);
       window.removeEventListener("online", focused);
       document.removeEventListener("visibilitychange", focused);
-      realtime.connection.off();
-      channel.unsubscribe(handler);
-      realtime.close();
     };
   }, [type, initialGame.id]);
   return { game, setGame, refresh, connectionIssue, pauseSync, resumeSync };

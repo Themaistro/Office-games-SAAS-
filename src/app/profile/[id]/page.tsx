@@ -1,3 +1,7 @@
+import {
+  profileProgress,
+  challengeRadar,
+} from "@/features/players/domain/profile-summary";
 import MissionHistoryList from "@/components/profile/MissionHistoryList";
 import { profileRanking } from "@/features/players/composition";
 import { profileRead } from "@/features/players/composition";
@@ -33,10 +37,9 @@ const {
   findTttHistory,
   findRecentMissions,
   findMissionHeatmap,
-  findCompletedMissionIds,
-  findMissionAnswers,
+  findMissionGameStats,
 } = profileRead;
-const { attachGameProfiles, attachQuestionDetails } = profileRelations;
+const { attachGameProfiles } = profileRelations;
 
 export const dynamic = "force-dynamic";
 
@@ -110,35 +113,14 @@ export default async function PublicProfilePage(props: {
     },
   ]);
 
-  const currentLevelBaseXp = (profile.current_level - 1) * 1200;
-  const nextLevelXp = profile.current_level * 1200;
-  const xpIntoLevel = profile.total_xp - currentLevelBaseXp;
-  const progressPercent = Math.min(
-    100,
-    Math.max(0, Math.round((xpIntoLevel / 1200) * 100)),
-  );
-
-  // Compute User Title & Theme
-  let userTitle = "Rookie";
-  let themeColor = "from-primary/10 to-accent/5";
-  let borderColor = "border-border/50";
-  let glowEffect = "";
-
-  if (profile.current_level >= 10) {
-    userTitle = "Mastermind";
-    themeColor = "from-yellow-500/20 to-amber-700/10";
-    borderColor = "border-yellow-500/50";
-    glowEffect = "shadow-[0_0_40px_-10px_rgba(234,179,8,0.4)]";
-  } else if (profile.current_level >= 5) {
-    userTitle = "Brainiac";
-    themeColor = "from-slate-400/20 to-slate-600/10";
-    borderColor = "border-slate-400/50";
-    glowEffect = "shadow-[0_0_30px_-10px_rgba(148,163,184,0.3)]";
-  } else if (profile.current_level >= 3) {
-    userTitle = "Apprentice";
-    themeColor = "from-orange-500/10 to-amber-600/5";
-    borderColor = "border-orange-500/30";
-  }
+  const {
+    nextLevelXp,
+    progressPercent,
+    userTitle,
+    themeColor,
+    borderColor,
+    glowEffect,
+  } = profileProgress(profile.current_level, profile.total_xp);
 
   const { userRank, deptRank } = await profileRanking({
     role: profile.role,
@@ -153,87 +135,8 @@ export default async function PublicProfilePage(props: {
   // Fetch up to 35 days for the heatmap
   const { data: heatmapHistory } = await findMissionHeatmap(profileId);
 
-  // Fetch Game-Specific Stats
-  const { data: userSessions } = await findCompletedMissionIds(profileId);
-
-  const sessionIds = userSessions?.map((s: { id: string }) => s.id) || [];
-  let gameStatsArray: {
-    name: string;
-    plays: number;
-    avgScore: number;
-    accuracy: number;
-  }[] = [];
-
-  if (sessionIds.length > 0) {
-    const { data: questionsData } = await findMissionAnswers(sessionIds);
-
-    if (questionsData) {
-      const statsMap: Record<
-        string,
-        { totalScore: number; plays: number; correctCount: number }
-      > = {};
-
-      const detailedQuestions = await attachQuestionDetails(questionsData);
-      detailedQuestions.forEach((q: any) => {
-        const gt = q.questions?.game_types;
-        const gameName = gt
-          ? Array.isArray(gt)
-            ? gt[0]?.name
-            : gt.name
-          : "Unknown Game";
-        if (gameName === "Unknown Game") return; // Skip broken records
-
-        if (!statsMap[gameName]) {
-          statsMap[gameName] = { totalScore: 0, plays: 0, correctCount: 0 };
-        }
-        statsMap[gameName].plays += 1;
-        statsMap[gameName].totalScore += q.earned_xp || 0;
-        if ((q.earned_xp || 0) > 0) statsMap[gameName].correctCount += 1;
-      });
-
-      gameStatsArray = Object.entries(statsMap)
-        .map(([name, stats]) => ({
-          name,
-          plays: stats.plays,
-          avgScore: Math.round(stats.totalScore / stats.plays),
-          accuracy: Math.round((stats.correctCount / stats.plays) * 100),
-        }))
-        .sort((a, b) => b.plays - a.plays);
-    }
-  }
-
-  // Generate deterministic Radar Chart data based on user stats
-  // We use their games_played and total_xp to seed some varied strengths
-  const baseScore = Math.min(100, profile.total_xp / 100 + 40);
-  const offset = profile.games_played % 5;
-
-  const radarData = [
-    {
-      subject: "Memory",
-      A: Math.min(100, baseScore + (offset === 0 ? 20 : -10)),
-      fullMark: 100,
-    },
-    {
-      subject: "Speed",
-      A: Math.min(100, baseScore + (offset === 1 ? 25 : -5)),
-      fullMark: 100,
-    },
-    {
-      subject: "Logic",
-      A: Math.min(100, baseScore + (offset === 2 ? 15 : 5)),
-      fullMark: 100,
-    },
-    {
-      subject: "Trivia",
-      A: Math.min(100, baseScore + (offset === 3 ? 30 : -15)),
-      fullMark: 100,
-    },
-    {
-      subject: "Accuracy",
-      A: Math.min(100, baseScore + (offset === 4 ? 20 : 0)),
-      fullMark: 100,
-    },
-  ];
+  const gameStatsArray = await findMissionGameStats(profileId);
+  const radarData = challengeRadar(gameStatsArray);
 
   // Define Badges Logic
   const badges = [

@@ -14,9 +14,12 @@ export async function GET() {
     const user = await getCurrentUser();
     if (!user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { rows: messages } = await selectDirectMessagesForGET([user.id]);
-    const { rows: challenges } = await selectChallengeEventsForGET([user.id]);
-    const parties = await selectLoungeRoomInvitesForGET([user.id]);
+    const [{ rows: messages }, { rows: challenges }, parties] =
+      await Promise.all([
+        selectDirectMessagesForGET([user.id]),
+        selectChallengeEventsForGET([user.id]),
+        selectLoungeRoomInvitesForGET([user.id]),
+      ]);
     const history = [...messages, ...challenges, ...parties.rows]
       .sort(
         (a, b) =>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSharedPolling } from "@/hooks/useSharedPolling";
+import { useState } from "react";
 import { Clock3, History, Swords, CircleDot, X } from "lucide-react";
 
 type Entry = {
@@ -23,21 +24,14 @@ const statusLabel = (status: string) =>
         : status.replaceAll("_", " ");
 
 export default function ChallengeHistoryWidget() {
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const { data } = useSharedPolling<Entry[]>(
+    "/api/challenges?history=1",
+    15000,
+  );
+  const entries = data ?? [];
   const [filter, setFilter] = useState<
     "all" | "waiting" | "in_progress" | "completed"
   >("all");
-  useEffect(() => {
-    const load = async () => {
-      const response = await fetch("/api/challenges?history=1", {
-        cache: "no-store",
-      });
-      if (response.ok) setEntries(await response.json());
-    };
-    load();
-    const timer = window.setInterval(load, 10000);
-    return () => window.clearInterval(timer);
-  }, []);
   const visible = entries.filter(
     (entry) =>
       filter === "all" ||

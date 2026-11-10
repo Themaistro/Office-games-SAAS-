@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { createHash, randomBytes } from "node:crypto";
 import { cache } from "react";
 import "server-only";
+import { logServerFailure } from "@/server/observability";
+import { cleanExpiredIdentityRecords } from "./session-maintenance";
 
 const SESSION_COOKIE = "office_games_session";
 const SESSION_DAYS = 30;
@@ -19,9 +21,24 @@ export type CurrentAdmin = CurrentUser & { role: "admin" };
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
-  await query(
-    "INSERT INTO sessions (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
-    [userId, hashToken(token), expiresAt],
+  await withTransaction(async (client) => {
+    await client.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [userId]);
+    const active = await client.query(
+      "SELECT id FROM profiles WHERE id=$1 AND is_active=true FOR UPDATE",
+      [userId],
+    );
+    if (!active.rowCount) throw new Error("Account unavailable");
+    await client.query(
+      "DELETE FROM sessions WHERE user_id=$1 AND (expires_at<=now() OR id IN (SELECT id FROM sessions WHERE user_id=$1 ORDER BY created_at DESC,id DESC OFFSET 9))",
+      [userId],
+    );
+    await client.query(
+      "INSERT INTO sessions (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
+      [userId, hashToken(token), expiresAt],
+    );
+  });
+  await cleanExpiredIdentityRecords().catch((error) =>
+    logServerFailure("identity.maintenance", error),
   );
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
@@ -39,7 +56,8 @@ async function readCurrentUser(): Promise<CurrentUser | null> {
   try {
     const identity = await sessionIdentity(token);
     return identity ? { id: identity.id, email: identity.email } : null;
-  } catch {
+  } catch (error) {
+    logServerFailure("identity.session", error);
     // A stale browser session or a temporary database outage must never trap
     // the entire application in Next's loading/retry loop.
     return null;
@@ -62,7 +80,8 @@ async function readCurrentAdmin(): Promise<CurrentAdmin | null> {
       "SELECT role, is_active FROM profiles WHERE id = $1 LIMIT 1",
       [user.id],
     ));
-  } catch {
+  } catch (error) {
+    logServerFailure("identity.admin", error);
     return null;
   }
   const profile = rows[0];
@@ -108,7 +127,7 @@ export async function createUser(input: {
         throw new Error("Invitation is invalid or expired");
     }
     const user = await client.query<{ id: string }>(
-      "INSERT INTO users (email, password_hash, email_verified_at) VALUES ($1, $2, now()) RETURNING id",
+      "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id",
       [input.email, input.passwordHash],
     );
     await client.query(

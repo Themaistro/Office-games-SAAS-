@@ -83,6 +83,21 @@ interface Bouncer {
 export default function BouncingBackground() {
   const [bouncers, setBouncers] = useState<Bouncer[]>([]);
   const [activeBatch, setActiveBatch] = useState(0);
+  const [animateEnabled, setAnimateEnabled] = useState(false);
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () =>
+      setAnimateEnabled(
+        document.visibilityState === "visible" && !reduced.matches,
+      );
+    update();
+    document.addEventListener("visibilitychange", update);
+    reduced.addEventListener("change", update);
+    return () => {
+      document.removeEventListener("visibilitychange", update);
+      reduced.removeEventListener("change", update);
+    };
+  }, []);
   const requestRef = useRef<number>(0);
   const hoveredIdRef = useRef<string | null>(null);
 
@@ -92,13 +107,15 @@ export default function BouncingBackground() {
 
   // Handle the active batch rotation (swap every 8 seconds)
   useEffect(() => {
+    if (!animateEnabled) return;
     const interval = setInterval(() => {
       setActiveBatch((prev) => (prev === 0 ? 1 : 0));
     }, 8000);
     return () => clearInterval(interval);
-  }, []);
+  }, [animateEnabled]);
 
   useEffect(() => {
+    if (!animateEnabled) return;
     // Initialize random positions and velocities for each game
     const initialBouncers = GAMES.map((game) => {
       // Random starting positions (safely within bounds)
@@ -115,10 +132,17 @@ export default function BouncingBackground() {
       return { id: game.id, x, y, vx, vy };
     });
 
-    setBouncers(initialBouncers);
+    setBouncers((previous) => (previous.length ? previous : initialBouncers));
 
     // Animation loop
-    const animate = () => {
+    let previousFrame = performance.now();
+    const animate = (now: number) => {
+      if (now - previousFrame < 1000 / 30) {
+        requestRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      const elapsed = Math.min(2, (now - previousFrame) / (1000 / 60));
+      previousFrame = now;
       setBouncers((prev) =>
         prev.map((bouncer) => {
           // Pause movement if this specific pill is being hovered
@@ -129,8 +153,8 @@ export default function BouncingBackground() {
           let { x, y, vx, vy } = bouncer;
 
           // Move
-          x += vx;
-          y += vy;
+          x += vx * elapsed;
+          y += vy * elapsed;
 
           // Check collision with screen edges
           if (x <= 0) {
@@ -163,7 +187,7 @@ export default function BouncingBackground() {
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, []);
+  }, [animateEnabled]);
 
   // Return nothing during SSR to avoid hydration mismatch
   if (bouncers.length === 0) return null;

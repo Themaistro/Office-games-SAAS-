@@ -67,7 +67,7 @@ export async function PATCH(request: Request) {
       );
     await updateDirectMessagesForPATCH([user.id, ids]);
     return NextResponse.json({ success: true });
-  });
+  }, request);
 }
 
 export async function POST(request: Request) {
@@ -110,5 +110,5 @@ export async function POST(request: Request) {
       body,
     ]);
     return NextResponse.json(rows[0], { status: 201 });
-  });
+  }, request);
 }

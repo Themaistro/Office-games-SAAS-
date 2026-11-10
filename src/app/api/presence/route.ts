@@ -16,12 +16,13 @@ export async function GET() {
     });
   });
 }
-export async function POST() {
+export async function POST(request: Request) {
   return handleApiRequest(async () => {
     const user = await getCurrentUser();
     if (!user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await insertPresenceForPOST([user.id]);
-    return NextResponse.json({ ok: true });
-  });
+    const { rows } = await selectPresenceForGET([user.id]);
+    return NextResponse.json({ ok: true, people: rows });
+  }, request);
 }

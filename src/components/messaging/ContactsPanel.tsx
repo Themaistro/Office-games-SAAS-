@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MessageCircle, Search, UserRound, Users, X } from "lucide-react";
 import DirectMessagePopup from "./DirectMessagePopup";
+import { useSharedPolling } from "@/hooks/useSharedPolling";
+import { usePresence } from "@/components/providers/PresenceProvider";
 
 type Person = {
   user_id: string;
@@ -18,41 +20,33 @@ type Person = {
 export default function ContactsPanel({ userId }: { userId: string }) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
-  const [people, setPeople] = useState<Person[]>([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [chat, setChat] = useState<Person | null>(null);
-  const [refreshToken, setRefreshToken] = useState(0);
+  const directory = useSharedPolling<Person[]>(
+    "/api/people",
+    30000,
+    userId,
+    open && !isAdminRoute,
+  );
+  const unread = useSharedPolling<{ unreadCount: number }>(
+    "/api/messages",
+    3000,
+    userId,
+    !isAdminRoute,
+  );
+  const presence = usePresence();
+  const people = directory.data ?? [];
+  const loading = directory.loading;
   useEffect(() => {
-    if (isAdminRoute) return;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch("/api/people", {
-          cache: "no-store",
-        }).catch(() => null);
-        if (response?.ok) setPeople(await response.json());
-      } finally {
-        setLoading(false);
-      }
+    const refresh = () => {
+      void directory.invalidate();
+      void unread.invalidate();
     };
-    load();
-    const timer = window.setInterval(load, 30000);
-    const handleConversationOpened = () =>
-      setRefreshToken((value) => value + 1);
-    window.addEventListener(
-      "office-games:conversation-opened",
-      handleConversationOpened,
-    );
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener(
-        "office-games:conversation-opened",
-        handleConversationOpened,
-      );
-    };
-  }, [isAdminRoute, refreshToken]);
+    window.addEventListener("office-games:conversation-opened", refresh);
+    return () =>
+      window.removeEventListener("office-games:conversation-opened", refresh);
+  }, [directory.invalidate, unread.invalidate]);
   const filtered = useMemo(
     () =>
       people.filter((person) =>
@@ -61,10 +55,7 @@ export default function ContactsPanel({ userId }: { userId: string }) {
     [people, search],
   );
   const online = filtered.filter((person) => person.is_online);
-  const unreadTotal = people.reduce(
-    (total, person) => total + (person.unread_count || 0),
-    0,
-  );
+  const unreadTotal = unread.data?.unreadCount ?? 0;
   // The admin workspace has its own sidebar and operational navigation.
   // Contacts are a player-facing feature; keeping the floating launcher out
   // of admin routes prevents it from covering admin account actions.
@@ -85,7 +76,7 @@ export default function ContactsPanel({ userId }: { userId: string }) {
             </span>
           )}
           <span
-            className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-primary ${online.length ? "bg-emerald-400" : "bg-slate-400"}`}
+            className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-primary ${presence.length ? "bg-emerald-400" : "bg-slate-400"}`}
           />
         </button>
       )}
@@ -198,7 +189,8 @@ export default function ContactsPanel({ userId }: { userId: string }) {
           onClose={() => {
             setChat(null);
             setOpen(false);
-            setRefreshToken((value) => value + 1);
+            void directory.invalidate();
+            void unread.invalidate();
           }}
         />
       )}

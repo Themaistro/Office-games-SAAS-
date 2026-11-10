@@ -22,7 +22,7 @@ export default function CognitiveRadarChart({ data }: RadarChartProps) {
   return (
     <div className="bg-card/50 backdrop-blur-md border border-border/50 p-6 rounded-3xl shadow-sm flex flex-col items-center">
       <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2 w-full text-left">
-        Cognitive Strengths
+        Challenge accuracy
       </h3>
 
       <div className="w-full h-[250px] sm:h-[300px]">
@@ -53,7 +53,7 @@ export default function CognitiveRadarChart({ data }: RadarChartProps) {
               itemStyle={{ color: "hsl(var(--primary))" }}
             />
             <Radar
-              name="Proficiency"
+              name="Accuracy %"
               dataKey="A"
               stroke="hsl(var(--primary))"
               fill="hsl(var(--primary))"

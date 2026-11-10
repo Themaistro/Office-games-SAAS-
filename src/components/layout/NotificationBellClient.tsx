@@ -1,5 +1,6 @@
 "use client";
 
+import { useSharedPolling } from "@/hooks/useSharedPolling";
 import { useInvitationActions } from "@/hooks/useInvitationActions";
 import DirectMessagePopup from "@/components/messaging/DirectMessagePopup";
 import InviteSwitchConfirmation from "@/components/game/InviteSwitchConfirmation";
@@ -38,16 +39,28 @@ export default function NotificationBellClient({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const challengeSnapshot = useSharedPolling<any[]>(
+    "/api/challenges",
+    3000,
+    userId,
+  );
+  const messageSnapshot = useSharedPolling<{
+    messages: any[];
+    unreadCount: number;
+  }>("/api/messages", 3000, userId);
+  const historySnapshot = useSharedPolling<{ history: any[] }>(
+    "/api/notifications",
+    30000,
+    userId,
+    isOpen || historyOpen,
+  );
   const activeChallengeAlert = challengeAlert || challenges[0] || null;
 
-  const fetchChallenges = async () => {
-    if (!userId) return;
-
-    const response = await fetch("/api/challenges", {
-      cache: "no-store",
-    }).catch(() => null);
-    if (response?.ok) {
-      const nextChallenges = (await response.json())
+  const fetchChallenges = challengeSnapshot.refresh;
+  useEffect(() => {
+    const rows = challengeSnapshot.data;
+    if (Array.isArray(rows)) {
+      const nextChallenges = rows
         .map((c: any) => ({
           ...c,
           createdAt: new Date(c.created_at).getTime(),
@@ -93,14 +106,12 @@ export default function NotificationBellClient({
       challengeCountRef.current = nextChallenges.length;
       hasLoadedChallengesRef.current = true;
     }
-  };
+  }, [challengeSnapshot.data]);
 
-  const fetchMessages = async () => {
-    const response = await fetch("/api/messages", { cache: "no-store" }).catch(
-      () => null,
-    );
-    if (response?.ok) {
-      const result = await response.json();
+  const fetchMessages = messageSnapshot.refresh;
+  useEffect(() => {
+    const result = messageSnapshot.data;
+    if (result) {
       const nextMessages = result.messages || [];
       const nextUnread = result.unreadCount || 0;
       if (
@@ -124,15 +135,13 @@ export default function NotificationBellClient({
       unreadMessagesRef.current = nextUnread;
       hasLoadedMessagesRef.current = true;
     }
-  };
+  }, [messageSnapshot.data]);
 
-  const fetchNotificationHistory = async () => {
-    const response = await fetch("/api/notifications", {
-      cache: "no-store",
-    }).catch(() => null);
-    if (response?.ok)
-      setNotificationHistory((await response.json()).history || []);
-  };
+  const fetchNotificationHistory = historySnapshot.refresh;
+  useEffect(() => {
+    if (historySnapshot.data)
+      setNotificationHistory(historySnapshot.data.history || []);
+  }, [historySnapshot.data]);
 
   useEffect(() => {
     fetchChallenges();
@@ -147,11 +156,6 @@ export default function NotificationBellClient({
     };
     document.addEventListener("visibilitychange", refreshOnFocus);
     window.addEventListener("focus", refreshOnFocus);
-    const timer = window.setInterval(() => {
-      fetchChallenges();
-      fetchMessages();
-      fetchNotificationHistory();
-    }, 3000);
     const handleConversationOpened = (event: Event) => {
       const senderId = (event as CustomEvent<{ userId?: string }>).detail
         ?.userId;
@@ -185,7 +189,6 @@ export default function NotificationBellClient({
     );
     window.addEventListener("office-games:open-chat", handleOpenChat);
     return () => {
-      window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshOnFocus);
       window.removeEventListener("focus", refreshOnFocus);
       window.removeEventListener(

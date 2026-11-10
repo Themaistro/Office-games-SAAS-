@@ -3,58 +3,16 @@
 import { formatDistanceToNow } from "date-fns";
 import { Activity, Swords, Trophy, Zap } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
-type FeedItem = {
-  id: string;
-  user_id: string;
-  type: string;
-  description: string;
-  created_at: string;
-  metadata: any;
-  profiles?: {
-    full_name: string;
-    avatar_url: string;
-  };
-};
+import { useSharedPolling } from "@/hooks/useSharedPolling";
+import type { ActivityItem } from "@/features/reporting/domain/activity";
 
 export default function LiveActivityFeed() {
-  const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let disposed = false;
-    let fetching = false;
-    const controller = new AbortController();
-    const fetchFeed = async () => {
-      if (fetching || document.visibilityState !== "visible") return;
-      fetching = true;
-      try {
-        const response = await fetch("/api/activity", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error("Activity unavailable");
-        const items = await response.json();
-        if (!disposed) {
-          setFeed(items);
-          setFailed(false);
-        }
-      } catch {
-        if (!disposed) setFailed(true);
-      } finally {
-        fetching = false;
-        if (!disposed) setLoading(false);
-      }
-    };
-    void fetchFeed();
-    const timer = window.setInterval(() => void fetchFeed(), 5000);
-    return () => {
-      disposed = true;
-      controller.abort();
-      window.clearInterval(timer);
-    };
-  }, []);
+  const { data, loading, failed } = useSharedPolling<ActivityItem[]>(
+    "/api/activity",
+    5000,
+  );
+  const feed = data ?? [];
 
   const getIcon = (type: string) => {
     switch (type) {

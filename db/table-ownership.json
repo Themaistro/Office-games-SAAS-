@@ -2,7 +2,7 @@
   "isolation": "one-company-per-database",
   "owners": {
     "companies": ["deployment_identity"],
-    "identity": ["users", "sessions", "oauth_accounts", "invitations"],
+    "identity": ["users", "sessions", "oauth_accounts", "invitations", "authentication_attempts"],
     "players": ["profiles"],
     "content": ["game_types", "questions", "game_content_catalog", "master_trivia_bank", "master_word_bank", "master_typing_bank", "master_odd_object_bank", "company_trivia", "trivia_review_sources"],
     "missions": ["daily_sessions", "session_questions", "question_attempts", "question_history", "daily_mission_lineups", "daily_mission_overrides", "user_daily_mission_lineups"],
@@ -10,6 +10,6 @@
     "social": ["direct_messages", "presence"],
     "administration": ["departments", "teams", "system_settings", "announcements", "prizes", "seasons", "season_snapshots", "season_winners"],
     "reporting": ["activity_feed", "leaderboards"],
-    "platform": ["schema_migrations"]
+    "platform": ["schema_migrations", "maintenance_leases"]
   }
 }

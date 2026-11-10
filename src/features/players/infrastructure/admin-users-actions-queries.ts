@@ -36,7 +36,7 @@ export function updateProfilesForToggleUserStatus<
   T extends QueryResultRow = QueryResultRow,
 >(values: unknown[] = [], executor: SqlExecutor = database) {
   return executor.query<T>(
-    "UPDATE profiles SET is_active = $1 WHERE id = $2 AND role = 'employee'",
+    "WITH changed AS (UPDATE profiles SET is_active=$1 WHERE id=$2 AND role='employee' RETURNING id) DELETE FROM sessions WHERE user_id IN (SELECT id FROM changed) AND $1=false",
     values,
   );
 }
@@ -54,7 +54,7 @@ export function updateProfilesForBulkDeactivate<
   T extends QueryResultRow = QueryResultRow,
 >(values: unknown[] = [], executor: SqlExecutor = database) {
   return executor.query<T>(
-    "UPDATE profiles SET is_active = false WHERE id = ANY($1::uuid[]) AND role = 'employee'",
+    "WITH changed AS (UPDATE profiles SET is_active=false WHERE id=ANY($1::uuid[]) AND role='employee' RETURNING id) DELETE FROM sessions WHERE user_id IN (SELECT id FROM changed)",
     values,
   );
 }

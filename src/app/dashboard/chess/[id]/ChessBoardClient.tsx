@@ -10,8 +10,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Chess, Square } from "chess.js";
 import { Chessboard, defaultArrowOptions } from "react-chessboard";
 import type { Arrow } from "react-chessboard";
-import * as Ably from "ably";
-import { getGameChannelName } from "@/lib/realtime";
+import type * as Ably from "ably";
+import { useGameRealtime } from "@/hooks/useGameRealtime";
 import {
   updateChessGameState,
   resignChessGame,
@@ -277,7 +277,10 @@ export default function ChessBoardClient({
           : "";
         const response = await fetch(`/api/chess/${game.id}${eventQuery}`, {
           cache: "no-store",
-          signal: controller.signal,
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(10000),
+          ]),
         });
         if (!response.ok) {
           if (!disposed) setConnectionIssue(true);
@@ -349,10 +352,13 @@ export default function ChessBoardClient({
     const focused = () => {
       if (document.visibilityState === "visible") void refreshSnapshot();
     };
-    const timer = window.setInterval(
-      focused,
-      ["white_won", "black_won", "draw"].includes(gameStatus) ? 2500 : 200,
-    );
+    let nextPollAt = 0;
+    const timer = window.setInterval(() => {
+      if (Date.now() < nextPollAt) return;
+      nextPollAt = Date.now() + (realtimeHealthy.current ? 5000 : 1000);
+      focused();
+    }, 500);
+    window.addEventListener("office-games:match-reconnected", focused);
     window.addEventListener("focus", focused);
     window.addEventListener("online", focused);
     document.addEventListener("visibilitychange", focused);
@@ -361,20 +367,17 @@ export default function ChessBoardClient({
       disposed = true;
       controller.abort();
       window.clearInterval(timer);
+      window.removeEventListener("office-games:match-reconnected", focused);
       window.removeEventListener("focus", focused);
       window.removeEventListener("online", focused);
       document.removeEventListener("visibilitychange", focused);
     };
   }, [game.id, gameStatus, router, chess, currentUserId]);
 
-  useEffect(() => {
-    if (!game.id) return;
-    const realtime = new Ably.Realtime({
-      authUrl: `/api/realtime?type=chess&id=${game.id}`,
-      echoMessages: false,
-    });
-    const channel = realtime.channels.get(getGameChannelName("chess", game.id));
-    const handleMessage = (message: Ably.Message) => {
+  const realtimeHealthy = useGameRealtime(
+    "chess",
+    game.id,
+    (message: Ably.Message) => {
       const event = parseMatchEvent(message.data);
       if (!event || event.senderId === currentUserId) return;
       if (event.type === "move" && event.payload?.fen) {
@@ -415,21 +418,9 @@ export default function ChessBoardClient({
         setGameStatus(String(event.payload.status));
       if (event.type === "game_finished" && event.payload?.reason)
         setResultReason(event.payload.reason);
-    };
-    void channel.subscribe(handleMessage).catch(() => setConnectionIssue(true));
-    return () => {
-      try {
-        channel.unsubscribe(handleMessage);
-      } catch {
-        /* Ably may already be closed during a fast refresh. */
-      }
-      try {
-        realtime.close();
-      } catch {
-        /* Ably may already be closed during a fast refresh. */
-      }
-    };
-  }, [game.id, currentUserId, playerColor, chess]);
+    },
+    () => window.dispatchEvent(new Event("office-games:match-reconnected")),
+  );
 
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
 

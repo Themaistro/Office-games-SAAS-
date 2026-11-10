@@ -1,90 +1,26 @@
 "use server";
 
-import { registerActionsQueries } from "@/features/identity/composition";
-import { createSession, createUser } from "@/features/identity/public-server";
-import { findInvitation } from "@/features/identity/public-server";
-import bcrypt from "bcryptjs";
+import { registerWithCredentials } from "@/features/identity/public-server";
+import {
+  parseRegistration,
+  textField,
+} from "@/features/identity/domain/credentials";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-const { selectDepartmentsForSignup } = registerActionsQueries;
-
 export async function signup(formData: FormData) {
-  const rawEmail = formData.get("email") as string;
-  const rawPassword = formData.get("password") as string;
-  const rawFullName = formData.get("full_name") as string;
-  const rawDepartment = formData.get("department") as string;
-  const rawPosition = formData.get("position") as string;
-
-  if (
-    !rawEmail ||
-    !rawPassword ||
-    !rawFullName ||
-    !rawDepartment ||
-    !rawPosition
-  ) {
-    redirect("/register?error=Please fill out all required fields.");
-  }
-
-  const email = rawEmail.trim().toLowerCase();
-  const password = rawPassword;
-  const fullName = rawFullName.trim();
-  const department = rawDepartment.trim();
-  const position = rawPosition.trim();
-  const invitationToken = String(formData.get("invitation_token") || "");
-  if (invitationToken) {
-    const invitation = await findInvitation(invitationToken);
-    if (!invitation || invitation.email.toLowerCase() !== email)
-      redirect(
-        "/register?error=This invitation is invalid, expired, or belongs to another email address.",
-      );
-  }
-
-  const { rows: matchingDepartments } = await selectDepartmentsForSignup<{
-    name: string;
-  }>([department]);
-  if (!matchingDepartments[0]) {
-    redirect("/register?error=Please select an active department.");
-  }
-
-  // 1. Email Validation (Basic RFC 5322 regex check)
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    redirect("/register?error=Please provide a valid email address.");
-  }
-
-  // 2. Password Strength (PostgreSQL requires at least 6, but we can enforce more rules if desired)
-  if (password.length < 6) {
-    redirect("/register?error=Password must be at least 6 characters long.");
-  }
-
-  // 3. String Length Limits (UI & Database Quality)
-  if (fullName.length < 2 || fullName.length > 50) {
-    redirect("/register?error=Full Name must be between 2 and 50 characters.");
-  }
-  if (position.length < 2 || position.length > 50) {
-    redirect("/register?error=Position must be between 2 and 50 characters.");
-  }
-
-  try {
-    const passwordHash = await bcrypt.hash(password, 12);
-    const userId = await createUser({
-      email,
-      passwordHash,
-      fullName,
-      department,
-      position,
-      invitationToken,
-    });
-    await createSession(userId);
-  } catch (error) {
-    const message =
-      error instanceof Error && error.message.includes("duplicate")
-        ? "An account with this email already exists."
-        : "Unable to create your account. Please try again.";
-    redirect("/register?error=" + encodeURIComponent(message));
-  }
-
+  const invitation = textField(formData.get("invitation_token"), 256);
+  const errorPath = `/register?${invitation ? `invite=${encodeURIComponent(invitation)}&` : ""}error=`;
+  const input = parseRegistration(formData);
+  if (!input)
+    redirect(
+      errorPath +
+        encodeURIComponent(
+          "Check the required fields and password length (up to 72 UTF-8 bytes).",
+        ),
+    );
+  const result = await registerWithCredentials(input);
+  if ("error" in result) redirect(errorPath + encodeURIComponent(result.error));
   revalidatePath("/", "layout");
   redirect("/dashboard");
 }

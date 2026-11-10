@@ -1,5 +1,6 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useSentInvitations } from "@/components/providers/SentInvitationsProvider";
 import { useRouter } from "next/navigation";
 import {
   getGameDefinition,
@@ -10,11 +11,18 @@ import { SENT_INVITATION_EVENT } from "@/lib/sent-invitation";
 
 export default function GlobalRealtimeSync({ userId }: { userId?: string }) {
   const router = useRouter();
+  const { invitations } = useSentInvitations();
+  const snapshot = useRef(invitations);
+  useEffect(() => {
+    snapshot.current = invitations;
+    window.dispatchEvent(new Event("office-games:sent-snapshot"));
+  }, [invitations]);
   useEffect(() => {
     if (!userId) return;
     let active = true,
       busy = false;
     let navigating: string | null = null;
+    let initialized = false;
     const open = (path: string) => {
       if (window.location.pathname !== path && navigating !== path) {
         navigating = path;
@@ -36,15 +44,12 @@ export default function GlobalRealtimeSync({ userId }: { userId?: string }) {
     };
     const update = async () => {
       if (busy || !active || document.visibilityState !== "visible") return;
+      if (initialized && !tracked.size) return;
       busy = true;
       try {
-        const response = await fetch("/api/challenges?sent=1", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) return;
-        const rows: unknown = await response.json();
+        const rows = snapshot.current;
         if (!active || !Array.isArray(rows)) return;
+        initialized = true;
         for (const row of rows) {
           if (
             !row ||
@@ -117,19 +122,18 @@ export default function GlobalRealtimeSync({ userId }: { userId?: string }) {
         }
         tracked.add(value.id);
         save();
-        void update();
       }
     };
     window.addEventListener(SENT_INVITATION_EVENT, sent);
     window.addEventListener("focus", update);
     window.addEventListener("online", update);
     document.addEventListener("visibilitychange", update);
-    const timer = window.setInterval(update, 1000);
+    window.addEventListener("office-games:sent-snapshot", update);
     void update();
     return () => {
       active = false;
       controller.abort();
-      clearInterval(timer);
+      window.removeEventListener("office-games:sent-snapshot", update);
       window.removeEventListener(SENT_INVITATION_EVENT, sent);
       window.removeEventListener("focus", update);
       window.removeEventListener("online", update);

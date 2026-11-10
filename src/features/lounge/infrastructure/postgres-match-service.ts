@@ -239,6 +239,7 @@ export async function activateMatch(
       [gameId],
     );
     const game = rows[0];
+    if (!game) throw new Error("This invitation is no longer available");
     if (game.status === "in_progress" && [game[a], game[b]].includes(userId))
       return;
     if (game.status !== "waiting")

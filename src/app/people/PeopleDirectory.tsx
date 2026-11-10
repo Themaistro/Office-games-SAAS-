@@ -1,5 +1,6 @@
 "use client";
 
+import { useSharedPolling } from "@/hooks/useSharedPolling";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { MessageCircle, Search, User } from "lucide-react";
@@ -20,31 +21,16 @@ type Person = {
 type ChatPerson = { id: string; full_name: string; avatar_url?: string | null };
 
 export default function PeopleDirectory({ userId }: { userId: string }) {
-  const [people, setPeople] = useState<Person[]>([]);
+  const snapshot = useSharedPolling<Person[]>("/api/people", 30000, userId);
+  const people = snapshot.data ?? [];
   const [search, setSearch] = useState("");
   const [chatPerson, setChatPerson] = useState<ChatPerson | null>(null);
-  const [refreshToken, setRefreshToken] = useState(0);
   useEffect(() => {
-    const load = async () => {
-      const response = await fetch("/api/people", { cache: "no-store" });
-      if (response.ok) setPeople(await response.json());
-    };
-    load();
-    const timer = window.setInterval(load, 30000);
-    const handleConversationOpened = () =>
-      setRefreshToken((value) => value + 1);
-    window.addEventListener(
-      "office-games:conversation-opened",
-      handleConversationOpened,
-    );
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener(
-        "office-games:conversation-opened",
-        handleConversationOpened,
-      );
-    };
-  }, [refreshToken]);
+    const update = () => void snapshot.invalidate();
+    window.addEventListener("office-games:conversation-opened", update);
+    return () =>
+      window.removeEventListener("office-games:conversation-opened", update);
+  }, [snapshot.invalidate]);
   const filtered = useMemo(
     () =>
       people.filter((person) =>

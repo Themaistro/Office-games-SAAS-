@@ -1,4 +1,5 @@
 import "server-only";
+export { expireBoardInvitations } from "./infrastructure/invitation-expiry";
 export {
   requestRematch,
   readRematch,

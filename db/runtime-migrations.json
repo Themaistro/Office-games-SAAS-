@@ -14,5 +14,7 @@
   "db/migrations/migration29_player_lookup_indexes.sql",
   "db/migrations/migration30_company_database_identity.sql",
   "db/migrations/migration31_default_game_catalog.sql",
-  "db/migrations/migration32_trivia_review_sources.sql"
+  "db/migrations/migration32_trivia_review_sources.sql",
+  "db/migrations/migration33_security_and_feed_indexes.sql",
+  "db/migrations/migration34_feed_index_null_order.sql"
 ]

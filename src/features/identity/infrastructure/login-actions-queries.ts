@@ -10,7 +10,7 @@ export function selectUsersForLogin<T extends QueryResultRow = QueryResultRow>(
   executor: SqlExecutor = database,
 ) {
   return executor.query<T>(
-    "SELECT u.id, u.password_hash, COALESCE(p.is_active, true) AS is_active FROM users u LEFT JOIN profiles p ON p.id = u.id WHERE u.email = $1",
+    "SELECT u.id, u.password_hash, p.is_active FROM users u JOIN profiles p ON p.id = u.id WHERE u.email = $1",
     values,
   );
 }

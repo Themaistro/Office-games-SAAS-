@@ -1,5 +1,6 @@
 import { validateChallenge } from "@/features/challenges/domain/challenge-validation";
 import { query, withTransaction } from "@/server/database/connection";
+import { PartyAccessError } from "../domain/party-contract";
 import { GAME_REGISTRY } from "@/features/lounge/domain/game-registry";
 import {
   assertAvailable,
@@ -559,7 +560,7 @@ export async function leaveParty(userId: string, id: string) {
 }
 
 export async function partySnapshot(userId: string, id: string) {
-  if (!isUuid(id)) throw new Error("Invalid room");
+  if (!isUuid(id)) throw new PartyAccessError("Invalid room");
   return withTransaction(async (c) => {
     await employee(c, userId);
     const r = (
@@ -567,7 +568,7 @@ export async function partySnapshot(userId: string, id: string) {
         id,
       ])
     ).rows[0];
-    if (!r) throw new Error("Room not found");
+    if (!r) throw new PartyAccessError("Room not found");
     const roster = await members(c, id);
     const me = roster.find((p) => p.user_id === userId);
     const invited = await c.query(
@@ -575,7 +576,7 @@ export async function partySnapshot(userId: string, id: string) {
       [id, userId],
     );
     if (r.visibility === "private" && !me && !invited.rowCount)
-      throw new Error("This is a private room");
+      throw new PartyAccessError("This is a private room");
     if (!me || me.state !== "joined")
       await c.query(
         "INSERT INTO lounge_room_spectators(room_id,user_id) VALUES($1,$2) ON CONFLICT(room_id,user_id) DO UPDATE SET last_seen=now()",

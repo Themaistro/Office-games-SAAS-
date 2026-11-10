@@ -1,4 +1,10 @@
 import "server-only";
+export {
+  loginWithCredentials,
+  registerWithCredentials,
+  registrationMode,
+  registrationPasswordMinimum,
+} from "./infrastructure/credential-workflows";
 export { requireAdmin } from "./infrastructure/authentication";
 export { getCurrentUser } from "./infrastructure/authentication";
 export { destroySession } from "./infrastructure/authentication";

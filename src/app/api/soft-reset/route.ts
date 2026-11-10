@@ -39,8 +39,8 @@ export async function POST(request: Request) {
 
     // Redirect back to dashboard
     const url = new URL(request.url);
-    return NextResponse.redirect(`${url.origin}/dashboard`);
-  });
+    return NextResponse.redirect(`${url.origin}/dashboard`, 303);
+  }, request);
 }
 
 export async function GET() {
