@@ -1,6 +1,6 @@
 # Deployment and database runbook
 
-All work in this architecture change is local. Do not treat a successful build as a production deployment.
+Source publication and deployment are separate operations. Do not treat a successful build or GitHub push as verification of a hosted deployment.
 
 ## Per-company configuration
 

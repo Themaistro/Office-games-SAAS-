@@ -1,0 +1,25 @@
+name: Feature request
+description: Propose a focused improvement or a new game.
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Player or company need
+      description: Who needs this, and what are they trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: Describe the experience, including other players or admins affected.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: How would we know it works?
+      description: Concrete scenarios or acceptance criteria.
+    validations:
+      required: true

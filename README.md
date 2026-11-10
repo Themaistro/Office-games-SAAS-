@@ -1,96 +1,137 @@
-# Daily Brain Arena
+<p align="center">
+  <img src="docs/assets/office-games-banner.svg" alt="Office Games — a daily challenge, a friendly rivalry, a better break" width="100%" />
+</p>
 
-Daily Brain Arena is a corporate gamification platform designed to offer employees a fun, competitive, and time-boxed daily challenge. It provides a healthy break for teams, boosts morale, and fosters friendly competition across departments.
+<p align="center">
+  <a href="https://github.com/Themaistro/Office-games-SAAS-/actions/workflows/verify.yml"><img src="https://github.com/Themaistro/Office-games-SAAS-/actions/workflows/verify.yml/badge.svg?branch=main" alt="Platform verification status" /></a>
+  <img src="https://img.shields.io/badge/Next.js-16-171717?logo=nextdotjs" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/React-19-149eca?logo=react" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript" alt="Strict TypeScript" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql&logoColor=white" alt="PostgreSQL 16" />
+</p>
 
-## Features
+<p align="center">
+  <a href="#the-experience">The experience</a> ·
+  <a href="#run-locally">Run locally</a> ·
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/index.md">Documentation</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-- **Daily Missions (13 Mini-games)**: A rich catalog of brain-training games including:
-  - **Memory & Focus**: Card Match, Memory Game, Sequence Game, Odd Object.
-  - **Speed & Reaction**: Reaction Time, Stroop Effect, Target Number.
-  - **Math & Logic**: Mental Math, Sudoku Lite, Logic Puzzles.
-  - **Word & Knowledge**: Word Scramble, Missing Letters, Company/IT Trivia.
-- **Real-Time Multiplayer**: 
-  - Challenge colleagues to live **Chess** and **Tic-Tac-Toe** matches.
-  - Spectate live ongoing matches from the Office Lounge.
-- **Strict Timeboxing**: A server-enforced daily time limit ensures employees only play for a healthy, configurable duration (e.g., 15 minutes) per day.
-- **Progression System**: Earn XP for performance, build daily streaks, level up, and compete on the global leaderboard.
-- **Admin Dashboard**: 
-  - Real-time participation analytics and heatmaps.
-  - Player roster management and bulk time-limit configuration.
-  - Game rotation and trivia question management.
-  - Global announcement broadcasting (Info, Success, Warning, Urgent).
-  - One-click Season Reset and Factory Wipes.
-- **Interactive Onboarding**: Integrated `driver.js` product tours guide new users through their first mission, navigating the leaderboard, and challenging coworkers.
+# Office Games
 
-## Architecture
+A team playground for the workday. Take on a rotating Daily Mission, challenge a coworker, join a group game, or watch an office rivalry unfold.
 
-- **Frontend**: Next.js 16 (App Router), React 19, TypeScript
-- **Styling**: Tailwind CSS v4, custom HSL theme, Framer Motion for tasteful animations
-- **Backend**: Next.js Server Actions & API Routes for secure, server-authoritative logic
-- **Database**: PostgreSQL with server-authoritative access
-- **Real-time**: PostgreSQL-backed polling and API updates
-- **Authentication**: Provider-neutral PostgreSQL sessions
-- **Hosting**: Optimized for Vercel
+**Status:** active development and local validation. This repository is the development baseline; a successful build is not a production-readiness certification. Each company installation currently has its own database. Cross-company competition is a future direction.
 
-## Installation & Setup
+## The experience
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/Themaistro/Office-games-SAAS-.git
-   cd Office-games-SAAS-
-   ```
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-3. **Set up Environment Variables**:
-   Copy `.env.example` to `.env.local` and add your PostgreSQL connection:
-   ```env
-   DATABASE_URL=postgresql://user:password@host:5432/database
-   NEXT_PUBLIC_SITE_URL=http://localhost:3000
-   # Optional: enables instant Chess events; polling remains as a fallback.
-   ABLY_API_KEY=your_server_key
-NEXT_PUBLIC_ABLY_KEY=your_public_key
+| Play your way              | What is available                                                                                                                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Daily Mission**          | Rotating memory, logic, maths, word, reaction and knowledge challenges. Configurable game counts and difficulty rounds, history-aware content selection, company trivia, saved progress, hints and timing. |
+| **Office Lounge**          | Chess, Connect Four and Tic-Tac-Toe, plus Trivia and Mixed Challenges in duel/group rooms. Direct invitations, live matches and spectators.                                                                |
+| **Friendly competition**   | Mission XP, levels, streaks and leaderboards; a separate shared Lounge rank and LP progression.                                                                                                            |
+| **Stay connected**         | Online contacts, direct-message popups, unread indicators and challenge notifications across the player experience.                                                                                        |
+| **Company administration** | Player roster, departments, announcements, onboarding, content, mission settings and season operations.                                                                                                    |
+
+Board-game invitations and rematches share lifecycle rules: duplicate prevention, cancellation, expiry, busy-player warnings, acceptance tracking and idempotent results. Group rooms use the party service; group “Play again” remains a follow-up rather than a completed board-rematch feature.
+
+## Built to grow
+
+Office Games is a **modular monolith**: features own their rules, workflows and persistence, while common game behavior stays in shared services.
+
+```text
+Presentation                 Pages, components, server actions and API routes
+       ↓
+Feature entry points         composition.ts / public-server.ts
+       ↓
+Application + domain         Workflows, contracts, scoring and game rules
+       ↑
+Infrastructure               PostgreSQL and external-service adapters
 ```
 
-Realtime is deliberately game-agnostic. New live games should use the shared
-`publishGameEvent(gameType, gameId, event)` helper and the matching channel
-`game:{gameType}:{gameId}`. Keep the database as the source of truth and use
-Ably only for low-latency UI updates, with polling as a fallback when Ably is
-not configured.
+Domain code stays independent of React, Next.js and PostgreSQL. Automated checks protect import boundaries, detect dependency cycles and prevent server code from entering browser bundles. Multiplayer state is authoritative on the server; realtime events provide fast updates and polling supports recovery.
 
-## Database Setup
-
-For a complete database, use the checked-in migration runner:
-
-```bash
-node scripts/apply-neon-migrations.cjs
+```text
+src/app/                 Routes and page composition
+src/features/            Feature-owned domain, application and infrastructure
+src/components/          Shared UI and game presentation
+src/hooks/               Reusable interaction and synchronization hooks
+src/server/              Database, HTTP and realtime infrastructure
+db/                      Bootstrap, versioned migrations and content release
+scripts/                 Provisioning and verification tools
+docs/                    Architecture, development guides and audit evidence
 ```
 
-It applies the complete, ordered schema, identity, application, migration, and
-seed chain through the current release. This is the supported approach for a
-new environment and for bringing an existing environment up to date. The
-migrations are idempotent; the base schema and seed files are still intended
-for a new database or one that has not already received them.
+Read the [architecture guide](docs/architecture.md) and [new-game integration guide](docs/adding-a-game.md) before adding another game.
 
-## Running Locally
+## Run locally
 
-Run the development server:
+Use Node.js **24** and PostgreSQL **16**. Docker is optional; it is one way to run the local database.
+
 ```bash
+git clone https://github.com/Themaistro/Office-games-SAAS-.git
+cd Office-games-SAAS-
+npm ci
+```
+
+Copy [.env.example](.env.example) to `.env.local` and configure the connection for your local database:
+
+```powershell
+# PowerShell
+Copy-Item .env.example .env.local
+```
+
+```bash
+# macOS / Linux
+cp .env.example .env.local
+```
+
+Choose the database path that matches your setup:
+
+| Database                                | Initialization                                                                                                                                     |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Docker Compose**                      | Run `docker compose up -d postgres`. Compose initializes the schema on a fresh volume; then run the migration and content commands below.          |
+| **Your own empty PostgreSQL database**  | Create the database, update `DATABASE_URL`, then run `npm run db:bootstrap -- --local` once. Follow with the migration and content commands below. |
+| **Existing local application database** | Skip bootstrap. Apply migrations and install missing master-bank content below.                                                                    |
+
+```bash
+npm run db:migrate -- --local
+npm run db:seed-content -- --local
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Admin Setup
+Open [localhost:3000](http://localhost:3000). Register your own local account; test accounts and passwords are not distributed with the repository. The [development guide](docs/development.md) explains environment variables, administration and common setup problems.
 
-By default, all new users are employees. To create an admin account:
-1. Sign up normally via the UI.
-2. Manually update the user's role in the PostgreSQL `profiles` table to `'admin'`.
+### Realtime configuration
 
-## Deployment to Vercel
+Set `ABLY_API_KEY` on the **server** to enable realtime delivery. Browsers obtain scoped tokens through `/api/realtime`; never expose a publisher key through a `NEXT_PUBLIC_*` variable. Shared channels include the company identity: `company:{companyId}:game:{gameType}:{gameId}`. See the [deployment runbook](docs/deployment-runbook.md) for provisioning and credentials.
 
-1. Push your code to your GitHub repository.
-2. Import the project in Vercel.
-3. Add `DATABASE_URL` and `NEXT_PUBLIC_SITE_URL` to your Vercel Environment Variables.
-   Add `ABLY_API_KEY` as a server-only variable and `NEXT_PUBLIC_ABLY_KEY` as a client-visible variable to enable instant Chess synchronization.
-4. Deploy!
+## Verify changes
+
+```bash
+# Formatting, lint, types, architecture and domain/gameplay regressions
+npm run verify
+
+# Also exercise the local database and create an optimized build
+npm run verify -- --database --build
+
+# HTTP regression checks against a temporary local production server
+npm run test:http
+```
+
+Database tests use temporary fixtures and require the local configuration. The HTTP command requires a completed build and free port `3100`. Generated reports go to the ignored `output/` directory. GitHub Actions runs the platform checks with an isolated PostgreSQL service; the badge above reflects the actual workflow status.
+
+Checks cover game rules, generated content, mission configuration, company identity, match settlement, rematches, party workflows and snapshot recovery. Local tests are not a substitute for real multiplayer browser sessions or hosted capacity testing.
+
+## Explore the project
+
+- [Documentation hub](docs/index.md) — current guides and dated audit evidence.
+- [Architecture](docs/architecture.md) — feature ownership, dependencies and company isolation.
+- [Add a game](docs/adding-a-game.md) — required contracts and shared services.
+- [Deployment and database runbook](docs/deployment-runbook.md) — migration, identity and rollout procedures.
+- [Content review status](docs/content-review-status.md) — content quality work and remaining review.
+- [Contributing](CONTRIBUTING.md) · [Security reporting](SECURITY.md).
+- [Roadmap](ROADMAP.md) — current validation priorities and longer-term direction.
+
+No open-source license has been selected for this repository.

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Office Games</title>
+  <desc id="desc">A daily challenge. A friendly rivalry. A better break. Product illustration with a chess board, trivia choices and a daily route.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#f5f3ff"/><stop offset="1" stop-color="#edf9f6"/></linearGradient>
+    <linearGradient id="accent" x2="1" y2="1"><stop stop-color="#5847e8"/><stop offset="1" stop-color="#8273ed"/></linearGradient>
+    <pattern id="grid" width="38" height="38" patternUnits="userSpaceOnUse"><path d="M38 0H0V38" fill="none" stroke="#7472a2" stroke-opacity=".07"/></pattern>
+    <pattern id="chess" width="32" height="32" patternUnits="userSpaceOnUse"><rect width="32" height="32" fill="#edeafa"/><path d="M0 0h16v16H0zm16 16h16v16H16z" fill="#c5bbf1"/></pattern>
+  </defs>
+  <rect x="1" y="1" width="1198" height="358" rx="28" fill="url(#bg)" stroke="#e3e0ef"/>
+  <rect x="1" y="1" width="1198" height="358" rx="28" fill="url(#grid)"/>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <rect x="48" y="44" width="54" height="54" rx="17" fill="url(#accent)"/>
+    <g stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none">
+      <path d="M74 56c-8-6-14 2-11 8-7 2-7 13 0 15-1 8 8 12 13 7V58m1-2c8-6 14 2 11 8 7 2 7 13 0 15 1 8-8 12-13 7"/>
+      <path d="M68 63l6 4m-9 7h9m-4 7 4-5m9-13-6 4m9 7h-9m4 7-4-5"/>
+    </g>
+    <text x="118" y="78" fill="#4f46a8" font-size="13" font-weight="700" letter-spacing="2.2">YOUR TEAM’S PLAYGROUND</text>
+    <text x="46" y="163" fill="#171b32" font-size="60" font-weight="800" letter-spacing="-2">Office Games</text>
+    <text x="49" y="207" fill="#5d617d" font-size="20">A daily challenge. A friendly rivalry.</text>
+    <text x="49" y="236" fill="#5d617d" font-size="20">A better break.</text>
+    <g font-size="12" font-weight="700">
+      <rect x="49" y="275" width="120" height="31" rx="15" fill="#e5e0fc"/><text x="68" y="295" fill="#5847bc">DAILY MISSION</text>
+      <rect x="179" y="275" width="128" height="31" rx="15" fill="#d7f0e7"/><text x="198" y="295" fill="#287864">OFFICE LOUNGE</text>
+      <rect x="317" y="275" width="119" height="31" rx="15" fill="#f9e9d8"/><text x="335" y="295" fill="#96642f">TEAM RIVALRY</text>
+    </g>
+    <g transform="translate(661 53)">
+      <rect width="204" height="238" rx="21" fill="#fff" stroke="#e3e0f1"/>
+      <text x="21" y="32" font-size="11" fill="#68657e" font-weight="700" letter-spacing="1.5">YOUR NEXT MOVE</text>
+      <rect x="22" y="51" width="160" height="160" rx="8" fill="url(#chess)"/>
+      <path d="m73 179 17-40-9-19 5-23 26 6 14 27-20 17-1 32z" fill="#5847bc" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M95 113h2m-19 69h37" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="157" cy="74" r="7" fill="#2caa83" stroke="#fff" stroke-width="3"/>
+    </g>
+    <g transform="translate(888 83)">
+      <rect width="255" height="123" rx="20" fill="#fff" stroke="#e3e0f1"/>
+      <circle cx="31" cy="31" r="13" fill="#f5e7d8"/><text x="27" y="36" font-size="15" fill="#b48040" font-weight="700">?</text>
+      <text x="55" y="36" font-size="15" fill="#24283c" font-weight="700">Trivia with your team</text>
+      <rect x="19" y="57" width="103" height="43" rx="11" fill="#f0edff"/><rect x="132" y="57" width="103" height="43" rx="11" fill="#e2f4ed"/>
+      <text x="40" y="83" font-size="13" fill="#6654b8" font-weight="700">THINK FAST</text><text x="153" y="83" font-size="13" fill="#347c66" font-weight="700">PLAY WELL</text>
+    </g>
+    <g transform="translate(888 224)">
+      <rect width="255" height="68" rx="18" fill="#fff" stroke="#e3e0f1"/>
+      <path d="M35 34h183" stroke="#e9e5f6" stroke-width="5"/>
+      <g fill="#6d5ad2"><circle cx="35" cy="34" r="10"/><circle cx="79" cy="34" r="10"/><circle cx="123" cy="34" r="10"/></g>
+      <g fill="#e5e1f4"><circle cx="168" cy="34" r="10"/><circle cx="212" cy="34" r="10"/></g>
+      <path d="m30 34 4 4 7-8m33 4 4 4 7-8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="123" cy="34" r="4" fill="#fff"/>
+    </g>
+  </g>
+</svg>

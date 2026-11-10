@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a reproducible player, admin or gameplay issue.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include passwords, session cookies, database URLs or private employee data. See SECURITY.md for sensitive findings."
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Daily Mission
+        - Board games / rematches
+        - Trivia / Mixed Challenges parties
+        - Messaging / notifications
+        - Admin / content / departments
+        - Authentication / setup
+        - Visual design / other
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: For multiplayer, describe what each player did and which tabs/windows were open.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Actual behavior
+      description: Include sanitized screenshots or error text if available.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment and revision
+      placeholder: "Local / hosted, browser, operating system, commit SHA"
+    validations:
+      required: true

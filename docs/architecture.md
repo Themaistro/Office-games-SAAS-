@@ -1,6 +1,6 @@
 # Office Games architecture
 
-Updated 2026-11-02. Implemented and tested locally; nothing in this refactor has been pushed or deployed.
+Structural baseline updated 2026-11-05 and published to GitHub. Deployment verification is separate; dated reports record local validation at the time of each change.
 
 ## Shape
 
