@@ -33,6 +33,7 @@ if (process.argv.includes('--database')) commands.push(
   ['scripts/test-parties.cjs'],
   ['scripts/test-database-hardening.cjs'],
   ['scripts/test-activity-history.cjs'],
+  ['scripts/test-challenge-history.cjs'],
 );
 if (process.argv.includes('--build')) commands.push(['node_modules/next/dist/bin/next', 'build']);
 for (const command of commands) {

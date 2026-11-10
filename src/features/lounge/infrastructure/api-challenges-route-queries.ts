@@ -10,7 +10,7 @@ export function selectChessGamesForGET<
   T extends QueryResultRow = QueryResultRow,
 >(values: unknown[] = [], executor: SqlExecutor = database) {
   return executor.query<T>(
-    `SELECT id, 'chess' AS type, status, created_at, updated_at, CASE WHEN white_player_id=$1 THEN black_player_id ELSE white_player_id END AS other_player_id FROM chess_games WHERE white_player_id=$1 OR black_player_id=$1 UNION ALL SELECT id, 'ttt' AS type, status, created_at, updated_at, CASE WHEN x_player_id=$1 THEN o_player_id ELSE x_player_id END AS other_player_id FROM ttt_games WHERE x_player_id=$1 OR o_player_id=$1 UNION ALL SELECT id, 'connect-four' AS type, status, created_at, updated_at, CASE WHEN red_player_id=$1 THEN yellow_player_id ELSE red_player_id END AS other_player_id FROM connect_four_games WHERE red_player_id=$1 OR yellow_player_id=$1 ORDER BY updated_at DESC NULLS LAST, created_at DESC LIMIT 100`,
+    `SELECT 'match:chess:' || id::text AS history_id, id, 'chess' AS type, status, created_at, updated_at, CASE WHEN white_player_id=$1 THEN black_player_id ELSE white_player_id END AS other_player_id FROM chess_games WHERE white_player_id=$1 OR black_player_id=$1 UNION ALL SELECT 'match:ttt:' || id::text AS history_id, id, 'ttt' AS type, status, created_at, updated_at, CASE WHEN x_player_id=$1 THEN o_player_id ELSE x_player_id END AS other_player_id FROM ttt_games WHERE x_player_id=$1 OR o_player_id=$1 UNION ALL SELECT 'match:connect-four:' || id::text AS history_id, id, 'connect-four' AS type, status, created_at, updated_at, CASE WHEN red_player_id=$1 THEN yellow_player_id ELSE red_player_id END AS other_player_id FROM connect_four_games WHERE red_player_id=$1 OR yellow_player_id=$1 ORDER BY updated_at DESC NULLS LAST, created_at DESC LIMIT 100`,
     values,
   );
 }
@@ -19,7 +19,7 @@ export function selectChallengeEventsForGET<
   T extends QueryResultRow = QueryResultRow,
 >(values: unknown[] = [], executor: SqlExecutor = database) {
   return executor.query<T>(
-    `SELECT game_id AS id, game_type AS type, event_type AS status, created_at, created_at AS updated_at, CASE WHEN challenger_id=$1 THEN challenged_id ELSE challenger_id END AS other_player_id FROM challenge_events WHERE challenger_id=$1 OR challenged_id=$1 ORDER BY created_at DESC LIMIT 100`,
+    `SELECT 'event:' || id::text AS history_id, game_id AS id, game_type AS type, event_type AS status, created_at, created_at AS updated_at, CASE WHEN challenger_id=$1 THEN challenged_id ELSE challenger_id END AS other_player_id FROM challenge_events WHERE challenger_id=$1 OR challenged_id=$1 ORDER BY created_at DESC LIMIT 100`,
     values,
   );
 }

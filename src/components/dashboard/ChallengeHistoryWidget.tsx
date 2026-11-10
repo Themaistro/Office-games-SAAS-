@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Clock3, History, Swords, CircleDot, X } from "lucide-react";
 
 type Entry = {
+  history_id: string;
   id: string;
   type: "chess" | "ttt" | "connect-four";
   status: string;
@@ -74,7 +75,7 @@ export default function ChallengeHistoryWidget() {
         <div className="space-y-2">
           {visible.slice(0, 6).map((entry) => (
             <div
-              key={`${entry.type}-${entry.id}-${entry.created_at}`}
+              key={entry.history_id}
               className="flex items-center gap-3 rounded-2xl bg-background/60 px-3 py-2.5"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
