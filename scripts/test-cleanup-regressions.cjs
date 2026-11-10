@@ -26,7 +26,7 @@ async function main(){
       const user=(await query("SELECT id,total_xp,full_name,department FROM profiles WHERE role <> 'admin' LIMIT 1")).rows[0];
       if(user){
         assert.equal((await profile.findProfile(user.id)).data.id,user.id);
-        assert.deepEqual((await profile.findMissionAnswers([])).data,[]);
+        assert(Array.isArray(await profile.findMissionGameStats(user.id)));
         assert((await profile.countHigherXp(user.total_xp)).count>=0);
         assert((await profile.countDepartmentEqualXpBeforeName(user.department,user.total_xp,user.full_name)).count>=0);
         assert(Array.isArray((await profile.findChessHistory(user.id,['finished'])).data));

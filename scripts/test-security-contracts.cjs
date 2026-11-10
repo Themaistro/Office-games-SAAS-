@@ -1,0 +1,38 @@
+require('./register-typescript.cjs');
+const assert=require('node:assert/strict');
+const {parseCredentials,parseRegistration}=require('../src/features/identity/domain/credentials.ts');
+const {parseProfileInput}=require('../src/features/players/domain/profile-input.ts');
+const {isTrustedMutation}=require('../src/server/http/mutation-origin.ts');
+const {authenticate}=require('../src/features/identity/application/authenticate.ts');
+const {latestActivityByUser}=require('../src/features/reporting/domain/activity.ts');
+async function main(){
+  const form=new FormData();assert.equal(parseCredentials(form),null);
+  form.set('email',new Blob(['bad']),'file');form.set('password','123');assert.equal(parseCredentials(form),null);
+  form.set('email',' TEST1@Test.com ');assert.deepEqual(parseCredentials(form),{email:'test1@test.com',password:'123'});
+  form.set('password','😀'.repeat(19));assert.equal(parseCredentials(form),null);
+  form.set('password','pass123');form.set('full_name',' Test Person ');form.set('position',' QA ');form.set('department',' IT ');
+  assert.equal(parseRegistration(form).department,'IT');form.set('position',new Blob(['qa']));assert.equal(parseRegistration(form),null);
+  assert.equal(parseProfileInput({},'',undefined),null);assert.equal(parseProfileInput('Alice','javascript:alert(1)'),null);
+  assert.equal(parseProfileInput('Alice','//untrusted.test/a'),null);assert.equal(parseProfileInput('Alice','https://user:pw@site.test/a'),null);
+  assert.equal(parseProfileInput(' Alice ','/avatars/a.png',' IT ').fullName,'Alice');
+  const mutation=headers=>new Request('https://office.test/api/messages',{method:'POST',headers});
+  assert(isTrustedMutation(mutation({Origin:'https://office.test'})));
+  assert(isTrustedMutation(new Request('http://localhost:3100/api/presence',{method:'POST',headers:{Host:'127.0.0.1:3100',Origin:'http://127.0.0.1:3100'}})));
+  assert(!isTrustedMutation(mutation({Origin:'https://evil.test'})));
+  assert(!isTrustedMutation(mutation({Origin:'null'})));
+  assert(!isTrustedMutation(mutation({'sec-fetch-site':'same-site',Origin:'https://office.test'})));
+  assert(!isTrustedMutation(mutation({})));
+  assert(isTrustedMutation(mutation({'sec-fetch-site':'same-origin'})));
+  assert(!isTrustedMutation(mutation({'x-forwarded-host':'evil.test',Origin:'https://evil.test'})));
+  let compared=0,lookups=0;
+  const port={consume:async()=>true,find:async()=>{lookups++;return undefined;},compare:async()=>{compared++;return false;}};
+  assert('error' in await authenticate({email:'nobody@test.com',password:'123'},port));assert.equal(compared,1,'Unknown accounts must compare a dummy hash');
+  port.consume=async()=>false;
+  await authenticate({email:'nobody@test.com',password:'123'},port);assert.equal(lookups,1,'Throttled traffic must not perform password work');
+  const valid={consume:async()=>true,find:async()=>({id:'one',password_hash:'hash',is_active:true}),compare:async()=>true};
+  assert.deepEqual(await authenticate({email:'a@test.com',password:'123'},valid),{userId:'one'});
+  valid.find=async()=>({id:'one',password_hash:'hash',is_active:false});assert('error' in await authenticate({email:'a@test.com',password:'123'},valid));
+  assert.equal(latestActivityByUser([{user_id:'one',description:'new'},{user_id:'one',description:'old'}]).get('one'),'new');
+  console.log('PASS credential/file/UTF-8 bounds, avatar validation, origin spoofing, throttled/unknown/inactive authentication and newest activity contracts.');
+}
+main().catch(error=>{console.error(error);process.exitCode=1;});

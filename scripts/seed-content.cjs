@@ -1,5 +1,6 @@
 const fs = require('node:fs'), path = require('node:path'), { Client } = require('pg');
 const root = path.join(__dirname, '..');
+const {postgresConfig}=require('./postgres-config.cjs');
 if (process.argv.includes('--local')) Object.assign(process.env, require('dotenv').parse(fs.readFileSync(path.join(root,'.env.local'))));
 const banks = {
   master_trivia_bank: { fields:['id','question','answer','decoys','department','difficulty'], key:'question' },
@@ -11,7 +12,7 @@ async function main() {
   const url = new URL(process.env.DATABASE_URL || '');
   if (!['localhost','127.0.0.1'].includes(url.hostname) && !process.argv.includes('--allow-remote')) throw new Error('Remote content installation requires --allow-remote and an explicitly supplied connection');
   const release = JSON.parse(fs.readFileSync(path.join(root,'db/content/release.json')));
-  const client = new Client({connectionString:url.toString()}); await client.connect();
+  const client = new Client(postgresConfig(url.toString())); await client.connect();
   try {
     const identity=(await client.query('SELECT company_id FROM deployment_identity WHERE id=1')).rows[0];
     if(!identity || identity.company_id !== (process.env.OFFICE_GAMES_COMPANY_ID || '00000000-0000-4000-8000-000000000001')) throw new Error('Company database identity mismatch');

@@ -32,6 +32,15 @@ for (const file of files) {
     ts.forEachChild(node,answerContract);
   }
   answerContract(ast);
+  if(relative.startsWith('app/api/'))for(const node of ast.statements){
+    if(!ts.isFunctionDeclaration(node)||!['POST','PUT','PATCH','DELETE'].includes(node.name?.text))continue;
+    let guarded=false;
+    function findGuard(child){
+      if(ts.isCallExpression(child)&&ts.isIdentifier(child.expression)&&child.expression.text==='handleApiRequest')guarded=child.arguments.length===2&&ts.isIdentifier(child.arguments[1])&&child.arguments[1].text==='request';
+      ts.forEachChild(child,findGuard);
+    }
+    findGuard(node);assert(guarded,`${relative}: cookie-authenticated API mutations must pass their Request to the shared origin guard`);
+  }
   if (relative.startsWith('app/admin/') && relative.endsWith('/page.tsx')) {
     const page=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.modifiers?.some(modifier=>modifier.kind===ts.SyntaxKind.DefaultKeyword));
     assert(page?.body?.statements[0]?.getText(ast).includes('await requireAdminPage('), `${relative}: admin page must guard its own reads`);
@@ -47,6 +56,15 @@ for (const file of files) {
     if (relative.includes('/infrastructure/')) assert(!specifier.startsWith('@/app/'), `${relative}: persistence imports a route`);
   }
   function inspect(node) {
+    if ((ts.isStringLiteral(node)||ts.isNoSubstitutionTemplateLiteral(node))&&node.text.startsWith('game:'))
+      assert(false,`${relative}: realtime channels must use the shared company-scoped channel builder`);
+    if(ts.isTemplateExpression(node)&&node.head.text.startsWith('game:'))
+      assert(false,`${relative}: realtime channels must use the shared company-scoped channel builder`);
+    if(ts.isCallExpression(node)&&node.expression.kind===ts.SyntaxKind.ImportKeyword&&node.arguments[0]&&ts.isStringLiteral(node.arguments[0])){
+      const specifier=node.arguments[0].text,destination=resolve(file,specifier);
+      if(destination)edges.push(destination);else external.push(specifier);
+      if(relative.startsWith('app/')||relative.startsWith('components/')||relative.startsWith('hooks/'))assert(!/^@\/features\/[^/]+\/infrastructure\//.test(specifier),`${relative}: lazy imports must also respect feature boundaries`);
+    }
     if ((relative.startsWith('app/') || relative.startsWith('components/') || relative.startsWith('hooks/')) && ts.isCallExpression(node)) {
       const exp = node.expression;
       const name = ts.isIdentifier(exp) ? exp.text : ts.isPropertyAccessExpression(exp) ? exp.name.text : '';

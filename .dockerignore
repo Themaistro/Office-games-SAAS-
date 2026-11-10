@@ -5,6 +5,9 @@ npm-debug.log
 README.md
 .next
 .git
+.github
+.vercel
+docs
 .env.local
 .env.development.local
 .env.test.local
@@ -19,3 +22,6 @@ db/scripts
 *.dump
 *.backup
 *.sql.gz
+scripts/test-*.cjs
+scripts/setup-gameplay-qa.cjs
+scripts/local-ui-fixtures.cjs

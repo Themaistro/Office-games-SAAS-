@@ -45,13 +45,7 @@ RUN chown nextjs:nodejs .next
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/db/migrations ./db/migrations
 COPY --from=builder --chown=nextjs:nodejs /app/db/runtime-migrations.json ./db/runtime-migrations.json
-COPY --from=builder --chown=nextjs:nodejs /app/db/content ./db/content
-COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.cjs ./scripts/migrate.cjs
-COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-content.cjs ./scripts/seed-content.cjs
-COPY --from=builder --chown=nextjs:nodejs /app/scripts/provision-company.cjs ./scripts/provision-company.cjs
-COPY --from=builder --chown=nextjs:nodejs /app/scripts/provision-runtime-role.cjs ./scripts/provision-runtime-role.cjs
 
 USER nextjs
 
@@ -60,7 +54,22 @@ EXPOSE 3000
 ENV PORT=3000
 # set hostname to localhost
 ENV HOSTNAME="0.0.0.0"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD node -e "fetch('http://127.0.0.1:3000/api/live',{signal:AbortSignal.timeout(3000)}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
 CMD ["node", "server.js"]
+
+# Explicit one-shot operator image. The serving image has no migration tools.
+FROM runner AS operator
+COPY --from=builder --chown=nextjs:nodejs /app/db/migrations ./db/migrations
+COPY --from=builder --chown=nextjs:nodejs /app/db/content ./db/content
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.cjs ./scripts/migrate.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/postgres-config.cjs ./scripts/postgres-config.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/seed-content.cjs ./scripts/seed-content.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/provision-company.cjs ./scripts/provision-company.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/provision-runtime-role.cjs ./scripts/provision-runtime-role.cjs
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/dotenv ./node_modules/dotenv
+HEALTHCHECK NONE
+
+FROM runner AS production

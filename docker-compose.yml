@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-brain_arena}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/local/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
@@ -53,10 +53,13 @@ services:
       retries: 10
 
   migrate:
-    image: daily-brain-arena:latest
+    profiles: ["app"]
+    restart: "no"
+    image: office-games-operator:local
     build:
       context: .
       dockerfile: Dockerfile
+      target: operator
       args:
         NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID: ${NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
     command: ["sh", "-c", "node scripts/migrate.cjs && node scripts/provision-company.cjs --allow-remote && node scripts/seed-content.cjs --allow-remote && if [ -n \"$$RUNTIME_DATABASE_ROLE\" ]; then node scripts/provision-runtime-role.cjs --allow-remote; fi"]
@@ -71,9 +74,12 @@ services:
       RUNTIME_DATABASE_PASSWORD: ${RUNTIME_DATABASE_PASSWORD:-}
 
   daily-brain-arena:
+    profiles: ["app"]
+    init: true
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner
       args:
         NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID: ${NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
     image: daily-brain-arena:latest
@@ -88,11 +94,18 @@ services:
         condition: service_completed_successfully
     environment:
       # These are used at runtime
-      - DATABASE_URL=${DATABASE_URL:-postgresql://brain_arena:change-me-local-only@postgres:5432/daily_brain_arena}
+      - DATABASE_URL=${DATABASE_URL:-}
       - NODE_ENV=production
       - OFFICE_GAMES_COMPANY_ID=${OFFICE_GAMES_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
       - NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID=${NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID:-00000000-0000-4000-8000-000000000001}
       - ABLY_API_KEY=${ABLY_API_KEY:-}
+      - DATABASE_POOL_MAX=${DATABASE_POOL_MAX:-10}
+      - DATABASE_STATEMENT_TIMEOUT_MS=${DATABASE_STATEMENT_TIMEOUT_MS:-15000}
+      - DATABASE_LOCK_TIMEOUT_MS=${DATABASE_LOCK_TIMEOUT_MS:-5000}
+      - DATABASE_IDLE_TRANSACTION_TIMEOUT_MS=${DATABASE_IDLE_TRANSACTION_TIMEOUT_MS:-15000}
+      - REGISTRATION_MODE=${REGISTRATION_MODE:-invite}
+      - REGISTRATION_PASSWORD_MIN_LENGTH=${REGISTRATION_PASSWORD_MIN_LENGTH:-12}
+      - ADMIN_SESSION_MAX_AGE_HOURS=${ADMIN_SESSION_MAX_AGE_HOURS:-8}
     # If using a `.env` file, uncomment the line below:
     # env_file:
     #   - .env

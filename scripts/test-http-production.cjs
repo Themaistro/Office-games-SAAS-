@@ -17,7 +17,7 @@ async function main() {
     }
     if(!ready)throw new Error('Production server did not become ready: '+logs);
     await new Promise((resolve,reject)=>{
-      const test=spawn(process.execPath,['scripts/load-test-local.cjs'],{cwd:root,stdio:'inherit',env:{...process.env,LOAD_TEST_URL:`http://127.0.0.1:${port}`}});
+      const test=spawn(process.execPath,['scripts/load-test-local.cjs'],{cwd:root,stdio:'inherit',env:{...process.env,LOAD_TEST_URL:`http://127.0.0.1:${port}`,...(process.argv.includes('--mixed')?{LOAD_TEST_MIXED:'1'}:{})}});
       test.once('error',reject);test.once('exit',code=>code===0?resolve():reject(new Error('HTTP verification failed')));
     });
   }finally{server.kill();}

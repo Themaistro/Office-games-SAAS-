@@ -2,14 +2,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {createHash} = require('node:crypto');
 const {Client} = require('pg');
+const {postgresConfig}=require('./postgres-config.cjs');
 const root=path.resolve(__dirname,'..');
 // Explicitly opt into local configuration; remote runs must supply DATABASE_URL.
 if(process.argv.includes('--local'))Object.assign(process.env,require('dotenv').parse(fs.readFileSync(path.join(root,'.env.local'))));
+if(process.argv.includes('--local')&&fs.existsSync(path.join(root,'.env.migrations.local')))Object.assign(process.env,require('dotenv').parse(fs.readFileSync(path.join(root,'.env.migrations.local'))));
 async function migrate(){
-  const connectionString=process.env.DATABASE_URL;if(!connectionString)throw new Error('Supply DATABASE_URL or pass --local');
+  const connectionString=process.env.MIGRATION_DATABASE_URL||process.env.DATABASE_URL;if(!connectionString)throw new Error('Supply DATABASE_URL or pass --local');
   const url=new URL(connectionString),local=['localhost','127.0.0.1'].includes(url.hostname);
   if(process.argv.includes('--local')&&!local)throw new Error('--local refuses nonlocal databases');
-  const client=new Client({connectionString,connectionTimeoutMillis:5000,...(!local?{ssl:{rejectUnauthorized:true}}:{})});
+  const client=new Client(postgresConfig(connectionString));
   await client.connect();
   try{
     await client.query("SELECT pg_advisory_lock(hashtext('office-games-schema-upgrade'))");

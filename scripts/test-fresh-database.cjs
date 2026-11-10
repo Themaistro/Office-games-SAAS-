@@ -2,8 +2,9 @@ const { Client } = require('pg'), { randomBytes } = require('node:crypto'), { sp
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
 Object.assign(process.env, require('dotenv').parse(fs.readFileSync(path.join(root, '.env.local'))));
+if(fs.existsSync(path.join(root,'.env.migrations.local')))Object.assign(process.env,require('dotenv').parse(fs.readFileSync(path.join(root,'.env.migrations.local'))));
 async function main() {
-  const url = new URL(process.env.DATABASE_URL);
+  const url = new URL(process.env.MIGRATION_DATABASE_URL || process.env.DATABASE_URL);
   if (!['localhost','127.0.0.1'].includes(url.hostname)) throw new Error('Fresh database rehearsal is local only');
   const suffix = randomBytes(5).toString('hex');
   const name = 'office_games_schema_qa_' + suffix, role = 'office_qa_' + suffix;
@@ -14,7 +15,7 @@ async function main() {
     await admin.query(`CREATE DATABASE "${name}"`); created = true;
     url.pathname = '/' + name;
     const password=randomBytes(32).toString('hex');
-    const env = { ...process.env, DATABASE_URL: url.toString(), RUNTIME_DATABASE_ROLE: role, RUNTIME_DATABASE_PASSWORD: password };
+    const env = { ...process.env, DATABASE_URL: url.toString(), MIGRATION_DATABASE_URL: url.toString(), RUNTIME_DATABASE_ROLE: role, RUNTIME_DATABASE_PASSWORD: password };
     for (const file of ['scripts/bootstrap.cjs','scripts/migrate.cjs','scripts/migrate.cjs','scripts/seed-content.cjs','scripts/seed-content.cjs','scripts/provision-company.cjs','scripts/provision-runtime-role.cjs']) {
       const result = spawnSync(process.execPath, [file], { cwd: root, env, encoding: 'utf8' });
       if (result.status !== 0) throw new Error(result.stderr || result.stdout || `${file} failed`);

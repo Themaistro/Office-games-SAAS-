@@ -33,6 +33,7 @@ jobs:
       - run: npm run db:bootstrap -- --local
       - run: npm run db:migrate -- --local
       - run: npm run db:seed-content -- --local
+      - run: node scripts/configure-local-runtime.cjs
       - run: npm run verify -- --database --build
       - run: npm run test:bootstrap
       - run: node scripts/test-http-production.cjs

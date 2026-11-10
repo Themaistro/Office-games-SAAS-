@@ -1,0 +1,17 @@
+require('./register-typescript.cjs');
+const assert=require('node:assert/strict');
+const {databasePoolOptions,assertRestrictedRuntimeRole}=require('../src/server/database/options.ts');
+const {postgresConfig}=require('./postgres-config.cjs');
+const env={DATABASE_URL:'postgresql://fixture:fixture@127.0.0.1:5433/fixture'};
+const direct=databasePoolOptions(env);assert.equal(direct.idleTimeoutMillis,5000);assert.equal(direct.statement_timeout,15000);assert.equal(direct.max,10);
+assert.equal(databasePoolOptions({...env,DATABASE_CONNECTION_MODE:'transaction'}).statement_timeout,undefined);
+assert.equal(databasePoolOptions({...env,DATABASE_URL:'postgresql://fixture:fixture@ep-test-pooler.neon.tech/fixture'}).statement_timeout,undefined);
+assert.throws(()=>databasePoolOptions({...env,DATABASE_POOL_MAX:'0'}));assert.throws(()=>databasePoolOptions({...env,DATABASE_STATEMENT_TIMEOUT_MS:'0'}));
+assert.throws(()=>databasePoolOptions({...env,DATABASE_URL:'postgresql://fixture:fixture@db.example/fixture?sslmode=disable'}),/TLS/);
+const remote=databasePoolOptions({...env,DATABASE_URL:'postgresql://fixture:fixture@db.example/fixture?sslmode=require'});
+assert.equal(new URL(remote.connectionString).searchParams.get('sslmode'),'verify-full');assert(remote.ssl.rejectUnauthorized);
+assert.equal(postgresConfig('postgresql://fixture:fixture@postgres/fixture').ssl,undefined);
+assert(postgresConfig('postgresql://fixture:fixture@db.example/fixture').ssl.rejectUnauthorized);
+const safe={rolsuper:false,rolcreatedb:false,rolcreaterole:false,rolbypassrls:false,owns_tables:false};assertRestrictedRuntimeRole(safe);
+for(const key of Object.keys(safe))assert.throws(()=>assertRestrictedRuntimeRole({...safe,[key]:true}),/restricted/);
+console.log('PASS pool bounds/lifecycle, direct versus transaction configuration, verified public TLS, restricted runtime role and canonical party channel.');
