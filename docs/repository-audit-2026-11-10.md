@@ -18,6 +18,8 @@ The migration is additive and preserves existing review records. It was applied 
 
 ## Repository-level observations
 
+Follow-up CI exposed another fresh-install assumption: match and party tests depended on an existing daily question pool. Both now create and remove their own question fixtures, and both suites run inside the isolated empty-database rehearsal.
+
 At audit time, the repository was public, with `main` unprotected and no repository rulesets. Branch-protection settings were not changed because they determine whether the owner's direct-push workflow remains available. No open-source license has been selected; no licensing terms were invented. Security reporting instructions do not assume private vulnerability reporting is enabled.
 
 ## Validation

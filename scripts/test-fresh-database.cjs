@@ -29,6 +29,10 @@ async function main() {
       const actual=(await test.query("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename")).rows.map(row=>row.tablename);
       assert.deepEqual(actual,owners,'Fresh installation must contain the same owned tables as an upgraded database');
     } finally { await test.end(); }
+    for(const script of ['scripts/test-match-integrity.cjs','scripts/test-parties.cjs']){
+      const integrity=spawnSync(process.execPath,[script],{cwd:root,env:{...env,TEST_DATABASE_URL:url.toString()},encoding:'utf8'});
+      if(integrity.status!==0)throw new Error(integrity.stderr||integrity.stdout||`${script}: fixtures failed on an empty installation`);
+    }
     const runtimeUrl = new URL(url); runtimeUrl.username=role;runtimeUrl.password=password;
     const runtime = new Client({connectionString:runtimeUrl.toString()});await runtime.connect();
     try{

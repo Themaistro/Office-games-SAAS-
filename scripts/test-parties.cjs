@@ -1,14 +1,20 @@
 const fs=require('node:fs'),path=require('node:path'),Module=require('node:module'),assert=require('node:assert/strict'),{randomUUID}=require('node:crypto'),ts=require('typescript');
 const root=path.resolve(__dirname,'..');Object.assign(process.env,require('dotenv').parse(fs.readFileSync(path.join(root,'.env.local'))));
+if(process.env.TEST_DATABASE_URL)process.env.DATABASE_URL=process.env.TEST_DATABASE_URL;
 if(!['localhost','127.0.0.1'].includes(new URL(process.env.DATABASE_URL).hostname))throw Error('Local database only');
 const load=Module._load,resolve=Module._resolveFilename;Module._load=function(name,parent,main){if(name==='server-only')return {};return load.call(this,name,parent,main);};Module._resolveFilename=function(name,parent,...args){return resolve.call(this,name.startsWith('@/')?path.join(root,'src',name.slice(2)):name,parent,...args);};
 require.extensions['.ts']=(module,file)=>module._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,file);
 const {query,withTransaction}=require('../src/server/database/connection.ts'),party=require('../src/features/lounge/infrastructure/postgres-party-service.ts'),match=require('../src/features/lounge/infrastructure/postgres-match-service.ts');
-const ids=Array.from({length:14},()=>randomUUID()),rooms=[],games=[];let checks=0;
+const ids=Array.from({length:14},()=>randomUUID()),rooms=[],games=[],questionFixtures=[];let checks=0;
 async function check(name,fn){await fn();checks++;console.log('PASS '+name);}
 async function create(host,format='trivia',mode='duel',visibility='public'){const id=await party.createParty(host,{format,mode,rounds:3,visibility});rooms.push(id);return id;}
 async function start(id,host,guest){await party.joinParty(guest,id);await party.startParty(host,id);await query("UPDATE lounge_rooms SET round_started_at=now()-interval '2 seconds',deadline_at=now()+interval '58 seconds' WHERE id=$1",[id]);}
 async function main(){try{
+  for(const slug of ['trivia','logic'])for(let i=0;i<3;i++){
+    const id=randomUUID();questionFixtures.push(id);
+    const inserted=await query("INSERT INTO questions(id,game_type_id,difficulty,content,options,correct_answer,base_xp,is_active) SELECT $1,id,'easy',$2::jsonb,$3::jsonb,'Correct',100,true FROM game_types WHERE slug=$4 RETURNING id",[id,JSON.stringify({question:`Party fixture ${id}`}),JSON.stringify(['Correct','Incorrect','Other','None']),slug]);
+    assert.equal(inserted.rowCount,1,'The migrated game catalog must contain '+slug);
+  }
   for(const [i,id]of ids.entries()){const email=`party-test-${id}@example.invalid`;await query('INSERT INTO users(id,email,password_hash) VALUES($1,$2,$3)',[id,email,'not-a-login']);await query('INSERT INTO profiles(id,email,full_name) VALUES($1,$2,$3)',[id,email,`Party fixture ${i}`]);}
   const privateRoom=await create(ids[2],'trivia','group','private');
   await check('private rooms require an invitation for joining and spectating',async()=>{await assert.rejects(()=>party.partySnapshot(ids[0],privateRoom),/private/);await assert.rejects(()=>party.joinParty(ids[0],privateRoom),/invitation/);await party.inviteParty(ids[2],privateRoom,ids[3]);await party.joinParty(ids[3],privateRoom);assert.equal((await party.partySnapshot(ids[3],privateRoom)).isMember,true);await assert.rejects(()=>party.inviteParty(ids[3],privateRoom,ids[1]),/host/);});
@@ -101,5 +107,5 @@ async function main(){try{
     assert.equal((await party.partySnapshot(ids[0],duel)).reveal.correctAnswer,expected);assert.notEqual(expected,'placeholder');
   });
   console.log(`All ${checks} party checks passed.`);
-}finally{await query('DELETE FROM lounge_rooms WHERE id=ANY($1::uuid[])',[rooms]);await query('DELETE FROM challenge_events WHERE game_id=ANY($1::uuid[])',[games]);await query('DELETE FROM match_results WHERE game_id=ANY($1::uuid[])',[games]);await query('DELETE FROM ttt_games WHERE id=ANY($1::uuid[])',[games]);await query('DELETE FROM activity_feed WHERE user_id=ANY($1::uuid[])',[ids]);await query('DELETE FROM users WHERE id=ANY($1::uuid[])',[ids]);await global.postgresPool?.end();}}
+}finally{await query('DELETE FROM lounge_rooms WHERE id=ANY($1::uuid[])',[rooms]);await query('DELETE FROM challenge_events WHERE game_id=ANY($1::uuid[])',[games]);await query('DELETE FROM match_results WHERE game_id=ANY($1::uuid[])',[games]);await query('DELETE FROM ttt_games WHERE id=ANY($1::uuid[])',[games]);await query('DELETE FROM activity_feed WHERE user_id=ANY($1::uuid[])',[ids]);await query('DELETE FROM users WHERE id=ANY($1::uuid[])',[ids]);await query('DELETE FROM questions WHERE id=ANY($1::uuid[])',[questionFixtures]);await global.postgresPool?.end();}}
 main().catch(e=>{console.error(e);process.exitCode=1;});

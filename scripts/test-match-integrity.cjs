@@ -7,6 +7,7 @@ const { randomUUID } = require('node:crypto');
 const ts = require('typescript');
 const root = path.resolve(__dirname, '..');
 Object.assign(process.env, require('dotenv').parse(fs.readFileSync(path.join(root, '.env.local'))));
+if(process.env.TEST_DATABASE_URL)process.env.DATABASE_URL=process.env.TEST_DATABASE_URL;
 if (!['localhost', '127.0.0.1'].includes(new URL(process.env.DATABASE_URL).hostname)) throw new Error('These integration tests only run against local PostgreSQL');
 delete process.env.ABLY_API_KEY;
 let currentUser;
@@ -32,6 +33,7 @@ const missionActions = require('../src/app/play/actions.ts');
 const { Chess } = require('chess.js');
 const people = [randomUUID(), randomUUID(), randomUUID()];
 const games = [];
+const questionFixtureId=randomUUID();
 let checks = 0;
 async function check(name, fn) { await fn(); console.log(`PASS ${name}`); checks++; }
 async function createGame(type, a, b, status='waiting') {
@@ -99,8 +101,8 @@ async function main() {
       await closeFixtures();
     });
     await check('mission ownership, hints, expiry and final settlement stay authoritative',async()=>{
-      const question=(await query("SELECT q.id FROM questions q JOIN game_types g ON g.id=q.game_type_id WHERE g.slug IN ('logic','trivia','word') LIMIT 1")).rows[0];
-      assert.ok(question,'A local question bank is required');
+      const question=(await query("INSERT INTO questions(id,game_type_id,difficulty,content,options,correct_answer,base_xp,is_active) SELECT $1,id,'easy',$2::jsonb,$3::jsonb,'Correct',100,true FROM game_types WHERE slug='trivia' LIMIT 1 RETURNING id",[questionFixtureId,JSON.stringify({question:'Which answer completes this test fixture?'}),JSON.stringify(['Correct','Incorrect','Other','None'])])).rows[0];
+      assert.ok(question,'The migrated game catalog must contain Trivia');
       const session=(await query("INSERT INTO daily_sessions(user_id,date,allowed_duration_seconds) VALUES($1,current_date,600) RETURNING id",[people[0]])).rows[0].id;
       const sq=(await query('INSERT INTO session_questions(session_id,question_id,order_index) VALUES($1,$2,0) RETURNING id',[session,question.id])).rows[0].id;
       currentUser={id:people[1]};assert.deepEqual(await missionActions.fetchSessionQuestions(session),[]);
@@ -173,6 +175,7 @@ async function main() {
     for(const [table,id]of games)await query(`DELETE FROM ${table} WHERE id=$1`,[id]);
     await query('DELETE FROM profiles WHERE id=ANY($1::uuid[])',[people]);
     await query('DELETE FROM users WHERE id=ANY($1::uuid[])',[people]);
+    await query('DELETE FROM questions WHERE id=$1',[questionFixtureId]);
     await global.postgresPool?.end();
   }
 }

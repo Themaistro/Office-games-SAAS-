@@ -101,7 +101,7 @@ npm run db:seed-content -- --local
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). Register your own local account; test accounts and passwords are not distributed with the repository. The [development guide](docs/development.md) explains environment variables, administration and common setup problems.
+Open [localhost:3000](http://localhost:3000). Register your own local account; the standard setup does not provision a shared test/admin login. The [development guide](docs/development.md) explains environment variables, administration and common setup problems.
 
 ### Realtime configuration
 
