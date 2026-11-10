@@ -132,6 +132,6 @@ Checks cover game rules, generated content, mission configuration, company ident
 - [Deployment and database runbook](docs/deployment-runbook.md) — migration, identity and rollout procedures.
 - [Content review status](docs/content-review-status.md) — content quality work and remaining review.
 - [Contributing](CONTRIBUTING.md) · [Security reporting](SECURITY.md).
-- [Roadmap](ROADMAP.md) — current validation priorities and longer-term direction.
+- [Roadmap](docs/roadmap.md) — current validation priorities and longer-term direction.
 
 No open-source license has been selected for this repository.

@@ -28,4 +28,4 @@ The banner was rendered and visually inspected. Current-guide local links and is
 
 ## Remaining product work
 
-The group-room lifecycle audit, group rematches, full content review, real multiplayer network-cut sessions and hosted capacity testing remain separate from repository presentation. They are listed in [the roadmap](../ROADMAP.md), not represented as completed features.
+The group-room lifecycle audit, group rematches, full content review, real multiplayer network-cut sessions and hosted capacity testing remain separate from repository presentation. They are listed in [the roadmap](roadmap.md), not represented as completed features.

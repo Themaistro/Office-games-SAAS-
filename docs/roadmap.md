@@ -1,6 +1,6 @@
 # Office Games roadmap
 
-This is a direction for development, not a release-date commitment. See the [documentation hub](docs/index.md) for implementation details and dated evidence.
+This is a direction for development, not a release-date commitment. See the [documentation hub](index.md) for implementation details and dated evidence.
 
 ## Current foundation
 

@@ -13,7 +13,7 @@
 
 ## Product and gameplay
 
-- [Roadmap](../ROADMAP.md) — validation priorities and future direction.
+- [Roadmap](roadmap.md) — validation priorities and future direction.
 
 - [Party modes](LOUNGE_PARTY_MODES.md) — Trivia and Mixed Challenges room design.
 - [Multiplayer foundation](multiplayer-foundation-2026-11-05.md) — recovery, clocks and authoritative snapshots.
@@ -35,6 +35,7 @@ Dated reports record the work and limitations observed at that time. They are hi
 <details>
 <summary>Earlier reports</summary>
 
+- [Development notes — 9 October](history/2026-10-09-development-notes.md) — historical notes; use the current guides for setup and deployment.
 - [Platform audit — 16 October](PLATFORM_AUDIT_2026-10-16.md)
 - [Local remediation — 19 October](LOCAL_REMEDIATION_STATUS_2026-10-19.md)
 - [Release notes — 30 October](RELEASE_2026-10-30.md)

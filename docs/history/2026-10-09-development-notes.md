@@ -1,5 +1,7 @@
 # Changes on 9-10-2026 notes
 
+Historical record from October 2026. Commands, services and validation results below describe that revision, not the current setup. Use the [development guide](../development.md) and [deployment runbook](../deployment-runbook.md) for current instructions.
+
 ## Product direction and user journey
 
 - Repositioned the product around a focused daily Office Games habit: a short 10–15 minute mission followed by optional social play.
