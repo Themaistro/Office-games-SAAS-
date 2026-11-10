@@ -2,6 +2,8 @@
 
 Structural baseline updated 2026-11-05 and published to GitHub. Deployment verification is separate; dated reports record local validation at the time of each change.
 
+The subsequent [security and scaling remediation](security-scale-remediation-2026-11-10.md) is currently local: shared authentication budgets, active-profile/session policies, guarded API writes, atomic invitation expiry, adaptive realtime recovery, bounded activity reads, restricted runtime access and database timeouts/diagnostics. Its status and measured limits are recorded separately from the published baseline below.
+
 ## Shape
 
 The platform is a modular monolith with one application/database boundary per company. Keep features together and put network-service boundaries in only when operational measurements justify them.
@@ -87,4 +89,4 @@ Local checks include 237 gameplay scenarios over 15 games/three difficulties, mu
 
 The native local production benchmark completed 1,125 authenticated requests without errors; at 50 concurrent clients the latest native run observed 69 ms p95. An isolated Docker production run using a restricted database role completed a further 1,125 requests without errors, with 108 ms p95 at 50 clients. A small local database is not a hosted concurrency guarantee, websocket fan-out test or soak test. `output/local-capacity.json` records the latest run; results vary by machine. Re-run realistic workloads on chosen hosting before setting a player-capacity promise.
 
-Content fact-checking remains separately tracked in `docs/content-review-status.md`. The dependency audit reported no production-package advisories in this run; development lint dependencies still report a minimatch advisory whose automatic recommendation would downgrade/break the toolchain. It was not force-applied. This is not a penetration-test certification.
+Content fact-checking remains separately tracked in `docs/content-review-status.md`. The later local production-preparation audit resolves the development minimatch advisory through a scoped parser dependency override and verified lint/build checks; the dependency audit now reports zero known advisories across production and development packages. This is not a penetration-test certification.

@@ -40,11 +40,25 @@ The bootstrap manifest separates legacy initialization from checksum-protected r
 
 ## Docker/server deployment
 
+Compose starts only PostgreSQL by default. To run the serving application and the one-shot migration job, explicitly enable `docker compose --profile app up -d --build` with the intended configuration. PostgreSQL's published port is loopback-only; remote applications should use a managed database or a deliberately configured private network, not expose this local port publicly.
+
+The `runner` image serves requests as a non-root user and excludes SQL/content installation tools. The `operator` image contains those tools and is used by the `migrate` job with `restart: no`. Supply a restricted `DATABASE_URL` to the app and an operator `MIGRATION_DATABASE_URL` only to the job. There is no fallback to a database owner credential in the serving service. Changing configuration does not erase existing volumes; never use `down -v` as an upgrade step.
+
+Use `/api/live` for frequent process probes; it performs no database work. `/api/health` checks database identity, runtime permission policy and required migrations. Use readiness at promotion/recovery rather than constantly waking a scale-to-zero database just to check process liveness. Docker's healthcheck is process liveness, not proof of application readiness.
+
 Docker uses Node 24 and excludes local environment files, scratch work and test output from the image. Set the build-time public company ID. The Compose migration job runs migrations, company verification and content installation before starting the application. If runtime-role inputs are supplied, it also provisions table access. Use separate migration/runtime connections outside local development.
 
 The Compose PostgreSQL initialization is for a new local/server database; an existing managed database should be upgraded through the migration runner. Provider-specific bootstrap/role privileges must be confirmed by its operator. The actual Docker production image was built and started locally against an isolated fresh database and restricted runtime role. Player/admin HTTP checks and a bounded workload passed; details are in `architecture-verification-2026-11-02.md`.
 
 ## Rollback and release gates
+
+Before promotion, run the read-only `node scripts/deployment-preflight.cjs --strict` with the explicit application environment (`--local` for a local rehearsal; `--allow-remote` is required for a hosted target). It does not change accounts, settings or data. The local review setup intentionally has open registration/test accounts and no chosen hosted connection budget, so a strict local run is expected to fail those launch gates. Review the report in ignored `output/deployment-preflight.json`; a pass is still not a security/capacity certificate.
+
+For Vercel, the server reuses one pool per worker and attaches the [Vercel pool lifecycle helper](https://vercel.com/kb/guide/connection-pooling-with-functions) only on that platform. Idle connections close after five seconds, and connections have a bounded lifetime. For Neon runtime traffic use a pooled endpoint; operator migrations/backups use a direct connection as described in [Neon's connection guidance](https://neon.com/docs/connect/connection-pooling). `-pooler` endpoints select transaction mode automatically; other transaction proxies can set `DATABASE_CONNECTION_MODE=transaction`.
+
+Transaction mode does not send per-session timeout settings. Provision runtime-role defaults with the operator tool and verify their effective values through the actual endpoint before rollout. Production connections reject database administrators/table owners. Public database hosts require certificate-verified TLS; loopback and the documented private Docker hostnames are supported without requiring TLS on a private local server.
+
+Application pool size is per worker. Set and verify `EXPECTED_MAX_INSTANCES` and `DATABASE_CONNECTION_BUDGET` against the chosen deployment limits, reserving capacity for rolling releases/operator work. These values document the intended budget; they do not configure Vercel scaling by themselves. Keep development/staging isolated from production databases and realtime applications/company identities.
 
 Prefer additive migrations and maintain compatibility with the previous application release. Roll back application code first when safe. Destructive schema/data rollback requires an operator-reviewed restore plan; a forward migration is usually safer. Never automatically run down-migrations against employee data.
 

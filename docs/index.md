@@ -31,6 +31,10 @@ Dated reports record the work and limitations observed at that time. They are hi
 - [Component refinement — 5 November](component-refinement-2026-11-05.md)
 - [Rematch and resignation — 5 November](rematch-resignation-2026-11-05.md)
 - [Repository audit — 10 November](repository-audit-2026-11-10.md)
+- [Architecture, security and scaling — 10 November](architecture-security-scale-audit-2026-11-10.md)
+- [Security and scaling remediation — 10 November](security-scale-remediation-2026-11-10.md)
+- [API and database request budget — 10 November](api-request-budget-2026-11-10.md)
+- [Production preparation — 10 November](production-preparation-audit-2026-11-10.md)
 
 <details>
 <summary>Earlier reports</summary>

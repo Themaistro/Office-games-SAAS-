@@ -103,6 +103,8 @@ npm run dev
 
 Open [localhost:3000](http://localhost:3000). Register your own local account; the standard setup does not provision a shared test/admin login. The [development guide](docs/development.md) explains environment variables, administration and common setup problems.
 
+The example uses invite-only registration. For the first local account, temporarily set `REGISTRATION_MODE=open`; see the development guide for administrator setup and restricted database credentials.
+
 ### Realtime configuration
 
 Set `ABLY_API_KEY` on the **server** to enable realtime delivery. Browsers obtain scoped tokens through `/api/realtime`; never expose a publisher key through a `NEXT_PUBLIC_*` variable. Shared channels include the company identity: `company:{companyId}:game:{gameType}:{gameId}`. See the [deployment runbook](docs/deployment-runbook.md) for provisioning and credentials.
