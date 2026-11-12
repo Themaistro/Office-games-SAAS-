@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import type { GameComponentPropsFor } from "@/types/game";
 import { useEffect, useMemo, useState } from "react";
 
@@ -20,29 +22,18 @@ export default function MissingLettersGame({
   const [shakingOption, setShakingOption] = useState<string | null>(null);
   const [revealedAnswer, setRevealedAnswer] = useState(false);
 
-  const [timeLeft, setTimeLeft] = useState(30);
+  const timeLeft = useChallengeClock(30, !isSubmitting);
 
   // Reset state when a new question arrives
   useEffect(() => {
     setEliminatedOptions([]);
     setShakingOption(null);
     setRevealedAnswer(false);
-    setTimeLeft(30);
   }, [question.id]);
 
-  // Timer Logic
   useEffect(() => {
-    if (isSubmitting) return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [isSubmitting]);
-
-  useEffect(() => {
-    if (timeLeft === 0 && !isSubmitting) {
+    if (timeLeft === 0 && !isSubmitting)
       onAnswer("TIME_OUT", { customIsCorrect: false });
-    }
   }, [timeLeft, isSubmitting, onAnswer]);
 
   // 50/50 Hint Logic

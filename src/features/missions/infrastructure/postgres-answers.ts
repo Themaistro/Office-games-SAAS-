@@ -1,5 +1,5 @@
 import "server-only";
-import { query } from "../../../server/database/connection";
+import { query, withTransaction } from "../../../server/database/connection";
 import type {
   AnswerRepository,
   AttemptSnapshot,
@@ -26,14 +26,25 @@ export const postgresAnswers: AnswerRepository = {
         )
       ).rowCount,
     ),
-  complete: async (id, values) =>
-    Boolean(
-      (
-        await query(
-          `UPDATE session_questions SET is_completed=true,outcome=$1,earned_xp=$2,time_spent_seconds=$3
-    WHERE id=$4 AND is_completed=false RETURNING id`,
-          [values.outcome, values.earnedXp, values.seconds, id],
-        )
-      ).rowCount,
-    ),
+  complete: (id, values) =>
+    withTransaction(async (client) => {
+      // Use the same lock as settlement: an answer cannot arrive after the
+      // finisher has read the questions and settled the mission.
+      await client.query(
+        `SELECT ds.id FROM daily_sessions ds JOIN session_questions sq ON sq.session_id=ds.id
+         WHERE sq.id=$1 FOR UPDATE OF ds`,
+        [id],
+      );
+      const saved = await client.query(
+        `UPDATE session_questions sq SET is_completed=true,outcome=$1,earned_xp=$2,time_spent_seconds=$3
+         FROM daily_sessions ds WHERE sq.id=$4 AND sq.is_completed=false AND ds.id=sq.session_id
+         AND ds.status='in_progress'
+         AND clock_timestamp()<ds.created_at+ds.allowed_duration_seconds*interval '1 second'
+         AND NOT EXISTS (SELECT 1 FROM session_questions previous WHERE previous.session_id=sq.session_id
+                         AND previous.order_index<sq.order_index AND previous.is_completed=false)
+         RETURNING sq.id`,
+        [values.outcome, values.earnedXp, values.seconds, id],
+      );
+      return Boolean(saved.rowCount);
+    }),
 };

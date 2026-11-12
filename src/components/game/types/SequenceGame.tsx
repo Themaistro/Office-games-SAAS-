@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import { seededShuffle } from "@/features/challenges/domain/challenge-seed";
 import type { GameComponentPropsFor } from "@/types/game";
 import { clsx } from "clsx";
@@ -31,9 +33,12 @@ export default function SequenceGame({
   const GRID_SIZE = gridSize;
   const SEQUENCE_LENGTH = seqLength;
 
-  const [timeLeft, setTimeLeft] = useState(5);
-  const [playTimeLeft, setPlayTimeLeft] = useState(15);
-  const [startTime, setStartTime] = useState(Date.now());
+  const timeLeft = useChallengeClock(5);
+  const playTimeLeft = useChallengeClock(
+    15,
+    gameState === "play" && !isSubmitting,
+    5,
+  );
   const [grid, setGrid] = useState<(number | null)[]>(
     Array(GRID_SIZE).fill(null),
   );
@@ -61,27 +66,17 @@ export default function SequenceGame({
     setGrid(newGrid);
 
     setGameState("memorize");
-    setTimeLeft(5);
-    setPlayTimeLeft(15);
     setCurrentStep(1);
     setFailed(false);
     setHintUsed(false);
     setIsPeeking(false);
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setGameState("play");
-          setStartTime(Date.now()); // Start timing the actual gameplay
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
   }, [question.id, GRID_SIZE, SEQUENCE_LENGTH]);
+
+  useEffect(() => {
+    if (gameState === "memorize" && timeLeft === 0) {
+      setGameState("play");
+    }
+  }, [gameState, timeLeft]);
 
   const useHint = useCallback(() => {
     if (hintUsed || isSubmitting || failed || gameState === "memorize") return;
@@ -101,25 +96,6 @@ export default function SequenceGame({
   }, [showHint, hintUsed, useHint]);
 
   useEffect(() => {
-    let playTimer: NodeJS.Timeout;
-    if (
-      gameState === "play" &&
-      !failed &&
-      !isSubmitting &&
-      currentStep <= SEQUENCE_LENGTH &&
-      playTimeLeft > 0 &&
-      !isPeeking
-    ) {
-      playTimer = setInterval(() => {
-        setPlayTimeLeft((prev) => Math.max(0, prev - 1));
-      }, 1000);
-    }
-    return () => {
-      if (playTimer) clearInterval(playTimer);
-    };
-  }, [gameState, failed, isSubmitting, currentStep, playTimeLeft, isPeeking]);
-
-  useEffect(() => {
     if (
       playTimeLeft === 0 &&
       gameState === "play" &&
@@ -136,6 +112,7 @@ export default function SequenceGame({
       isSubmitting ||
       failed ||
       gameState === "memorize" ||
+      playTimeLeft === 0 ||
       isPeeking ||
       grid[index] === null
     )
@@ -152,7 +129,7 @@ export default function SequenceGame({
 
       if (currentStep === SEQUENCE_LENGTH) {
         // Won!
-        const timeTaken = (Date.now() - startTime) / 1000;
+        const timeTaken = 15 - playTimeLeft;
         onAnswer(JSON.stringify(clicks.current), {
           customIsCorrect: true,
           customTimeSpent: timeTaken,
@@ -163,7 +140,7 @@ export default function SequenceGame({
     } else {
       // Wrong!
       setFailed(true);
-      const timeTaken = (Date.now() - startTime) / 1000;
+      const timeTaken = 15 - playTimeLeft;
       onAnswer("Failed Sequence", {
         customIsCorrect: false,
         customTimeSpent: timeTaken,

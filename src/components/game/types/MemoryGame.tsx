@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import type { GameComponentPropsFor } from "@/types/game";
 import { Brain, Lightbulb } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -14,7 +16,7 @@ export default function MemoryGame({
   const [phase, setPhase] = useState<"memorize" | "recall" | "hint">(
     "memorize",
   );
-  const [timeLeft, setTimeLeft] = useState(5);
+  const timeLeft = useChallengeClock(5);
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -23,28 +25,16 @@ export default function MemoryGame({
   useEffect(() => {
     setStartTime(null);
     setPhase("memorize");
-    setTimeLeft(5);
     setInput("");
     setHasShownHint(false);
   }, [question.id]);
 
-  // Memorization timer
   useEffect(() => {
-    if (phase !== "memorize") return;
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setPhase("recall");
-          setStartTime(Date.now());
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [phase]);
+    if (phase === "memorize" && timeLeft === 0) {
+      setPhase("recall");
+      setStartTime(Date.now());
+    }
+  }, [phase, timeLeft]);
 
   // Hint effect
   useEffect(() => {

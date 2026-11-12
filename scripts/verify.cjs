@@ -10,6 +10,7 @@ const commands = [
   ['scripts/test-question-contracts.cjs'],
   ['scripts/test-profile-presentation.cjs'],
   ['scripts/test-match-recovery.cjs'],
+  ['scripts/test-timer-boundaries.cjs'],
   ['scripts/test-challenge-rules.cjs'],
   ['scripts/test-content-generators.cjs'],
   ['scripts/test-content-history.cjs'],
@@ -34,6 +35,7 @@ if (process.argv.includes('--database')) commands.push(
   ['scripts/test-database-hardening.cjs'],
   ['scripts/test-activity-history.cjs'],
   ['scripts/test-challenge-history.cjs'],
+  ['scripts/test-timer-concurrency.cjs'],
 );
 if (process.argv.includes('--build')) commands.push(['node_modules/next/dist/bin/next', 'build']);
 for (const command of commands) {

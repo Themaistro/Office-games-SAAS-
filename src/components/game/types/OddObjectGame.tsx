@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import {
   seededNumber,
   seededShuffle,
@@ -18,7 +20,7 @@ export default function OddObjectGame({
   const [grid, setGrid] = useState<
     { id: number; isOdd: boolean; emoji: string; isEliminated: boolean }[]
   >([]);
-  const [timeLeft, setTimeLeft] = useState(15);
+  const timeLeft = useChallengeClock(15, !isSubmitting);
   const [startTime, setStartTime] = useState(Date.now());
   const [failed, setFailed] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
@@ -52,7 +54,6 @@ export default function OddObjectGame({
 
     setGrid(newGrid);
     setStartTime(Date.now());
-    setTimeLeft(15);
     setFailed(false);
     setHintUsed(false);
   }, [question.id, gridSize]);
@@ -92,18 +93,6 @@ export default function OddObjectGame({
       useHint();
     }
   }, [showHint, hintUsed, useHint]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (!failed && !isSubmitting && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => Math.max(0, prev - 1));
-      }, 1000);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [failed, isSubmitting, timeLeft]);
 
   useEffect(() => {
     if (timeLeft === 0 && !failed && !isSubmitting) {

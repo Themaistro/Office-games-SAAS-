@@ -116,7 +116,19 @@ export function createMissionAnswerer(
       earnedXp: score.xpEarned,
       seconds: Math.round(seconds),
     });
-    if (!saved) return { success: false as const, error: "Already answered" };
+    if (!saved) {
+      const latest = await repository.find(id);
+      const expired =
+        latest &&
+        (latest.session_status !== "in_progress" ||
+          now() >=
+            new Date(latest.session_created_at).getTime() +
+              latest.allowed_duration_seconds * 1000);
+      return {
+        success: false as const,
+        error: expired ? "Mission time has expired" : "Already answered",
+      };
+    }
     return {
       success: true as const,
       isCorrect,

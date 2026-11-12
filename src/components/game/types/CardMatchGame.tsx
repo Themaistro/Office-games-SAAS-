@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import type { GameComponentPropsFor } from "@/types/game";
 import { useState, useEffect, useRef } from "react";
 import { clsx } from "clsx";
@@ -100,13 +102,17 @@ export default function CardMatchGame({
     question?.content?.cards?.length ||
     (difficulty === "easy" ? 12 : difficulty === "medium" ? 16 : 20);
 
-  const [startTime] = useState(Date.now());
   const [cards, setCards] = useState<Card[]>([]);
   const attempts = useRef<number[][]>([]);
   const [flippedIdxs, setFlippedIdxs] = useState<number[]>([]);
   const [matchedIdxs, setMatchedIdxs] = useState<number[]>([]);
   const [errors, setErrors] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(initialTime);
+  const previewTimeLeft = useChallengeClock(previewDuration / 1000);
+  const timeLeft = useChallengeClock(
+    initialTime,
+    !isSubmitting,
+    previewDuration / 1000,
+  );
   const [isPreviewing, setIsPreviewing] = useState(previewDuration > 0);
   const [isHintActive, setIsHintActive] = useState(false);
 
@@ -122,26 +128,12 @@ export default function CardMatchGame({
     }
   }, [showHint, difficulty]);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
-    // Only start countdown timer AFTER preview finishes
-    if (isPreviewing) return;
-
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isPreviewing]);
+    if (previewTimeLeft === 0) {
+      setFlippedIdxs([]);
+      setIsPreviewing(false);
+    }
+  }, [previewTimeLeft]);
 
   useEffect(() => {
     if (timeLeft === 0 && matchedIdxs.length < totalCards && !isSubmitting) {
@@ -178,7 +170,6 @@ export default function CardMatchGame({
     attempts.current = [];
     setMatchedIdxs([]);
     setErrors(0);
-    setTimeLeft(initialTime);
     setIsHintActive(false);
     setIsPreviewing(previewDuration > 0);
 
@@ -186,19 +177,13 @@ export default function CardMatchGame({
     if (previewDuration > 0) {
       const allIdxs = Array.from({ length: totalCards }).map((_, i) => i);
       setFlippedIdxs(allIdxs);
-
-      setTimeout(() => {
-        setFlippedIdxs([]);
-        setIsPreviewing(false);
-      }, previewDuration);
     }
   }, [question.id, previewDuration, totalCards, initialTime]);
 
   useEffect(() => {
     if (matchedIdxs.length === totalCards && !isSubmitting) {
       // Game Complete!
-      if (timerRef.current) clearInterval(timerRef.current);
-      const timeTaken = (Date.now() - startTime) / 1000;
+      const timeTaken = initialTime - timeLeft;
       // Completing every pair before the timer expires is a successful
       // challenge. Mistakes affect the XP breakdown, but they do not turn a
       // completed concentration board into a failed answer.
@@ -216,7 +201,6 @@ export default function CardMatchGame({
   }, [
     matchedIdxs.length,
     errors,
-    startTime,
     onAnswer,
     isSubmitting,
     totalCards,
@@ -227,6 +211,7 @@ export default function CardMatchGame({
     if (
       isSubmitting ||
       isPreviewing ||
+      timeLeft === 0 ||
       flippedIdxs.length === 2 ||
       flippedIdxs.includes(idx) ||
       matchedIdxs.includes(idx)

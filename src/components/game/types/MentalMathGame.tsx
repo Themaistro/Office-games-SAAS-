@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import type { GameComponentPropsFor } from "@/types/game";
 import { Activity, Clock } from "lucide-react";
@@ -17,7 +19,7 @@ export default function MentalMathGame({
   const [answer, setAnswer] = useState(0);
   const [input, setInput] = useState("");
 
-  const [timeLeft, setTimeLeft] = useState(15);
+  const timeLeft = useChallengeClock(15, !isSubmitting);
   const [shake, setShake] = useState(false);
   const [solved, setSolved] = useState(false); // To freeze timer when correct
 
@@ -67,10 +69,7 @@ export default function MentalMathGame({
 
   // Timer
   useEffect(() => {
-    if (timeLeft > 0 && !isSubmitting && !solved) {
-      const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-      return () => clearInterval(timer);
-    } else if (timeLeft === 0 && !isSubmitting && !solved) {
+    if (timeLeft === 0 && !isSubmitting && !solved) {
       handleWrong();
     }
   }, [timeLeft, isSubmitting, solved, handleWrong]);

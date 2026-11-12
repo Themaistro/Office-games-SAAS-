@@ -24,7 +24,7 @@ export default function CooldownTimer({
 
     const calculateTimeLeft = () => {
       const now = Date.now();
-      const remaining = Math.max(0, Math.floor((unlockTime - now) / 1000));
+      const remaining = Math.max(0, Math.ceil((unlockTime - now) / 1000));
       setTimeLeft(remaining);
 
       // Auto-refresh when cooldown expires
@@ -36,8 +36,14 @@ export default function CooldownTimer({
 
     calculateTimeLeft();
     const interval = setInterval(calculateTimeLeft, 1000);
+    document.addEventListener("visibilitychange", calculateTimeLeft);
+    window.addEventListener("focus", calculateTimeLeft);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", calculateTimeLeft);
+      window.removeEventListener("focus", calculateTimeLeft);
+    };
   }, [createdAt, cooldownHours, router]);
 
   if (timeLeft === null) return null;

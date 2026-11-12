@@ -22,6 +22,11 @@ import GameShell from "./GameShell";
 import GameQuestion from "./GameQuestion";
 import ChallengeFeedback from "./ChallengeFeedback";
 import type { FeedbackState } from "@/features/missions/domain/feedback";
+import { challengeClockOrigin } from "@/lib/countdown";
+import {
+  ChallengeClockScope,
+  clearChallengeClock,
+} from "@/hooks/useChallengeClock";
 
 interface GameEngineProps {
   sessionQuestions: SessionQuestion[];
@@ -143,25 +148,14 @@ export default function GameEngine({
     }
     setCurrentDifficulty(nextDiff || "medium");
 
-    const start = Date.now();
+    let start = Date.now();
+    const attemptId = sessionQuestions[currentIndex]?.id;
+    try {
+      start = challengeClockOrigin(attemptId ?? null, start, sessionStorage);
+    } catch {}
     setQuestionStartTime(start);
     setWasHintUsed(Boolean(sessionQuestions[currentIndex]?.hint_used));
     setHintOptions(sessionQuestions[currentIndex]?.question.hint_options || []);
-
-    // Track elapsed time when component unmounts (e.g. user goes to dashboard)
-    return () => {
-      const qId = sessionQuestions[currentIndex]?.question?.id;
-      if (qId) {
-        const elapsed = Date.now() - start;
-        const accumulated = parseInt(
-          sessionStorage.getItem(`question_accumulated_${qId}`) || "0",
-        );
-        sessionStorage.setItem(
-          `question_accumulated_${qId}`,
-          (accumulated + elapsed).toString(),
-        );
-      }
-    };
   }, [currentIndex, sessionQuestions]);
 
   useEffect(() => {
@@ -205,19 +199,11 @@ export default function GameEngine({
       dynamicCorrectAnswer,
     } = options;
 
-    const accumulated = parseInt(
-      sessionStorage.getItem(
-        `question_accumulated_${currentSessionQuestion?.question?.id}`,
-      ) || "0",
-    );
     const timeSpent =
       customTimeSpent !== undefined
         ? customTimeSpent
-        : Math.floor((Date.now() - questionStartTime + accumulated) / 1000);
+        : Math.floor((Date.now() - questionStartTime) / 1000);
     const sq = currentSessionQuestion;
-
-    // Clear accumulated time for this question
-    sessionStorage.removeItem(`question_accumulated_${sq?.question?.id}`);
 
     try {
       const result = await submitAnswer(sq.id, answer, timeSpent, {
@@ -239,6 +225,7 @@ export default function GameEngine({
       }
 
       // Correctness is always decided by the server. Game-specific clients may
+      clearChallengeClock(sq.id);
       // send telemetry (for example typing accuracy or card-match mistakes),
       // but must never be able to override the scored result shown to players.
       const isCorrect = result.success === true && result.isCorrect === true;
@@ -332,13 +319,27 @@ export default function GameEngine({
   };
 
   const answerHandlerRef = useRef(handleAnswer);
+  const answerAttemptRef = useRef(currentSessionQuestion?.id);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   useEffect(() => {
     answerHandlerRef.current = handleAnswer;
+    answerAttemptRef.current = currentSessionQuestion?.id;
   });
   const stableHandleAnswer = useCallback(
-    (...args: Parameters<typeof handleAnswer>) =>
-      answerHandlerRef.current(...args),
-    [],
+    (...args: Parameters<typeof handleAnswer>) => {
+      if (
+        mounted.current &&
+        answerAttemptRef.current === currentSessionQuestion?.id
+      )
+        return answerHandlerRef.current(...args);
+    },
+    [currentSessionQuestion?.id],
   );
 
   const handleNextChallenge = async () => {
@@ -476,12 +477,17 @@ export default function GameEngine({
       );
 
     return (
-      <GameQuestion
-        question={activeQuestion!}
-        onAnswer={stableHandleAnswer}
-        isSubmitting={isSubmitting}
-        showHint={wasHintUsed}
-      />
+      <ChallengeClockScope.Provider
+        key={currentSessionQuestion.id}
+        value={currentSessionQuestion.id}
+      >
+        <GameQuestion
+          question={activeQuestion!}
+          onAnswer={stableHandleAnswer}
+          isSubmitting={isSubmitting}
+          showHint={wasHintUsed}
+        />
+      </ChallengeClockScope.Provider>
     );
   };
 

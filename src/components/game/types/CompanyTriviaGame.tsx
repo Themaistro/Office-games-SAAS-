@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import type { GameComponentPropsFor } from "@/types/game";
 import { useState, useEffect, useCallback } from "react";
 import { clsx } from "clsx";
@@ -16,38 +18,26 @@ export default function CompanyTriviaGame({
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
 
-  const [timeLeft, setTimeLeft] = useState(15);
+  const introTimeLeft = useChallengeClock(2.5, true, 0, 0.1);
+  const timeLeft = useChallengeClock(15, !showIntro && !isSubmitting, 2.5);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [lifelineUsed, setLifelineUsed] = useState(false);
 
   useEffect(() => {
     setSelectedOption(null);
     setRevealed(false);
-    setTimeLeft(15);
     setEliminatedOptions([]);
     setLifelineUsed(false);
     setShowIntro(true); // Reset intro for next question just in case
   }, [question.id]);
 
-  // Intro Sequence
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowIntro(false);
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, []);
+    if (introTimeLeft === 0) setShowIntro(false);
+  }, [introTimeLeft]);
 
   // Timer (only starts after intro)
   useEffect(() => {
-    if (!showIntro && timeLeft > 0 && !selectedOption && !isSubmitting) {
-      const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-      return () => clearInterval(timer);
-    } else if (
-      !showIntro &&
-      timeLeft === 0 &&
-      !selectedOption &&
-      !isSubmitting
-    ) {
+    if (!showIntro && timeLeft === 0 && !selectedOption && !isSubmitting) {
       handleSelect(null, true);
     }
   }, [showIntro, timeLeft, selectedOption, isSubmitting]);

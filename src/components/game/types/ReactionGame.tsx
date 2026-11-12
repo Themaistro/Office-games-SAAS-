@@ -14,12 +14,14 @@ export default function ReactionGame({
   const [gameState, setGameState] = useState<
     "idle" | "flashing" | "go" | "early" | "done" | "timeout"
   >("idle");
-  const [startTime, setStartTime] = useState<number>(0);
   const [reactionTime, setReactionTime] = useState<number | null>(null);
   const [currentColor, setCurrentColor] = useState<string>("");
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const goTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const settled = useRef(false);
+  const started = useRef(false);
+  const targetStartedAt = useRef(0);
 
   const difficulty = question.difficulty || "medium";
 
@@ -69,13 +71,15 @@ export default function ReactionGame({
       // Show Target (Green)
       setGameState("go");
       setCurrentColor("bg-green-500");
-      setStartTime(Date.now());
+      targetStartedAt.current = Date.now();
 
       // The green flash duration (they must click before it vanishes!)
       const maxGoTime =
         difficulty === "easy" ? 1000 : difficulty === "medium" ? 600 : 400;
 
       goTimerRef.current = setTimeout(() => {
+        if (settled.current) return;
+        settled.current = true;
         setGameState("timeout");
         setCurrentColor("bg-slate-800");
         onAnswer("Missed it!", {
@@ -87,6 +91,8 @@ export default function ReactionGame({
   };
 
   const startGame = () => {
+    if (started.current) return;
+    started.current = true;
     // 2 to 6 decoy flashes before green appears
     const challengeSeed = question?.content?.seed || question?.id;
     const decoyCount = seededNumber(challengeSeed, "decoy-count", 5) + 2;
@@ -94,19 +100,31 @@ export default function ReactionGame({
   };
 
   const handleClick = () => {
-    if (isSubmitting || gameState === "timeout") return;
+    if (isSubmitting || settled.current || gameState === "timeout") return;
 
     if (gameState === "idle") {
       startGame();
     } else if (gameState === "flashing") {
       // Clicked on a decoy color
       if (timerRef.current) clearTimeout(timerRef.current);
+      settled.current = true;
       setGameState("early");
       onAnswer("Wrong Color!", { customIsCorrect: false, customTimeSpent: 0 });
     } else if (gameState === "go") {
       // Success! Calculate reaction time
       if (goTimerRef.current) clearTimeout(goTimerRef.current);
-      const timeMs = Date.now() - startTime;
+      const timeMs = Math.max(0, Date.now() - targetStartedAt.current);
+      const limit =
+        difficulty === "easy" ? 1000 : difficulty === "medium" ? 600 : 400;
+      settled.current = true;
+      if (timeMs >= limit) {
+        setGameState("timeout");
+        onAnswer("Missed it!", {
+          customIsCorrect: false,
+          customTimeSpent: timeMs / 1000,
+        });
+        return;
+      }
       setReactionTime(timeMs);
       setGameState("done");
 

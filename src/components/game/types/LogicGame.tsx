@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import type { GameComponentPropsFor } from "@/types/game";
 import { useState, useEffect, useCallback } from "react";
 import { clsx } from "clsx";
@@ -14,14 +16,13 @@ export default function LogicGame({
 }: GameComponentPropsFor<"logic">) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(30);
+  const timeLeft = useChallengeClock(30, !isSubmitting);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [hintUsed, setHintUsed] = useState(false);
 
   useEffect(() => {
     setSelectedOption(null);
     setRevealed(false);
-    setTimeLeft(30);
     setEliminatedOptions([]);
     setHintUsed(false);
   }, [question.id]);
@@ -44,10 +45,7 @@ export default function LogicGame({
   }, [showHint, hintUsed, useHint]);
 
   useEffect(() => {
-    if (timeLeft > 0 && !selectedOption && !isSubmitting) {
-      const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-      return () => clearInterval(timer);
-    } else if (timeLeft === 0 && !selectedOption && !isSubmitting) {
+    if (timeLeft === 0 && !selectedOption && !isSubmitting) {
       handleSelect(null, true);
     }
   }, [timeLeft, selectedOption, isSubmitting]);

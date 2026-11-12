@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import React, { useState, useEffect, useRef } from "react";
 import type { GameComponentPropsFor } from "@/types/game";
 import { Clock, Activity, Target } from "lucide-react";
@@ -15,15 +17,18 @@ export default function TypingGame({
     question?.content?.text || "The quick brown fox jumps over the lazy dog.",
   );
   const [input, setInput] = useState("");
-  const [startTime, setStartTime] = useState<number | null>(null);
 
   const [gameState, setGameState] = useState<"prep" | "play">("prep");
-  const [prepTimeLeft, setPrepTimeLeft] = useState(5);
+  const prepTimeLeft = useChallengeClock(5);
   const timeLimit = typingTimeLimit(
     question?.content?.text || "The quick brown fox jumps over the lazy dog.",
     question?.difficulty,
   );
-  const [playTimeLeft, setPlayTimeLeft] = useState(timeLimit);
+  const playTimeLeft = useChallengeClock(
+    timeLimit,
+    gameState === "play" && !isSubmitting,
+    5,
+  );
   const [failed, setFailed] = useState(false);
 
   // Premium Stats
@@ -36,47 +41,18 @@ export default function TypingGame({
   useEffect(() => {
     if (question?.content?.text) {
       setTargetSentence(question.content.text);
-      setPlayTimeLeft(
-        typingTimeLimit(question.content.text, question.difficulty),
-      );
     }
   }, [question.id]);
 
-  // Prep Timer
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (gameState === "prep") {
-      timer = setInterval(() => {
-        setPrepTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            setGameState("play");
-            setStartTime(Date.now());
-            // Give React a tick to enable the input before focusing
-            setTimeout(() => inputRef.current?.focus(), 100);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    if (prepTimeLeft === 0 && gameState === "prep") {
+      setGameState("play");
     }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [gameState]);
+  }, [prepTimeLeft, gameState]);
 
-  // Play Timer
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (gameState === "play" && !failed && !isSubmitting && playTimeLeft > 0) {
-      timer = setInterval(() => {
-        setPlayTimeLeft((prev) => Math.max(0, prev - 1));
-      }, 1000);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [gameState, failed, isSubmitting, playTimeLeft]);
+    if (gameState === "play") inputRef.current?.focus();
+  }, [gameState]);
 
   // Handle Timeout Auto-submit
   useEffect(() => {
@@ -109,9 +85,7 @@ export default function TypingGame({
 
   const submitCurrentInput = (finalInput: string = input) => {
     if (isSubmitting) return;
-    const timeSpent = startTime
-      ? Math.floor((Date.now() - startTime) / 1000)
-      : timeLimit;
+    const timeSpent = Math.max(0, timeLimit - playTimeLeft);
 
     const { accuracy, isPerfect } = calculateScore(finalInput);
 
@@ -128,7 +102,7 @@ export default function TypingGame({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isSubmitting || gameState === "prep") return;
+    if (isSubmitting || gameState === "prep" || playTimeLeft === 0) return;
 
     const value = e.target.value;
 
@@ -160,7 +134,8 @@ export default function TypingGame({
   };
 
   // Calculate Live Stats
-  const timeElapsedMs = startTime ? Date.now() - startTime : 0;
+  const timeElapsedMs =
+    gameState === "play" ? (timeLimit - playTimeLeft) * 1000 : 0;
   const timeElapsedMinutes = timeElapsedMs / 60000;
   // WPM = (total characters / 5) / minutes
   const wpm =

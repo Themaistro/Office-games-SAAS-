@@ -1,5 +1,7 @@
 "use client";
 
+import { useChallengeClock } from "@/hooks/useChallengeClock";
+
 import type { GameComponentPropsFor } from "@/types/game";
 import { useState, useEffect } from "react";
 import { clsx } from "clsx";
@@ -37,7 +39,7 @@ export default function StroopGame({
   // Give them a bit more time because the buttons are now also confusing
   const initialTime =
     difficulty === "easy" ? 10 : difficulty === "medium" ? 8 : 6;
-  const [timeLeft, setTimeLeft] = useState(initialTime);
+  const timeLeft = useChallengeClock(initialTime, !isSubmitting, 0, 0.1);
 
   useEffect(() => {
     // Generate a mismatch on mount
@@ -97,12 +99,6 @@ export default function StroopGame({
       });
       return;
     }
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => Math.max(0, prev - 0.1));
-    }, 100);
-
-    return () => clearInterval(timer);
   }, [timeLeft, isSubmitting, initialTime, onAnswer]);
 
   const handleSelect = (selectedColorName: string) => {
