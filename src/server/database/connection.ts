@@ -56,14 +56,28 @@ async function connectClient() {
         rolcreaterole: boolean;
         rolbypassrls: boolean;
         owns_tables: boolean;
+        database_role: string;
       }>(
-        `SELECT d.company_id,r.rolsuper,r.rolcreatedb,r.rolcreaterole,r.rolbypassrls,
+        `SELECT d.company_id,r.rolname AS database_role,r.rolsuper,r.rolcreatedb,r.rolcreaterole,r.rolbypassrls,
           pg_has_role(current_user,(SELECT relowner FROM pg_class WHERE oid='public.profiles'::regclass),'USAGE') AS owns_tables
          FROM deployment_identity d CROSS JOIN pg_roles r WHERE d.id=1 AND r.rolname=current_user`,
       );
       validateCompanyIdentity(expected, rows[0]?.company_id);
-      if (process.env.NODE_ENV === "production")
-        assertRestrictedRuntimeRole(rows[0]);
+      if (process.env.NODE_ENV === "production") {
+        try {
+          assertRestrictedRuntimeRole(rows[0]);
+        } catch (error) {
+          console.error("Runtime database permissions rejected", {
+            role: rows[0]?.database_role,
+            superuser: rows[0]?.rolsuper,
+            createDatabase: rows[0]?.rolcreatedb,
+            createRole: rows[0]?.rolcreaterole,
+            bypassRowSecurity: rows[0]?.rolbypassrls,
+            ownsTables: rows[0]?.owns_tables,
+          });
+          throw error;
+        }
+      }
       verifiedConnections.set(raw, {
         companyId: expected,
         expiresAt: Date.now() + 60_000,
