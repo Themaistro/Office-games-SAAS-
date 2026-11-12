@@ -7,6 +7,7 @@ Source publication and deployment are separate operations. Do not treat a succes
 Use a separate database and credential for each company installation. Generate a unique company UUID. Existing Office Games local data uses `00000000-0000-4000-8000-000000000001`; do not reuse that ID for another company.
 
 - `DATABASE_URL`: company-scoped application runtime credential.
+- `OFFICE_GAMES_DATABASE_URL`: optional server-only runtime override. Set this to the restricted application connection on Vercel when a database integration supplies/manages the generic `DATABASE_URL`. Application reads prefer this value; operator tooling continues to use its separate migration credential.
 - `MIGRATION_DATABASE_URL`: operator/migration credential, kept out of the application runtime where possible.
 - `OFFICE_GAMES_COMPANY_ID`: server identity, matching `deployment_identity`.
 - `NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID`: same ID, set **before building** the browser bundle.

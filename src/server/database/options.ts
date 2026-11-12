@@ -15,8 +15,9 @@ function bounded(
 }
 
 export function databasePoolOptions(env: Environment): PoolConfig {
-  if (!env.DATABASE_URL) throw new Error("DATABASE_URL is required at runtime");
-  const url = new URL(env.DATABASE_URL);
+  const connectionString = env.OFFICE_GAMES_DATABASE_URL || env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL is required at runtime");
+  const url = new URL(connectionString);
   if (!["postgres:", "postgresql:"].includes(url.protocol))
     throw new Error("DATABASE_URL must use PostgreSQL");
   const privateHost = [

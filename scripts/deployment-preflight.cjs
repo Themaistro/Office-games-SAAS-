@@ -14,7 +14,7 @@ async function main(){
   const passwordMin=Number(process.env.REGISTRATION_PASSWORD_MIN_LENGTH??12);
   add('new-password-policy',Number.isInteger(passwordMin)&&passwordMin>=12&&passwordMin<=64?'pass':strict?'fail':'warn','Recommended new-password minimum is at least 12; existing accounts are not changed.');
   add('realtime',process.env.ABLY_API_KEY?'pass':'warn',process.env.ABLY_API_KEY?'Server publisher credential configured; capability/delivery test still required.':'Polling fallback only; verify expected realtime behavior before launch.');
-  const url=new URL(process.env.DATABASE_URL||'');
+  const url=new URL(process.env.OFFICE_GAMES_DATABASE_URL||process.env.DATABASE_URL||'');
   if(!['localhost','127.0.0.1','[::1]'].includes(url.hostname)&&!process.argv.includes('--allow-remote'))throw new Error('Remote read-only checks require --allow-remote');
   const c=new Client(postgresConfig(url.toString()));await c.connect();
   try{
