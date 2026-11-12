@@ -11,6 +11,7 @@ import { createSession, createUser } from "./authentication";
 import { findInvitation } from "./invitations";
 import { logServerFailure } from "@/server/observability";
 import type { parseRegistration } from "../domain/credentials";
+import { resolveRegistrationMode } from "../domain/credentials";
 import { cleanExpiredIdentityRecords } from "./session-maintenance";
 
 let nextMaintenanceAt = 0;
@@ -27,12 +28,7 @@ const dummyHash =
   "$2b$12$lXvZliX01NbOuJadGPNMRO01hK7vSvBCmsh9b1woRw/OFflTBbk1W";
 
 export function registrationMode() {
-  const mode =
-    process.env.REGISTRATION_MODE ??
-    (process.env.NODE_ENV === "production" ? "invite" : "open");
-  if (mode !== "open" && mode !== "invite")
-    throw new Error("Invalid registration mode");
-  return mode;
+  return resolveRegistrationMode(process.env.REGISTRATION_MODE);
 }
 
 export function registrationPasswordMinimum() {

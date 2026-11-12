@@ -34,3 +34,9 @@ export function parseRegistration(form: FormData) {
     return null;
   return { ...credentials, fullName, department, position, invitationToken };
 }
+export function resolveRegistrationMode(value?: string) {
+  const mode = value ?? "open";
+  if (mode !== "open" && mode !== "invite")
+    throw new Error("Invalid registration mode");
+  return mode;
+}

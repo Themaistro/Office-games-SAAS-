@@ -48,3 +48,6 @@ Cleanup is bounded and opportunistic through shared database leases; invite vali
 ## Remaining validation boundaries
 
 All code changes are local. No GitHub push, Neon migration or Vercel deployment was performed. Hosted connection budgets, provider/pooler behavior, real multi-browser Ably disconnect/fan-out tests, prolonged mixed move/read/write workloads and production security testing remain separate tasks. They cannot be established by this local regression suite. Some generic legacy repositories and large UI components remain; the feature boundaries and tested workflows provide a basis for incremental cleanup rather than a claim of complete repository conversion.
+
+
+Update — 12 November 2026: at the owner's request, registration now defaults to open consistently across local, Docker and Vercel. The invite-only default described above records the earlier audit state.

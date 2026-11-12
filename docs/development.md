@@ -41,7 +41,7 @@ Bootstrap is for an empty database only. For an existing Office Games database, 
 | `DATABASE_STATEMENT_TIMEOUT_MS`        | Query execution bound, default `15000`.                                                       |
 | `DATABASE_LOCK_TIMEOUT_MS`             | Database lock wait bound, default `5000`.                                                     |
 | `DATABASE_IDLE_TRANSACTION_TIMEOUT_MS` | Idle transaction bound, default `15000`.                                                      |
-| `REGISTRATION_MODE`                    | `open` or `invite`; example/production default is invite-only.                                |
+| `REGISTRATION_MODE`                    | `open` or `invite`; default is open in local, Docker and hosted environments.                                |
 | `REGISTRATION_PASSWORD_MIN_LENGTH`     | New registration minimum, example `12`; existing passwords are unchanged.                     |
 | `ADMIN_SESSION_MAX_AGE_HOURS`          | Administrator login lifetime, default `8` (range 1–24).                                       |
 | `ABLY_API_KEY`                         | Optional server-only publisher key. Scoped browser tokens come from `/api/realtime`.          |
@@ -56,7 +56,7 @@ npm run dev
 
 Open [localhost:3000](http://localhost:3000), register a local account, and use separate browser profiles or private windows for multiplayer testing. There are no universal test/admin passwords. To assign an administrator in your own local database, identify the intended account and update only its profile role to `admin` using your database client; sign in again afterward.
 
-For a fresh installation using the invite-only example, temporarily set `REGISTRATION_MODE=open` in `.env.local` to register the first local account. Restore invite-only mode when required; an administrator can then create invitation links. Email verification is not implemented, so open registrations are not marked verified.
+Registration is currently open by default, so a new employee can register without an invitation. If invitation-only onboarding is enabled later, explicitly set `REGISTRATION_MODE=invite` consistently in the relevant environments. Email verification is not implemented, so open registrations are not marked verified.
 
 Use a restricted application role for `DATABASE_URL`. Store the local operator connection separately as `MIGRATION_DATABASE_URL=...` in ignored `.env.migrations.local`; Next.js does not load that file. The local migration and fresh-database test commands read it explicitly. Provision the runtime role with `scripts/provision-runtime-role.cjs` using operator-only environment variables as described in the deployment runbook. Do not put the operator credential in hosted application settings.
 

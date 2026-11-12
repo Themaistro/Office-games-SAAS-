@@ -1,11 +1,15 @@
 require('./register-typescript.cjs');
 const assert=require('node:assert/strict');
-const {parseCredentials,parseRegistration}=require('../src/features/identity/domain/credentials.ts');
+const {parseCredentials,parseRegistration,resolveRegistrationMode}=require('../src/features/identity/domain/credentials.ts');
 const {parseProfileInput}=require('../src/features/players/domain/profile-input.ts');
 const {isTrustedMutation}=require('../src/server/http/mutation-origin.ts');
 const {authenticate}=require('../src/features/identity/application/authenticate.ts');
 const {latestActivityByUser}=require('../src/features/reporting/domain/activity.ts');
 async function main(){
+  assert.equal(resolveRegistrationMode(), 'open');
+  assert.equal(resolveRegistrationMode('open'), 'open');
+  assert.equal(resolveRegistrationMode('invite'), 'invite');
+  assert.throws(()=>resolveRegistrationMode('invalid'), /Invalid registration mode/);
   const form=new FormData();assert.equal(parseCredentials(form),null);
   form.set('email',new Blob(['bad']),'file');form.set('password','123');assert.equal(parseCredentials(form),null);
   form.set('email',' TEST1@Test.com ');assert.deepEqual(parseCredentials(form),{email:'test1@test.com',password:'123'});

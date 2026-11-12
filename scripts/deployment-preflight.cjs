@@ -9,7 +9,7 @@ async function main(){
   const expected=process.env.OFFICE_GAMES_COMPANY_ID;
   if(!expected||expected!==process.env.NEXT_PUBLIC_OFFICE_GAMES_COMPANY_ID)add('company-config','fail','Supply matching server and build company IDs.');
   if(process.env.MIGRATION_DATABASE_URL)add('credential-separation','fail','Remove the operator credential from the application environment.');
-  const mode=process.env.REGISTRATION_MODE||'invite';
+  const mode=process.env.REGISTRATION_MODE||'open';
   add('registration',mode==='invite'?'pass':strict?'fail':'warn',mode==='invite'?'Invitation-only registration.':'Open registration is configured; choose this deliberately before launch.');
   const passwordMin=Number(process.env.REGISTRATION_PASSWORD_MIN_LENGTH??12);
   add('new-password-policy',Number.isInteger(passwordMin)&&passwordMin>=12&&passwordMin<=64?'pass':strict?'fail':'warn','Recommended new-password minimum is at least 12; existing accounts are not changed.');
