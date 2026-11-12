@@ -35,6 +35,7 @@ Dated reports record the work and limitations observed at that time. They are hi
 - [Security and scaling remediation — 10 November](security-scale-remediation-2026-11-10.md)
 - [API and database request budget — 10 November](api-request-budget-2026-11-10.md)
 - [Production preparation — 10 November](production-preparation-audit-2026-11-10.md)
+- [Timer behavior and edge cases — 10 November](timer-audit-2026-11-10.md)
 
 <details>
 <summary>Earlier reports</summary>
