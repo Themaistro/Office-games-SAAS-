@@ -1,6 +1,7 @@
 import "server-only";
 import migrations from "../../db/runtime-migrations.json";
 import { query } from "./database/connection";
+import { logServerFailure } from "./observability";
 
 export async function checkReadiness() {
   try {
@@ -12,7 +13,8 @@ export async function checkReadiness() {
       ready: rows.length === 0,
       missingMigrations: rows.map((row) => row.name),
     };
-  } catch {
+  } catch (error) {
+    logServerFailure("readiness.database", error);
     return { ready: false, missingMigrations: [] as string[] };
   }
 }
